@@ -1,7 +1,6 @@
 module.exports.getMessage = async (req, res) => {
-  console.log("hi from backend");
   res.json({
-    message: "hyo",
+    message: "meow",
   });
 };
 
