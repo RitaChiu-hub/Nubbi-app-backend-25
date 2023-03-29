@@ -6,7 +6,7 @@ const host = "0.0.0.0";
 const myRouter = require("./routers.js");
 const helmet = require("helmet");
 const authRouter = require("./routers/authRouter");
-// const { Server } = require("socket.io");
+const { Server } = require("socket.io");
 const pool = require("./db");
 
 app.use(bodyParser.json());
@@ -22,6 +22,22 @@ app.get("/", function (req, res) {
 
 app.get("/helloworld", function (req, res) {
   res.status(200).json({ message: "hello world" });
+});
+
+const server = require("http").createServer(app);
+const io = new Server(server, {
+  // cors: {
+  //   origin: "https://nuubi-demo-2.herokuapp.com",
+  //   credentials: true,
+  // },
+});
+
+io.on("connection", (socket) => {
+  console.log("a user connected");
+
+  socket.on("disconnect", () => {
+    console.log("user disconnected");
+  });
 });
 
 app.listen(PORT, host, function () {
