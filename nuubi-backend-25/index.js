@@ -11,6 +11,7 @@ const groupRouter = require("./routers/groupRouter");
 const groupchatRouter = require("./routers/groupchatRouter");
 const { Server } = require("socket.io");
 const pool = require("./db");
+const cors = require("cors");
 
 app.use(bodyParser.json());
 app.use(express.json());
