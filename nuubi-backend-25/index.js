@@ -36,7 +36,8 @@ const io = new Server(server, {
   cors: {
     // origin: "https://coral-app-n96bn.ondigitalocean.app",
     // origin: "http://localhost:8080",
-    origin: "127.0.0.1:3000",
+    //origin: "127.0.0.1:3000",
+    origin: "http://localhost:3000",
     credentials: true,
   },
 });
@@ -210,7 +211,8 @@ app.use(
   cors({
     //  origin: "https://coral-app-n96bn.ondigitalocean.app",
     //  origin: "http://localhost:8080",
-    origin: "127.0.0.1:3000",
+    //  origin: "127.0.0.1:3000",
+    origin: "http://localhost:3000",
     credentials: true,
   })
 );
