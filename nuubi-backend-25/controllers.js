@@ -6,6 +6,6 @@ module.exports.getMessage = async (req, res) => {
 
 module.exports.getMessage2 = async (req, res) => {
   res.json({
-    message: "meow",
+    message: "blah blah blah",
   });
 };
