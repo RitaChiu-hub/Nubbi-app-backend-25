@@ -5,14 +5,14 @@ const app = express();
 const host = "0.0.0.0";
 const myRouter = require("./routers.js");
 const helmet = require("helmet");
-// const authRouter = require("./routers/authRouter");
+const authRouter = require("./routers/authRouter");
 // const { Server } = require("socket.io");
 const pool = require("./db");
 
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(helmet());
-// app.use("/auth", authRouter);
+app.use("/auth", authRouter);
 
 app.use("/backend", myRouter);
 
