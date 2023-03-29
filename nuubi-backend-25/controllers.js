@@ -1,11 +1,11 @@
 module.exports.getMessage = async (req, res) => {
   res.json({
-    message: "meow meow",
+    message: "testing again",
   });
 };
 
 module.exports.getMessage2 = async (req, res) => {
   res.json({
-    message: "blah blah blah",
+    message: "once again",
   });
 };

@@ -143,6 +143,6 @@ module.exports.attemptRegister = async (req, res) => {
 
 module.exports.getMessage = async (req, res) => {
   res.json({
-    message: "it worked",
+    message: "test test",
   });
 };
