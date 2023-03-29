@@ -33,11 +33,11 @@ app.get("/helloworld", function (req, res) {
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
-  // cors: {
-  //   //  origin: "https://coral-app-n96bn.ondigitalocean.app",
-  //   origin: "0.0.0.0",
-  //   credentials: true,
-  // },
+  cors: {
+    //  origin: "https://coral-app-n96bn.ondigitalocean.app",
+    origin: allowedOrigins,
+    credentials: true,
+  },
 });
 
 io.on("connection", (socket) => {
@@ -205,13 +205,13 @@ io.on("connection", (socket) => {
   });
 });
 
-// app.use(
-//   cors({
-//     //  origin: "https://coral-app-n96bn.ondigitalocean.app",
-//     origin: "0.0.0.0",
-//     credentials: true,
-//   })
-// );
+app.use(
+  cors({
+    //  origin: "https://coral-app-n96bn.ondigitalocean.app",
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 
 app.listen(PORT, host, function () {
   console.log("listening on port " + PORT);
