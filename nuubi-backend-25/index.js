@@ -36,6 +36,7 @@ const io = new Server(server, {
   cors: {
     //  origin: "https://coral-app-n96bn.ondigitalocean.app",
     origin: allowedOrigins,
+    methods: ["GET", "POST"],
     credentials: true,
   },
 });
@@ -209,6 +210,7 @@ app.use(
   cors({
     //  origin: "https://coral-app-n96bn.ondigitalocean.app",
     origin: allowedOrigins,
+    methods: ["GET", "POST"],
     credentials: true,
   })
 );
