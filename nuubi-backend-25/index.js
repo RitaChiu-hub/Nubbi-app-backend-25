@@ -34,7 +34,8 @@ app.get("/helloworld", function (req, res) {
 const server = require("http").createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://coral-app-n96bn.ondigitalocean.app",
+    // origin: "https://coral-app-n96bn.ondigitalocean.app",
+    origin: "http://localhost:8080",
     // origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
@@ -208,8 +209,8 @@ io.on("connection", (socket) => {
 
 app.use(
   cors({
-    origin: "https://coral-app-n96bn.ondigitalocean.app",
-    // origin: allowedOrigins,
+    //  origin: "https://coral-app-n96bn.ondigitalocean.app",
+    origin: "http://localhost:8080",
     methods: ["GET", "POST"],
     credentials: true,
   })
