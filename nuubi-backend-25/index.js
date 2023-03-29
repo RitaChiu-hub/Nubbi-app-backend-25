@@ -46,6 +46,7 @@ io.on("connection", (socket) => {
   console.log("a user connected");
 
   socket.on("insert msg return updated list", (req) => {
+    console.log("helloooooooo");
     const firstQuery = pool.query(
       "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
       [req.userId, req.currentGroup, req.mymessage]
