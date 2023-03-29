@@ -6,6 +6,9 @@ const host = "0.0.0.0";
 const myRouter = require("./routers.js");
 const helmet = require("helmet");
 const authRouter = require("./routers/authRouter");
+const settingsRouter = require("./routers/settingsRouter");
+const groupRouter = require("./routers/groupRouter");
+const groupchatRouter = require("./routers/groupchatRouter");
 const { Server } = require("socket.io");
 const pool = require("./db");
 
@@ -13,6 +16,9 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(helmet());
 app.use("/auth", authRouter);
+app.use("/settings", settingsRouter);
+app.use("/groups", groupRouter);
+app.use("/groupchat", groupchatRouter);
 
 app.use("/backend", myRouter);
 
