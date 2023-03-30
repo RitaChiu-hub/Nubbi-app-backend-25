@@ -104,11 +104,11 @@ module.exports.attemptRegister = async (req, res) => {
         "INSERT INTO users(email, username, passhash) values($1,$2,$3) RETURNING id, username",
         [req.body.email, req.body.username, hashedPass]
       );
-      // add this later after adding the nuubi group
-      // const joinNuubiGroupQuery = await pool.query(
-      //   "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 7, false) RETURNING id, user_id, group_id",
-      //   [newUserQuery.rows[0].id]
-      // );
+      // 3 for prod with digitalocean db, 7 for localhost db
+      const joinNuubiGroupQuery = await pool.query(
+        "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
+        [newUserQuery.rows[0].id]
+      );
       jwtSign(
         {
           username: req.body.username,
