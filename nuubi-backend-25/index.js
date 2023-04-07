@@ -54,7 +54,7 @@ io.on("connection", (socket) => {
     );
 
     pool.query(
-      "SELECT username sender_username, text, messages.id messages_id, to_json(messages.created_at) iso_time_sent FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1 ORDER BY messages.created_at DESC",
+      "SELECT username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1 ORDER BY messages.created_at DESC",
       [req.currentGroup],
       (err, res) => {
         if (err) throw err;
@@ -70,7 +70,7 @@ io.on("connection", (socket) => {
     );
 
     pool.query(
-      "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, to_json(post_comments.created_at) comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
+      "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
       [req.currentPost],
       (err, res) => {
         if (err) throw err;
