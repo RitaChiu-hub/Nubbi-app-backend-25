@@ -340,6 +340,11 @@ module.exports.handleGetPostComments = async (req, res) => {
 };
 
 module.exports.handleAddPostPoint = async (req, res) => {
+  const pointGiven = await pool.query(
+    "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and posts_id = $2",
+    [req.body.userId, req.body.currentPost]
+  );
+
   const getRecipientId = await pool.query(
     "SELECT sender_id FROM posts WHERE id = $1;",
     [req.body.currentPost]
@@ -347,17 +352,32 @@ module.exports.handleAddPostPoint = async (req, res) => {
 
   const recipient_id = getRecipientId.rows[0].sender_id;
 
-  // add a conditional that checks to make sure the user hasn't already given this post a point before
+  if (pointGiven.rows[0].sum == null) {
+    const newPostPoint = await pool.query(
+      "INSERT INTO points(recipient_id, giver_id, posts_id, group_id) values($1,$2,$3,$4);",
+      [
+        recipient_id,
+        req.body.userId,
+        req.body.currentPost,
+        req.body.currentGroup,
+      ]
+    );
 
-  const newPostPoint = await pool.query(
-    "INSERT INTO points(recipient_id, giver_id, posts_id, group_id) values($1,$2,$3,$4);",
-    [recipient_id, req.body.userId, req.body.currentPost, req.body.currentGroup]
-  );
+    res.json({
+      ...req.body,
+      status: "added a point",
+    });
+  } else {
+    const deletePostPoint = await pool.query(
+      "DELETE FROM points WHERE giver_id = $1 AND posts_id = $2;",
+      [req.body.userId, req.body.currentPost]
+    );
 
-  res.json({
-    ...req.body,
-    status: "added a point",
-  });
+    res.json({
+      ...req.body,
+      status: "deleted a point",
+    });
+  }
 };
 
 module.exports.handleAddMessagePoint = async (req, res) => {
