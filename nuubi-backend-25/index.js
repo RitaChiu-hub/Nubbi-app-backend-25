@@ -27,23 +27,17 @@ const cors = require("cors");
 //   res.status(200).json({ message: "hello world" });
 // });
 
-// app.use(cors({ origin: true, credentials: true }));
-
-app.use(
-  cors({
-    origin: "https://coral-app-n96bn.ondigitalocean.app",
-    credentials: true,
-  })
-);
+app.use(cors({ origin: true, credentials: true }));
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://coral-app-n96bn.ondigitalocean.app",
+    // origin: "https://coral-app-n96bn.ondigitalocean.app",
     // origin: "http://localhost:8080",
     //origin: "127.0.0.1:3000",
     //  origin: "http://localhost:3000",
     // origin: "*",
+    origin: true,
     credentials: true,
   },
 });
