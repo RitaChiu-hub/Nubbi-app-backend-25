@@ -27,9 +27,9 @@ app.use("/backend", myRouter);
 //   res.status(200).json({ message: "nothing" });
 // });
 
-// app.get("/helloworld", function (req, res) {
-//   res.status(200).json({ message: "hello world" });
-// });
+app.get("/helloworld", function (req, res) {
+  res.status(200).json({ message: "hello world" });
+});
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
