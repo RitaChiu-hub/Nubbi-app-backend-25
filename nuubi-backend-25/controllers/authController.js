@@ -19,6 +19,8 @@ module.exports.handleLogin = async (req, res) => {
         [decoded.username]
       );
       console.log("decoded username is : " + decoded.username);
+      console.log("potential user rowcount : " + potentialUser.rowCount);
+
       if (potentialUser.rowCount === 0) {
         res.json({ loggedIn: false, token: null });
         return;
