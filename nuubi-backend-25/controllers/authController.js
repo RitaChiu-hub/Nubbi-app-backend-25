@@ -18,7 +18,7 @@ module.exports.handleLogin = async (req, res) => {
         "SELECT username FROM users u WHERE u.username = $1",
         [decoded.username]
       );
-
+      console.log("decoded username is : " + decoded.username);
       if (potentialUser.rowCount === 0) {
         res.json({ loggedIn: false, token: null });
         return;
