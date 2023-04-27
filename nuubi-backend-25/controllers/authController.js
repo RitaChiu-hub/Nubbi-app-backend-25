@@ -5,7 +5,7 @@ const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 module.exports.handleLogin = async (req, res) => {
   console.log("hi");
   const token = getJwt(req);
-  console.log(token);
+  console.log("the token from the request" + token);
 
   if (!token) {
     res.json({ loggedIn: false });
@@ -33,6 +33,7 @@ module.exports.handleLogin = async (req, res) => {
     })
     .catch(() => {
       res.json({ loggedIn: false });
+      console.log("jwt verify failed");
     });
 };
 
