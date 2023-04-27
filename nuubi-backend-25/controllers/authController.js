@@ -3,7 +3,9 @@ const bcrypt = require("bcrypt");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
 module.exports.handleLogin = async (req, res) => {
+  console.log("hi");
   const token = getJwt(req);
+  console.log(token);
 
   if (!token) {
     res.json({ loggedIn: false });
