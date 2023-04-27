@@ -24,14 +24,15 @@ module.exports.handleLogin = async (req, res) => {
       if (potentialUser.rowCount === 0) {
         res.json({ loggedIn: false, token: null });
         return;
+      } else {
+        console.log("this user does exist... ");
+        res.json({
+          loggedIn: true,
+          token,
+          userId: potentialLogin.rows[0].id,
+          username: req.body.username,
+        });
       }
-
-      res.json({
-        loggedIn: true,
-        token,
-        userId: potentialLogin.rows[0].id,
-        username: req.body.username,
-      });
     })
     .catch(() => {
       res.json({ loggedIn: false });
