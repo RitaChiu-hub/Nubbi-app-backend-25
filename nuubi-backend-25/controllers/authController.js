@@ -3,9 +3,7 @@ const bcrypt = require("bcrypt");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
 module.exports.handleLogin = async (req, res) => {
-  console.log("hi");
   const token = getJwt(req);
-  console.log("the token from the request is " + token);
 
   if (!token) {
     res.json({ loggedIn: false });
@@ -15,17 +13,13 @@ module.exports.handleLogin = async (req, res) => {
   jwtVerify(token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const potentialUser = await pool.query(
-        "SELECT username FROM users u WHERE u.username = $1",
+        "SELECT username, id FROM users u WHERE u.username = $1",
         [decoded.username]
       );
-      console.log("decoded username is : " + decoded.username);
-      console.log("potential user rowcount : " + potentialUser.rowCount);
-
       if (potentialUser.rowCount === 0) {
         res.json({ loggedIn: false, token: null });
         return;
       } else {
-        console.log("this user does exist... ");
         res.json({
           loggedIn: true,
           token,
@@ -34,9 +28,8 @@ module.exports.handleLogin = async (req, res) => {
         });
       }
     })
-    .catch(() => {
+    .catch(async () => {
       res.json({ loggedIn: false });
-      console.log("jwt verify failed");
     });
 };
 
