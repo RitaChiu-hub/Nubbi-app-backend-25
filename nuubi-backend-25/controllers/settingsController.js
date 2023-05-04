@@ -148,7 +148,7 @@ module.exports.handleGeneratePasscode = async (req, res) => {
 
       // send mail with defined transport object
       let info = await transporter.sendMail({
-        from: "Nuubi support team " + process.env.EMAIL_USER, // sender address
+        from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
         // to: "email@email.com", // list of receivers
         to: userEmail,
         subject: "Requested password reset code", // Subject line
