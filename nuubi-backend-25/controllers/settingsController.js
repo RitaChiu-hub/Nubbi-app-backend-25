@@ -126,8 +126,8 @@ module.exports.handleUpdatePassword = async (req, res) => {
 
 module.exports.handleGeneratePasscode = async (req, res) => {
   const existingUser = await pool.query(
-    "SELECT username, email from users WHERE email=$1",
-    [req.body.email]
+    "SELECT username, email from users WHERE email=$1 OR username=$2",
+    [req.body.email, req.body.username]
   );
 
   if (existingUser.rowCount != 0) {
