@@ -19,19 +19,19 @@ require("dotenv").config();
 router.post("/delete", handleDeleteAccount);
 router.post(
   "/updateusername",
-  // validateChangeUsernameForm,
+  validateChangeUsernameForm,
   handleUpdateUsername
 );
 router.post(
   "/updatepassword",
-  //  validateChangePasswordForm,
+  validateChangePasswordForm,
   handleUpdatePassword
 );
 router.post("/generatepasscode", handleGeneratePasscode);
 
 router.post(
   "/forgotpassword",
-  // validateForgotPasswordForm,
+  validateForgotPasswordForm,
   handleForgotPassword
 );
 
