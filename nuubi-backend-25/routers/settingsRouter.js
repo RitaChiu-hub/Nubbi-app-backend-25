@@ -17,6 +17,7 @@ const validateForgotPasswordForm = require("../controllers/validation/validateFo
 require("dotenv").config();
 
 router.post("/delete", handleDeleteAccount);
+
 router.post(
   "/updateusername",
   validateChangeUsernameForm,

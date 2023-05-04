@@ -14,7 +14,6 @@ module.exports.handleDeleteAccount = async (req, res) => {
       req.body.passattempt,
       existingUser.rows[0].passhash
     );
-
     if (isSamePass) {
       const deleteParticipantsQuery = await pool.query(
         "DELETE FROM participants WHERE user_id = $1",
@@ -52,7 +51,7 @@ module.exports.handleDeleteAccount = async (req, res) => {
       );
       res.json({ loggedIn: false, status: "User successfully deleted" });
     } else {
-      res.json({ username: req.body.username, status: "Wrong password!" });
+      res.json({ ...req.body, status: "Wrong password!" });
     }
   } else {
     res.json({ loggedIn: false, status: "User does not exist" });
@@ -82,18 +81,19 @@ module.exports.handleUpdateUsername = async (req, res) => {
         [req.body.username, req.body.newusername]
       );
       res.json({
+        ...req.body,
         loggedIn: true,
         username: req.body.newusername,
         status: "Username successfully updated",
       });
     } else {
       res.json({
-        username: req.body.username,
+        ...req.body,
         status: "Username is already taken!",
       });
     }
   } else {
-    res.json({ username: req.body.username, status: "Wrong password!" });
+    res.json({ ...req.body, status: "Wrong password!" });
   }
 };
 
@@ -114,12 +114,13 @@ module.exports.handleUpdatePassword = async (req, res) => {
     );
 
     res.json({
+      ...req.body,
       loggedIn: true,
       username: req.body.username,
       status: "password successfully updated",
     });
   } else {
-    res.json({ username: req.body.username, status: "Wrong password!" });
+    res.json({ ...req.body, status: "Wrong password!" });
   }
 };
 
