@@ -154,7 +154,7 @@ module.exports.handleGeneratePasscode = async (req, res) => {
         subject: "Requested password reset code", // Subject line
         // text: "Wait where is this text?", // plain text body
         html:
-          "<b>You requested a password reset! This is your code. If you didn't request a reset, you can ignore this message and nothing will happen. CODE: </b>" +
+          "<b>You requested a password reset! This is your code. If you didn't request a reset, you can safely ignore this message. CODE: </b>" +
           req.body.mypasscode, // html body
       });
 
