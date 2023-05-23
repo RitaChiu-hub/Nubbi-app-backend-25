@@ -11,7 +11,7 @@ const formSignupSchema = Yup.object({
     .email("Valid email required"),
   username: Yup.string()
     .required("Username required")
-    .min(6, "Username must be at least 6 characters")
+    .min(4, "Username must be at least 4 characters")
     .max(12, "Username can be maximum 12 characters")
     .matches(
       /^[a-zA-Z0-9]+$/,
@@ -70,7 +70,7 @@ const createGroupSchema = Yup.object({
   groupname: Yup.string()
     .required("Name is required")
     .min(1, "name must be at least one character")
-    .max(35, "name cannot exceed 35 characters"),
+    .max(25, "name cannot exceed 25 characters"),
   description: Yup.string()
     .required("Description is required")
     .min(1, "description must be at least 1 character")
