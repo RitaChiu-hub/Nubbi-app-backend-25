@@ -70,7 +70,7 @@ const createGroupSchema = Yup.object({
   groupname: Yup.string()
     .required("Name is required")
     .min(1, "name must be at least one character")
-    .max(25, "name cannot exceed 25 characters"),
+    .max(35, "name cannot exceed 35 characters"),
   description: Yup.string()
     .required("Description is required")
     .min(1, "description must be at least 1 character")
