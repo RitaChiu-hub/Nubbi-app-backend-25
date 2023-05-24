@@ -311,9 +311,8 @@ module.exports.handleGetPostInfo = async (req, res) => {
 module.exports.handleGetGroupInfo = async (req, res) => {
   const getGroupInfoQuery = await pool.query(
     // "SELECT name groupname, description, is_public FROM groups WHERE id = $1;",
-    "SELECT name groupname, description, is_public, participants.id admin_id FROM groups LEFT JOIN participants ON groups.id = participants.group_id WHERE groups.id=$1 and participants.is_admin=true;"[
-      req.body.currentGroup
-    ]
+    "SELECT name groupname, description, is_public, participants.id admin_id FROM groups LEFT JOIN participants ON groups.id = participants.group_id WHERE groups.id=$1 and participants.is_admin=true;",
+    [req.body.currentGroup]
   );
   res.send(getGroupInfoQuery.rows[0]);
 };
