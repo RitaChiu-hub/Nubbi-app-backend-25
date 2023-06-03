@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const {
-	addMessage,
-	getMessages,
-	getLikes,
+  addMessage,
+  getMessages,
+  getLikes,
 } = require("../controllers/groupChatController");
 const validateAddMessage = require("../controllers/validation/validateMessage");
 
