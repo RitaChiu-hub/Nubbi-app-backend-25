@@ -4,6 +4,7 @@ const {
   addMessage,
   getMessages,
   getLikes,
+  uploadImage,
 } = require("../controllers/groupChatController");
 const validateAddMessage = require("../controllers/validation/validateMessage");
 
@@ -11,5 +12,6 @@ const validateAddMessage = require("../controllers/validation/validateMessage");
 router.post("/addmessage", validateAddMessage, addMessage);
 router.post("/getmessages", getMessages);
 router.post("/getlikes", getLikes);
+router.post("/uploadimage", uploadImage);
 
 module.exports = router;

@@ -28,3 +28,15 @@ module.exports.getLikes = async (req, res) => {
   );
   res.send(getLikesQuery.rows);
 };
+
+module.exports.uploadImage = async (req, res) => {
+  console.log(req);
+  // const uploadImageQuery = await pool.query(
+  //   "SELECT messages_id FROM points WHERE giver_id = $1 AND group_id = $2;",
+  //   [req.body.userId, req.body.currentGroup]
+  // );
+  res.json({
+    ...req.body,
+    status: "Accessed API",
+  });
+};
