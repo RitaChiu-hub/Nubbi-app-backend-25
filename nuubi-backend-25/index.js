@@ -64,8 +64,8 @@ io.on("connection", (socket) => {
   socket.on("insert msg return updated list", (req) => {
     console.log("helloooooooo");
     const firstQuery = pool.query(
-      "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
-      [req.userId, req.currentGroup, req.mymessage]
+      "INSERT INTO messages(sender_id, group_id, text, image) values ($1, $2, $3, encode($4::bytea, 'base64')",
+      [req.userId, req.currentGroup, req.mymessage, req.myBase64Data]
     );
 
     pool.query(
