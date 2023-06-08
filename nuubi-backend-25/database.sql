@@ -324,3 +324,7 @@ SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id
      select post_id, count(id) number_comments from post_comments group by post_id
  ) d 
  on c.post_id = d.post_id;
+
+-- adding images to messages
+ ALTER TABLE messages
+ADD COLUMN image bytea;
