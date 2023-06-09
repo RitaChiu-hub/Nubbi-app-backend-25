@@ -33,7 +33,7 @@ module.exports.uploadImage = async (req, res) => {
   console.log(req.body);
   const uploadImageQuery = await pool.query(
     "INSERT INTO practice_pics(image) values($1)",
-    ["abc"]
+    [req.body]
   );
 
   res.json({
