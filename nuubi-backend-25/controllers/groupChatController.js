@@ -31,7 +31,8 @@ module.exports.getLikes = async (req, res) => {
 
 module.exports.getImage = async (req, res) => {
   const getImageQuery = await pool.query(
-    "SELECT image FROM practice_pics WHERE id = 15 ;"
+    "SELECT image FROM practice_pics WHERE id = $1 ;",
+    [15]
   );
   res.send(getImageQuery.rows);
 };
