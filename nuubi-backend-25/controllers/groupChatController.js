@@ -31,12 +31,14 @@ module.exports.getLikes = async (req, res) => {
 
 module.exports.uploadImage = async (req, res) => {
   const uploadImageQuery = await pool.query(
-    "INSERT INTO practice_pics(image) values($1)",
+    "INSERT INTO practice_pics(image) values($1) RETURNING image",
     [req.body.groupName]
   );
 
+  const newImage = uploadImageQuery.rows[0].image;
+
   res.json({
     ...req.body,
-    status: "Accessed API",
+    status: newImage,
   });
 };
