@@ -32,8 +32,8 @@ module.exports.getLikes = async (req, res) => {
 module.exports.uploadImage = async (req, res) => {
   console.log(req.body);
   const uploadImageQuery = await pool.query(
-    "INSERT INTO practice_pics(image) values ($1)",
-    [req.body]
+    "INSERT INTO practice_pics(image) values($1)",
+    ["abc"]
   );
 
   res.json({
