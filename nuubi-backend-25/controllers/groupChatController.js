@@ -33,7 +33,7 @@ module.exports.getImage = async (req, res) => {
   const getImageQuery = await pool.query(
     "SELECT image_base64 FROM practice_pics WHERE id = 32;"
   );
-  res.send(getImageQuery.rows[0].image_base64);
+  res.send(getImageQuery.rows[0]);
 };
 
 module.exports.uploadImage = async (req, res) => {
