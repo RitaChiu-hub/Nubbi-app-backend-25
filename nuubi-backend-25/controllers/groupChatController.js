@@ -31,19 +31,17 @@ module.exports.getLikes = async (req, res) => {
 
 module.exports.uploadImage = async (req, res) => {
   console.log(req.body);
-  // const uploadImageQuery = await pool.query(
-  //   "INSERT INTO messages(sender_id, group_id, text, image) values ($1, $2, $3, $4)",
-  //   [
-  //     req.body.userId,
-  //     req.body.currentGroup,
-  //     req.body.mymessage,
-  //     req.body.myImageData,
-  //   ]
-  // );
+  const uploadImageQuery = await pool.query(
+    "INSERT INTO messages(sender_id, group_id, text, image) values ($1, $2, $3, $4)",
+    [
+      req.body.userId,
+      req.body.currentGroup,
+      req.body.mymessage,
+      req.body.myImageData,
+    ]
+  );
   res.json({
     ...req.body,
-    //   myImageData: req.body.myImageData,
-    myImageData: req.body,
     status: "Accessed API",
   });
 };
