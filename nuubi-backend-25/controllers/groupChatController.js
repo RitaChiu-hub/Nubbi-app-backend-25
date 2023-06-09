@@ -30,7 +30,7 @@ module.exports.getLikes = async (req, res) => {
 };
 
 module.exports.uploadImage = async (req, res) => {
-  // console.log(req);
+  console.log(req.body);
   // const uploadImageQuery = await pool.query(
   //   "INSERT INTO messages(sender_id, group_id, text, image) values ($1, $2, $3, $4)",
   //   [
