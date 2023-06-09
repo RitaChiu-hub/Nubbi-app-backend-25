@@ -37,15 +37,16 @@ module.exports.getImage = async (req, res) => {
 };
 
 module.exports.uploadImage = async (req, res) => {
-  const uploadImageQuery = await pool.query(
-    "INSERT INTO practice_pics(image, image_bytes, image_base64) values($1, $2, $3) RETURNING image",
-    [req.body.ImageURL, null, null]
-  );
+  // const uploadImageQuery = await pool.query(
+  //   "INSERT INTO practice_pics(image, image_bytes, image_base64) values($1, $2, $3) RETURNING image",
+  //   [req.body.ImageURL, null, null]
+  // );
 
-  const newImage = uploadImageQuery.rows[0].image;
+  // const newImage = uploadImageQuery.rows[0].image;
 
   res.json({
     ...req.body,
-    status: newImage,
+    status: "accessed api",
+    //status: newImage,
   });
 };
