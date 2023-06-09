@@ -46,6 +46,7 @@ module.exports.uploadImage = async (req, res) => {
 
   res.json({
     ...req.body,
+    body: req.body,
     status: "accessed api",
     //status: newImage,
   });
