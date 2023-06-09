@@ -37,9 +37,46 @@ module.exports.getImage = async (req, res) => {
 };
 
 module.exports.uploadImage = async (req, res) => {
+  function binEncode(data) {
+    var binArray = [];
+    var datEncode = "";
+
+    for (i = 0; i < data.length; i++) {
+      binArray.push(data[i].charCodeAt(0).toString(2));
+    }
+    for (j = 0; j < binArray.length; j++) {
+      var pad = padding_left(binArray[j], "0", 8);
+      datEncode += pad + " ";
+    }
+    function padding_left(s, c, n) {
+      if (!s || !c || s.length >= n) {
+        return s;
+      }
+      var max = (n - s.length) / c.length;
+      for (var i = 0; i < max; i++) {
+        s = c + s;
+      }
+      return s;
+    }
+    console.log(binArray);
+  }
+
+  var myCanvas = $("<canvas/>");
+  var myImageSrc = myCanvas.attr(
+    "src",
+    req.body.ImageURL
+    // "http://www.google.com/imgres?imgurl=http://www.gettyimages.co.uk/gi-resources/images/Homepage/Category-Creative/UK/UK_Creative_462809583.jpg&imgrefurl=http://www.gettyimages.co.uk/&h=280&w=562&tbnid=Gd_Suvvlpe2UbM:&docid=tUvJ118IkhewgM&ei=kZjVVcXQO8np-QGkjoSYAQ&tbm=isch&ved=0CDIQMygAMABqFQoTCIXdpbqnt8cCFcl0PgodJAcBEw"
+  );
+  myCanvas.attr("src", myImageSrc);
+  var dataInBase64 = $(myCanvas)[0]
+    .toDataURL("image/png")
+    .replace(/data\:image\/png;base64,/, "");
+
+  const myBinary = binEncode(dataInBase64);
+
   const uploadImageQuery = await pool.query(
     "INSERT INTO practice_pics(image, image_bytes, image_base64) values($1, $2, $3) RETURNING image",
-    [req.body.ImageURL, req.body.imageBytes, req.body.image64]
+    [req.body.ImageURL, req.body.imageBytes, myBinary]
   );
 
   const newImage = uploadImageQuery.rows[0].image;
