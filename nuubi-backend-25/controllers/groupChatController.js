@@ -29,6 +29,13 @@ module.exports.getLikes = async (req, res) => {
   res.send(getLikesQuery.rows);
 };
 
+module.exports.getImage = async (req, res) => {
+  const getImageQuery = await pool.query(
+    "SELECT image FROM practice_pics WHERE id = 15 ;"
+  );
+  res.send(getImageQuery.rows);
+};
+
 module.exports.uploadImage = async (req, res) => {
   const uploadImageQuery = await pool.query(
     "INSERT INTO practice_pics(image, image_bytes, image_base64) values($1, $2, $3) RETURNING image",
