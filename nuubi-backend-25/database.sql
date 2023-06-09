@@ -328,3 +328,6 @@ SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id
 -- adding images to messages
  ALTER TABLE messages
 ADD COLUMN image bytea;
+
+ALTER TABLE messages 
+ALTER COLUMN image TYPE VARCHAR;
