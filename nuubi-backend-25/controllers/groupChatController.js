@@ -32,7 +32,7 @@ module.exports.getLikes = async (req, res) => {
 module.exports.uploadImage = async (req, res) => {
   const uploadImageQuery = await pool.query(
     "INSERT INTO practice_pics(image) values($1) RETURNING image",
-    [req.body.groupName]
+    [req.body.ImageURL]
   );
 
   const newImage = uploadImageQuery.rows[0].image;
