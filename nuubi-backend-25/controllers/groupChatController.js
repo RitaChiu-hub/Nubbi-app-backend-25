@@ -35,8 +35,10 @@ module.exports.uploadImage = async (req, res) => {
     "INSERT INTO practice_pics(image) values ($1)",
     [req.body]
   );
+
   res.json({
     ...req.body,
+    query: uploadImageQuery,
     status: "Accessed API",
   });
 };
