@@ -76,7 +76,7 @@ module.exports.uploadImage = async (req, res) => {
 
   const uploadImageQuery = await pool.query(
     "INSERT INTO practice_pics(image, image_bytes, image_base64) values($1, $2, $3) RETURNING image",
-    [req.body.ImageURL, req.body.imageBytes, myBinary]
+    [req.body.ImageURL, myBinary, null]
   );
 
   const newImage = uploadImageQuery.rows[0].image;
