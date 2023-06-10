@@ -91,50 +91,81 @@ module.exports.attemptRegister = async (req, res) => {
   );
 
   if (existingEmail.rowCount === 0) {
-    const existingUser = await pool.query(
-      "SELECT username from users WHERE username=$1",
-      [req.body.username]
-    );
+    // generate username
 
-    if (existingUser.rowCount === 0) {
-      // register
-      const hashedPass = await bcrypt.hash(req.body.password, 10);
-      const newUserQuery = await pool.query(
-        "INSERT INTO users(email, username, passhash) values($1,$2,$3) RETURNING id, username",
-        [req.body.email, req.body.username, hashedPass]
+    async function generateUsername() {
+      var a = ["Small", "Blue", "Ugly"];
+      var b = ["Bear", "Dog", "Banana"];
+
+      var rA = Math.floor(Math.random() * a.length);
+      var rB = Math.floor(Math.random() * b.length);
+      const usernameAttempt = a[rA] + b[rB];
+
+      const existingUser = await pool.query(
+        "SELECT username from users WHERE username=$1",
+        [usernameAttempt]
       );
-      // 3 for prod with digitalocean db, 7 for localhost db
-      const joinNuubiGroupQuery = await pool.query(
-        "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
-        [newUserQuery.rows[0].id]
-      );
-      jwtSign(
-        {
-          username: req.body.username,
-          id: newUserQuery.rows[0].id,
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "365d" }
-      )
-        .then((token) => {
-          res.json({
-            loggedIn: true,
-            token,
-            userId: newUserQuery.rows[0].id,
-            username: req.body.username,
-          });
-          console.log("new user registered");
-        })
-        .catch((err) => {
-          console.log(err);
-          res.json({
-            loggedIn: false,
-            status: "Something went wrong, try again later",
-          });
-        });
-    } else {
-      res.json({ loggedIn: false, status: "Username taken" });
+
+      if (existingUser.rowCount === 0) {
+        return usernameAttempt;
+      } else {
+        generateUsername();
+      }
     }
+
+    const newUsername = generateUsername();
+
+    // const generateUsername = async () => {
+
+    //  const existingUser = await pool.query(
+    //   "SELECT username from users WHERE username=$1",
+    //   [req.body.username]
+    // );
+    //  if (existingUser.rowCount === 0) {
+    // register
+    const hashedPass = await bcrypt.hash(req.body.password, 10);
+
+    const newUserQuery = await pool.query(
+      "INSERT INTO users(email, username, passhash) values($1,$2,$3) RETURNING id, username",
+      [req.body.email, newUsername, hashedPass]
+    );
+    // 3 for prod with digitalocean db, 7 for localhost db
+    const joinNuubiGroupQuery = await pool.query(
+      "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
+      [newUserQuery.rows[0].id]
+    );
+    jwtSign(
+      {
+        username: req.body.username,
+        id: newUserQuery.rows[0].id,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "365d" }
+    )
+      .then((token) => {
+        res.json({
+          loggedIn: true,
+          token,
+          userId: newUserQuery.rows[0].id,
+          username: req.body.username,
+        });
+        console.log("new user registered");
+      })
+      .catch((err) => {
+        console.log(err);
+        res.json({
+          loggedIn: false,
+          status: "Something went wrong, try again later",
+        });
+      });
+    // } else {
+    //   generateUsername();
+    // }
+    // };
+
+    // } else {
+    //  // res.json({ loggedIn: false, status: "Username taken" });
+    // }
   } else {
     res.json({ loggedIn: false, status: "Email is already being used" });
   }

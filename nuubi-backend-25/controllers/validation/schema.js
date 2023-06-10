@@ -88,6 +88,18 @@ const createPostSchema = Yup.object({
     .max(4000, "body text cannot exceed 4000 characters"),
 });
 
+const changeUsernameSchema = Yup.object({
+  username: Yup.string()
+    .required("Username required")
+    .min(3, "Username must be at least 3 characters")
+    .max(12, "Username can be maximum 12 characters")
+    .matches(
+      /^[a-zA-Z0-9]+$/,
+      "Username cannot contain white space or special characters"
+    ),
+  password: Yup.string().required("Password required"),
+});
+
 module.exports = {
   formSchema,
   newPasswordSchema,
@@ -97,4 +109,5 @@ module.exports = {
   createGroupSchema,
   createPostSchema,
   addCommentSchema,
+  changeUsernameSchema,
 };
