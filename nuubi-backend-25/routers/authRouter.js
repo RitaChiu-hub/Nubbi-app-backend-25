@@ -15,8 +15,8 @@ require("dotenv").config();
 
 router.route("/login").get(handleLogin).post(validateLoginForm, attemptLogin);
 
-//router.post("/signup", validateSignupForm, attemptRegister);
-router.post("/signup", attemptRegister);
+router.post("/signup", validateSignupForm, attemptRegister);
+//router.post("/signup", attemptRegister);
 
 router.post("/getmessage", getMessage);
 
