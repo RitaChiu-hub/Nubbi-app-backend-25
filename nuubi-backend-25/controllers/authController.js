@@ -147,7 +147,7 @@ module.exports.attemptRegister = async (req, res) => {
           loggedIn: true,
           token,
           userId: newUserQuery.rows[0].id,
-          username: req.body.username,
+          username: newUsername,
         });
         console.log("new user registered");
       })
