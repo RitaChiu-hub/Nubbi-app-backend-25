@@ -97,16 +97,16 @@ module.exports.attemptRegister = async (req, res) => {
       var rB = Math.floor(Math.random() * b.length);
       const usernameAttempt = a[rA] + b[rB];
 
-      const existingUser = pool.query(
-        "SELECT username from users WHERE username=$1",
-        [usernameAttempt]
-      );
-      if (existingUser.rowCount !== 0) {
-        generateUsername();
-      } else {
-        return usernameAttempt;
-      }
-      // return usernameAttempt;
+      // const existingUser = pool.query(
+      //   "SELECT username from users WHERE username=$1",
+      //   [usernameAttempt]
+      // );
+      // if (existingUser.rowCount !== 0) {
+      //   generateUsername();
+      // } else {
+      //   return usernameAttempt;
+      // }
+      return usernameAttempt;
     }
 
     let newUsername = generateUsername();
