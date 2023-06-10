@@ -120,7 +120,7 @@ module.exports.attemptRegister = async (req, res) => {
     // }
 
     // const newUsername = generateUsername();
-    const newUsername = "NewUser1234";
+    const newUsername = "NewUser1adsf";
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
     const newUserQuery = await pool.query(
