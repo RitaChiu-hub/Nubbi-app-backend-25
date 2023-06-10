@@ -88,38 +88,39 @@ module.exports.attemptRegister = async (req, res) => {
   );
 
   if (existingEmail.rowCount === 0) {
-    function generateUsername() {
-      var a = [
-        "Small",
-        "Blue",
-        "Ugly",
-        "Cute",
-        "Royal",
-        "Bear",
-        "blob",
-        "extra",
-      ];
-      var b = ["Bear", "Dog", "Banana", "House", "Doctor", "fern", "shed"];
+    // function generateUsername() {
+    //   var a = [
+    //     "Small",
+    //     "Blue",
+    //     "Ugly",
+    //     "Cute",
+    //     "Royal",
+    //     "Bear",
+    //     "blob",
+    //     "extra",
+    //   ];
+    //   var b = ["Bear", "Dog", "Banana", "House", "Doctor", "fern", "shed"];
 
-      var rA = Math.floor(Math.random() * a.length);
-      var rB = Math.floor(Math.random() * b.length);
-      const usernameAttempt = a[rA] + b[rB];
+    //   var rA = Math.floor(Math.random() * a.length);
+    //   var rB = Math.floor(Math.random() * b.length);
+    //   const usernameAttempt = a[rA] + b[rB];
 
-      const existingUser = pool.query(
-        "SELECT username from users WHERE username=$1",
-        [usernameAttempt]
-      );
+    //   // const existingUser = pool.query(
+    //   //   "SELECT username from users WHERE username=$1",
+    //   //   [usernameAttempt]
+    //   // );
 
-      return usernameAttempt;
+    //   return usernameAttempt;
 
-      // if (existingUser.rowCount !== 0) {
-      //   generateUsername();
-      // // } else {
-      // //   return usernameAttempt;
-      // // }
-    }
+    //   // if (existingUser.rowCount !== 0) {
+    //   //   generateUsername();
+    //   // // } else {
+    //   // //   return usernameAttempt;
+    //   // // }
+    // }
 
-    const newUsername = generateUsername();
+    // const newUsername = generateUsername();
+    const newUsername = "NewUser123";
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
     const newUserQuery = await pool.query(
