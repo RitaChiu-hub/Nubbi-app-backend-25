@@ -1,6 +1,6 @@
 const pool = require("../db");
 const bcrypt = require("bcrypt");
-const { adjectives } = required("/adjectives");
+const { adjectives } = require("/adjectives");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
 module.exports.handleLogin = async (req, res) => {
