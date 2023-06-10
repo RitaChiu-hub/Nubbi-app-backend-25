@@ -93,7 +93,7 @@ module.exports.attemptRegister = async (req, res) => {
   if (existingEmail.rowCount === 0) {
     // generate username
 
-    async function generateUsername() {
+    function generateUsername() {
       var a = ["Small", "Blue", "Ugly"];
       var b = ["Bear", "Dog", "Banana"];
 
@@ -101,7 +101,7 @@ module.exports.attemptRegister = async (req, res) => {
       var rB = Math.floor(Math.random() * b.length);
       const usernameAttempt = a[rA] + b[rB];
 
-      const existingUser = await pool.query(
+      const existingUser = pool.query(
         "SELECT username from users WHERE username=$1",
         [usernameAttempt]
       );
