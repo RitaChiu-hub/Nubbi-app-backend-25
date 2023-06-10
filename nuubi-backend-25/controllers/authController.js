@@ -91,8 +91,6 @@ module.exports.attemptRegister = async (req, res) => {
   );
 
   if (existingEmail.rowCount === 0) {
-    // generate username
-
     function generateUsername() {
       var a = ["Small", "Blue", "Ugly"];
       var b = ["Bear", "Dog", "Banana"];
@@ -115,19 +113,11 @@ module.exports.attemptRegister = async (req, res) => {
 
     const newUsername = generateUsername();
 
-    // const existingUser = await pool.query(
-    //   "SELECT username from users WHERE username=$1",
-    //   [newUsername]
-    // );
-
-    // const generateUsername = async () => {
-
     const existingUser = await pool.query(
       "SELECT username from users WHERE username=$1",
       [newUsername]
     );
     if (existingUser.rowCount === 0) {
-      register;
       const hashedPass = await bcrypt.hash(req.body.password, 10);
 
       const newUserQuery = await pool.query(
