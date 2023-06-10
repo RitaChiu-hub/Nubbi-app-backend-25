@@ -89,36 +89,24 @@ module.exports.attemptRegister = async (req, res) => {
 
   if (existingEmail.rowCount === 0) {
     function generateUsername() {
-      var a = [
-        "Small",
-        "Blue",
-        "Ugly",
-        "Cute",
-        "Royal",
-        "Bear",
-        "blob",
-        "extra",
-      ];
-      var b = ["Bear", "Dog", "Banana", "House", "Doctor", "fern", "shed"];
+      var a = ["teehee", "blah", "lakjsdf", "blob", "extra"];
+      var b = ["fern", "shed", "owl", "sheep"];
 
       var rA = Math.floor(Math.random() * a.length);
       var rB = Math.floor(Math.random() * b.length);
       const usernameAttempt = a[rA] + b[rB];
 
-      return usernameAttempt;
+      const existingUser = pool.query(
+        "SELECT username from users WHERE username=$1",
+        [usernameAttempt]
+      );
+
+      if (existingUser.rowCount === 0) {
+        return usernameAttempt;
+      } else {
+        generateUsername();
+      }
     }
-
-    //   // const existingUser = pool.query(
-    //   //   "SELECT username from users WHERE username=$1",
-    //   //   [usernameAttempt]
-    //   // );
-
-    //   // if (existingUser.rowCount !== 0) {
-    //   //   generateUsername();
-    //   // // } else {
-    //   // //   return usernameAttempt;
-    //   // // }
-    // }
 
     const newUsername = generateUsername();
     const hashedPass = await bcrypt.hash(req.body.password, 10);
