@@ -122,7 +122,7 @@ module.exports.attemptRegister = async (req, res) => {
     // );
     // if (existingUser.rowCount === 0) {
     // const newUsername = "NewUser";
-    const newUsername = usernameAttempt;
+    const newUsername = generateUsername();
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
     const newUserQuery = await pool.query(
