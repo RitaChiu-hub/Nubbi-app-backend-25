@@ -1,5 +1,6 @@
 const pool = require("../db");
 const bcrypt = require("bcrypt");
+const adjectives = required("/adjectives");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
 module.exports.handleLogin = async (req, res) => {
@@ -92,7 +93,8 @@ module.exports.attemptRegister = async (req, res) => {
 
   if (existingEmail.rowCount === 0) {
     function generateUsername() {
-      var a = ["Small", "Blue", "Ugly", "Cute", "Royal"];
+      // var a = ["Small", "Blue", "Ugly", "Cute", "Royal"];
+      var a = adjectives;
       var b = ["Bear", "Dog", "Banana", "House", "Doctor"];
 
       var rA = Math.floor(Math.random() * a.length);
