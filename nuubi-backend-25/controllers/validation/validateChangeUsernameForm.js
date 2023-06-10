@@ -1,9 +1,9 @@
-const { formSchema } = require("./schema");
+const { changeUsernameSchema } = require("./schema");
 
 const validateChangeUsernameForm = (req, res, next) => {
   const username = req.body.newusername;
   const password = req.body.passattempt;
-  formSchema
+  changeUsernameSchema
     .validate({ username, password })
     .catch(() => {
       res.status(422).send();
