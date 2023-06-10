@@ -93,8 +93,8 @@ module.exports.attemptRegister = async (req, res) => {
       // var a = ["teehee", "blah", "lakjsdf", "blob", "extra"];
       // var b = ["fern", "shed", "owl", "sheep"];
 
-      var a = ["abalsfkd", "badslfk", "aklsdjf", "alkdjsf"];
-      var b = ["Apple", "Tomato", "zuchi", "oats"];
+      var a = ["Original", "Primary", "Inital", "New"];
+      var b = ["User", "Student", "Learner", "Name"];
 
       var rA = Math.floor(Math.random() * a.length);
       var rB = Math.floor(Math.random() * b.length);
