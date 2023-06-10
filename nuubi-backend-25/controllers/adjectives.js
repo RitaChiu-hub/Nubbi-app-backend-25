@@ -1,4 +1,4 @@
-export const adjectives = [
+let adjectives = [
   "aback",
   "abaft",
   "abandoned",
@@ -1109,3 +1109,7 @@ export const adjectives = [
   "zippy",
   "zonked",
 ];
+
+export default {
+  adjectives,
+};
