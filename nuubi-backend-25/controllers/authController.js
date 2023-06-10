@@ -109,7 +109,7 @@ module.exports.attemptRegister = async (req, res) => {
       return usernameAttempt;
     }
 
-    let newUsername = generateUsername();
+    const newUsername = generateUsername();
 
     // const existingUser = pool.query(
     //   "SELECT username from users WHERE username=$1",
