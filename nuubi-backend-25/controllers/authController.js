@@ -104,21 +104,13 @@ module.exports.attemptRegister = async (req, res) => {
         [usernameAttempt]
       );
 
-      return usernameAttempt;
+      if (existingUser.rowCount !== 0) {
+        generateUsername();
+      } else {
+        return usernameAttempt;
+      }
     }
 
-    //   if (existingUser.rowCount === 0) {
-    //     return usernameAttempt;
-    //   } else {
-    //     generateUsername();
-    //   }
-    // }
-
-    // const existingUser = await pool.query(
-    //   "SELECT username from users WHERE username=$1",
-    //   [newUsername]
-    // );
-    // if (existingUser.rowCount === 0) {
     const newUsername = generateUsername();
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
