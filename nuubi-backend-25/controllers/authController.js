@@ -90,9 +90,6 @@ module.exports.attemptRegister = async (req, res) => {
 
   if (existingEmail.rowCount === 0) {
     function generateUsername() {
-      // var a = ["teehee", "blah", "lakjsdf", "blob", "extra"];
-      // var b = ["fern", "shed", "owl", "sheep"];
-
       var a = ["Original", "Primary", "Inital", "New"];
       var b = ["User", "Student", "Learner", "Name"];
 
