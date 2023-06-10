@@ -82,6 +82,7 @@ module.exports.attemptLogin = async (req, res) => {
 };
 
 module.exports.attemptRegister = async (req, res) => {
+  console.log("hello");
   const existingEmail = await pool.query(
     "SELECT email from users WHERE email=$1",
     [req.body.email]
@@ -101,8 +102,7 @@ module.exports.attemptRegister = async (req, res) => {
         [usernameAttempt]
       );
       if (existingUser.rowCount !== 0) {
-        //generateUsername();
-        return existingUser.rowCount;
+        generateUsername();
       } else {
         return usernameAttempt;
       }
