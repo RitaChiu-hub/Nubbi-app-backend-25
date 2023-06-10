@@ -1,7 +1,6 @@
 const pool = require("../db");
 const bcrypt = require("bcrypt");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
-// const { adjectives } = require("./adjectives");
 
 module.exports.handleLogin = async (req, res) => {
   const token = getJwt(req);
@@ -48,7 +47,6 @@ module.exports.attemptLogin = async (req, res) => {
     if (isSamePass) {
       jwtSign(
         {
-          //username: req.body.username,
           username: potentialLogin.rows[0].username,
           id: potentialLogin.rows[0].id,
         },
@@ -61,9 +59,7 @@ module.exports.attemptLogin = async (req, res) => {
             token,
             userId: potentialLogin.rows[0].id,
             username: potentialLogin.rows[0].username,
-            // username: req.body.username,
-          }); //added this
-          console.log("logged in");
+          });
         })
         .catch((err) => {
           console.log(err);
@@ -103,7 +99,6 @@ module.exports.attemptRegister = async (req, res) => {
         "blob",
         "extra",
       ];
-      //var a = adjectives;
       var b = ["Bear", "Dog", "Banana", "House", "Doctor", "fern", "shed"];
 
       var rA = Math.floor(Math.random() * a.length);
@@ -115,11 +110,13 @@ module.exports.attemptRegister = async (req, res) => {
         [usernameAttempt]
       );
 
-      if (existingUser.rowCount !== 0) {
-        generateUsername();
-      } else {
-        return usernameAttempt;
-      }
+      return usernameAttempt;
+
+      // if (existingUser.rowCount !== 0) {
+      //   generateUsername();
+      // // } else {
+      // //   return usernameAttempt;
+      // // }
     }
 
     const newUsername = generateUsername();
