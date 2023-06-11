@@ -89,27 +89,29 @@ module.exports.attemptRegister = async (req, res) => {
   );
 
   if (existingEmail.rowCount === 0) {
-    function generateUsername() {
-      var a = ["Original", "Primary", "Inital", "New"];
-      var b = ["User", "Student", "Learner", "Name"];
+    async function generateUsername() {
+      var a = ["Original", "Primary", "Inital", "New", "First"];
+      var b = ["User", "Student", "Learner", "Name", "BetaTester"];
 
       var rA = Math.floor(Math.random() * a.length);
       var rB = Math.floor(Math.random() * b.length);
       const usernameAttempt = a[rA] + b[rB];
+      console.log("this username attempt is: " + usernameAttempt);
 
-      // const existingUser = pool.query(
-      //   "SELECT username from users WHERE username=$1",
-      //   [usernameAttempt]
-      // );
-      // if (existingUser.rowCount !== 0) {
-      //   generateUsername();
-      // } else {
-      //   return usernameAttempt;
-      // }
-      return usernameAttempt;
+      const existingUser = await pool.query(
+        "SELECT username from users WHERE username=$1",
+        [usernameAttempt]
+      );
+      console.log("existing user " + existingUser.rowCount);
+      if (existingUser.rowCount === 0) {
+        return usernameAttempt;
+      } else {
+        return generateUsername();
+      }
     }
 
-    const newUsername = generateUsername();
+    const newUsername = await generateUsername();
+    console.log("my newUsername is: " + newUsername);
 
     // const existingUser = pool.query(
     //   "SELECT username from users WHERE username=$1",
