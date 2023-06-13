@@ -84,7 +84,6 @@ module.exports.attemptLogin = async (req, res) => {
 };
 
 module.exports.attemptRegister = async (req, res) => {
-  console.log("hello");
   const existingEmail = await pool.query(
     "SELECT email from users WHERE email=$1",
     [req.body.email]
@@ -105,13 +104,10 @@ module.exports.attemptRegister = async (req, res) => {
       var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
 
       const usernameAttempt = capAdj + capNoun;
-      console.log("this username attempt is: " + usernameAttempt);
-
       const existingUser = await pool.query(
         "SELECT username from users WHERE username=$1",
         [usernameAttempt]
       );
-      console.log("existing user " + existingUser.rowCount);
       if (existingUser.rowCount === 0) {
         return usernameAttempt;
       } else {
@@ -120,7 +116,6 @@ module.exports.attemptRegister = async (req, res) => {
     }
 
     const newUsername = await generateUsername();
-    console.log("my newUsername is: " + newUsername);
 
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
