@@ -92,24 +92,8 @@ module.exports.attemptRegister = async (req, res) => {
 
   if (existingEmail.rowCount === 0) {
     async function generateUsername() {
-      //  var a = ["Happy", "Sad"];
       var a = adjectives;
-      // var b = ["Dog", "Cat"];
       var b = nouns;
-
-      var longestAdj = adjectives.reduce(function (a, b) {
-        return a.length > b.length ? a : b;
-      });
-
-      var longestNoun = nouns.reduce(function (a, b) {
-        return a.length > b.length ? a : b;
-      });
-
-      console.log("longest adjective: " + longestAdj);
-      console.log("longest adjective length: " + longestAdj.length);
-
-      console.log("longest noun: " + longestNoun);
-      console.log("longest noun length: " + longestNoun.length);
 
       var rA = Math.floor(Math.random() * a.length);
       var rB = Math.floor(Math.random() * b.length);
@@ -120,7 +104,6 @@ module.exports.attemptRegister = async (req, res) => {
       var noun = b[rB];
       var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
 
-      // const usernameAttempt = a[rA] + b[rB];
       const usernameAttempt = capAdj + capNoun;
       console.log("this username attempt is: " + usernameAttempt);
 
@@ -164,6 +147,7 @@ module.exports.attemptRegister = async (req, res) => {
           token,
           userId: newUserQuery.rows[0].id,
           username: newUsername,
+          firstSignIn: true,
         });
         console.log("new user registered");
       })
