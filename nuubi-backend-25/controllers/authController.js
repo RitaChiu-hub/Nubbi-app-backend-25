@@ -1,6 +1,8 @@
 const pool = require("../db");
 const bcrypt = require("bcrypt");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
+const { adjectives } = require("./adjectives");
+const { nouns } = require("./nouns");
 
 module.exports.handleLogin = async (req, res) => {
   const token = getJwt(req);
@@ -90,12 +92,36 @@ module.exports.attemptRegister = async (req, res) => {
 
   if (existingEmail.rowCount === 0) {
     async function generateUsername() {
-      var a = ["Happy", "Sad"];
-      var b = ["Dog", "Cat"];
+      //  var a = ["Happy", "Sad"];
+      var a = adjectives;
+      // var b = ["Dog", "Cat"];
+      var b = nouns;
+
+      var longestAdj = adjectives.reduce(function (a, b) {
+        return a.length > b.length ? a : b;
+      });
+
+      var longestNoun = nouns.reduce(function (a, b) {
+        return a.length > b.length ? a : b;
+      });
+
+      console.log("longest adjective: " + longestAdj);
+      console.log("longest adjective length: " + longestAdj.length);
+
+      console.log("longest noun: " + longestNoun);
+      console.log("longest noun length: " + longestNoun.length);
 
       var rA = Math.floor(Math.random() * a.length);
       var rB = Math.floor(Math.random() * b.length);
-      const usernameAttempt = a[rA] + b[rB];
+
+      var adj = a[rA];
+      var capAdj = adj.charAt(0).toUpperCase() + adj.slice(1);
+
+      var noun = b[rB];
+      var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
+
+      // const usernameAttempt = a[rA] + b[rB];
+      const usernameAttempt = capAdj + capNoun;
       console.log("this username attempt is: " + usernameAttempt);
 
       const existingUser = await pool.query(
