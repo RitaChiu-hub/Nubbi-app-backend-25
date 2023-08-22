@@ -1,5 +1,5 @@
 const express = require("express");
-const bodyParser = require("body-parser");
+// const bodyParser = require("body-parser");
 // const PORT = process.env.PORT || 4000;
 const app = express();
 // const host = "0.0.0.0";
@@ -13,7 +13,11 @@ const { Server } = require("socket.io");
 const pool = require("./db");
 const cors = require("cors");
 
-app.use(bodyParser.json());
+// app.use(bodyParser.json());
+app.use(express.json());
+app.use(helmet());
+app.use("/auth", authRouter);
+
 app.use("/settings", settingsRouter);
 app.use("/groups", groupRouter);
 app.use("/groupchat", groupchatRouter);
@@ -42,10 +46,6 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-
-app.use(express.json());
-app.use(helmet());
-app.use("/auth", authRouter);
 
 // app.use(
 //   cors({
