@@ -11,8 +11,10 @@ const formSignupSchema = Yup.object({
     .email("Valid email required"),
   password: Yup.string()
     .required("Password required")
-    .min(6, "Password must be at least 6 characters")
-    .max(28, "Password too long!"),
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,28})/,
+      "Must Contain 8 to 28 Characters, One Uppercase, One Lowercase, One Number and One Special Character"
+    ),
   password2: Yup.string()
     .required("Password required")
     .oneOf([Yup.ref("password"), null], "Passwords must match"),
