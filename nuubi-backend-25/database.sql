@@ -331,3 +331,7 @@ ADD COLUMN image bytea;
 
 ALTER TABLE messages 
 ALTER COLUMN image TYPE VARCHAR;
+
+ALTER TABLE posts ADD COLUMN image_url VARCHAR;
+
+ALTER TABLE post_comments ADD COLUMN image_url VARCHAR;
