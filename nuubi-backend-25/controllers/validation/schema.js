@@ -1,14 +1,15 @@
 const Yup = require("yup");
 
 const formSchema = Yup.object({
-  username: Yup.string().required("Username or email required"),
+  username: Yup.string().trim().required("Username or email required"),
   password: Yup.string().required("Password required"),
 });
 
 const formSignupSchema = Yup.object({
   email: Yup.string()
-    .required("Valid email required")
-    .email("Valid email required"),
+    .required("Email cannot be blank")
+    .trim()
+    .email("Please enter a valid email"),
   password: Yup.string()
     .required("Password required")
     .matches(
