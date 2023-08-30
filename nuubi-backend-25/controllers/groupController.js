@@ -251,14 +251,14 @@ module.exports.handleDeleteGroup = async (req, res) => {
 };
 
 module.exports.handleCreatePost = async (req, res) => {
-  imageUrl = req.body.imageUrl || null;
+  // imageUrl = req.body.imageUrl || null;
 
   const newPostQuery = await pool.query(
     "INSERT INTO posts(title, body_text, image_url, sender_id, group_id) values($1,$2,$3,$4,$5) RETURNING id",
     [
       req.body.title,
       req.body.body_text,
-      imageUrl,
+      req.body.imageUrl,
       req.body.userId,
       req.params.group_id,
     ]
