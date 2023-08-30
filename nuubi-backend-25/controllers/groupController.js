@@ -251,9 +251,17 @@ module.exports.handleDeleteGroup = async (req, res) => {
 };
 
 module.exports.handleCreatePost = async (req, res) => {
+  imageUrl = null;
+
   const newPostQuery = await pool.query(
-    "INSERT INTO posts(title, body_text, sender_id, group_id) values($1,$2,$3,$4) RETURNING id",
-    [req.body.title, req.body.body_text, req.body.userId, req.params.group_id]
+    "INSERT INTO posts(title, body_text, image_url, sender_id, group_id) values($1,$2,$3,$4,$5) RETURNING id",
+    [
+      req.body.title,
+      req.body.body_text,
+      imageUrl,
+      req.body.userId,
+      req.params.group_id,
+    ]
   );
 
   res.json({
@@ -267,6 +275,11 @@ module.exports.handleEditPost = async (req, res) => {
     "UPDATE posts SET title=$1, body_text=$2 WHERE sender_id=$3 AND id=$4",
     [req.body.title, req.body.body_text, req.body.userId, req.body.currentPost]
   );
+
+  // const editPostQuery = await pool.query(
+  //   "UPDATE posts SET title=$1, body_text=$2, image_url=$3 WHERE sender_id=$4 AND id=$5",
+  //   [req.body.title, req.body.body_text, req.body.imageUrl, req.body.userId, req.body.currentPost]
+  // );
 
   res.json({
     ...req.body,
