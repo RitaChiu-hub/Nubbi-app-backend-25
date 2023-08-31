@@ -251,8 +251,6 @@ module.exports.handleDeleteGroup = async (req, res) => {
 };
 
 module.exports.handleCreatePost = async (req, res) => {
-  // imageUrl = req.body.imageUrl || null;
-
   const newPostQuery = await pool.query(
     "INSERT INTO posts(title, body_text, image_url, sender_id, group_id) values($1,$2,$3,$4,$5) RETURNING id",
     [
@@ -272,14 +270,15 @@ module.exports.handleCreatePost = async (req, res) => {
 
 module.exports.handleEditPost = async (req, res) => {
   const editPostQuery = await pool.query(
-    "UPDATE posts SET title=$1, body_text=$2 WHERE sender_id=$3 AND id=$4",
-    [req.body.title, req.body.body_text, req.body.userId, req.body.currentPost]
+    "UPDATE posts SET title=$1, body_text=$2, image_url=$3 WHERE sender_id=$4 AND id=$5",
+    [
+      req.body.title,
+      req.body.body_text,
+      req.body.imageUrl,
+      req.body.userId,
+      req.body.currentPost,
+    ]
   );
-
-  // const editPostQuery = await pool.query(
-  //   "UPDATE posts SET title=$1, body_text=$2, image_url=$3 WHERE sender_id=$4 AND id=$5",
-  //   [req.body.title, req.body.body_text, req.body.imageUrl, req.body.userId, req.body.currentPost]
-  // );
 
   res.json({
     ...req.body,
@@ -304,9 +303,6 @@ module.exports.handleEditGroup = async (req, res) => {
 
 module.exports.handleGetPosts = async (req, res) => {
   const getPostsQuery = await pool.query(
-    //"SELECT posts.id post_id, sender_id, title, body_text, username post_author,  to_json(posts.created_at) iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1 ORDER BY created_at ASC;",
-    //	"SELECT c.post_id post_id, sender_id, title, body_text, post_author, to_json(c.created_at) iso_time_sent, coalesce(point_total,0) point_total, coalesce(number_comments,0) number_comments FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author,  posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) c FULL OUTER JOIN (SELECT point_total, number_comments, post_id FROM (SELECT SUM(point_value) point_total, posts_id FROM points WHERE group_id = $1 GROUP BY posts_id) a INNER JOIN (SELECT count(id) number_comments, post_id from post_comments group by post_id) b ON a.posts_id = b.post_id) d ON c.post_id = d.post_id ORDER BY c.created_at DESC;",
-    // "SELECT c.post_id post_id, sender_id, title, body_text, post_author, to_json(c.created_at) iso_time_sent, coalesce(point_total,0) point_total, coalesce(number_comments,0) number_comments FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author,  posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) c FULL OUTER JOIN (SELECT point_total, a.post_id post_id, number_comments FROM ((SELECT SUM(point_value) point_total, posts_id post_id FROM points WHERE group_id = $1 GROUP BY posts_id) UNION (SELECT DISTINCT CASE WHEN id> 0 THEN 0 END point_total, post_id from post_comments)) a LEFT JOIN (SELECT count(id) number_comments, post_id from post_comments group by post_id) b ON a.post_id = b.post_id) d ON c.post_id = d.post_id WHERE c.post_id IS NOT NULL ORDER BY c.created_at DESC;",
     "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, coalesce(point_total,0) point_total, coalesce(number_comments,0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (select post_id, count(id) number_comments from post_comments group by post_id) d on c.post_id = d.post_id;",
     [req.body.currentGroup]
   );
@@ -315,7 +311,7 @@ module.exports.handleGetPosts = async (req, res) => {
 
 module.exports.handleGetPostInfo = async (req, res) => {
   const getPostInfoQuery = await pool.query(
-    "SELECT title post_title, body_text, username post_author, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
+    "SELECT title post_title, body_text, username post_author, image_url, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
     [req.body.currentPost]
   );
   res.send(getPostInfoQuery.rows[0]);
