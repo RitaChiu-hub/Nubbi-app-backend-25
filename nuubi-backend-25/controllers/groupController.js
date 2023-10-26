@@ -340,8 +340,6 @@ module.exports.handleCreateComment = async (req, res) => {
 
 module.exports.handleGetPostComments = async (req, res) => {
   const getPostCommentsQuery = await pool.query(
-    // "SELECT id post_comment_id, sender_id, comment_text FROM post_comments WHERE post_id = $1 ORDER BY created_at ASC;",
-    // "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, to_json(post_comments.created_at) comment_iso_time_sent  FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
     "SELECT a.sender_username, a.post_comment_id, a.sender_id, a.comment_text, a.comment_iso_time_sent, coalesce(b.count,0) comment_points FROM (SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC) a LEFT JOIN (SELECT COUNT(point_value), comment_id FROM points WHERE group_id = $2 GROUP BY comment_id) b ON a.post_comment_id = b.comment_id;",
     [req.params.post_id, req.body.currentGroup]
   );

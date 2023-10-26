@@ -11,12 +11,18 @@ const {
   handleUpdatePassword,
   handleForgotPassword,
   handleGeneratePasscode,
+  handleUpdateAvatar,
+  handleGetAvatar,
 } = require("../controllers/settingsController");
 const validateChangePasswordForm = require("../controllers/validation/validateChangePasswordForm");
 const validateForgotPasswordForm = require("../controllers/validation/validateForgotPasswordForm");
 require("dotenv").config();
 
 router.post("/delete", handleDeleteAccount);
+
+router.post("/updateavatar", handleUpdateAvatar);
+
+router.post("/getuseravatar", handleGetAvatar);
 
 router.post(
   "/updateusername",

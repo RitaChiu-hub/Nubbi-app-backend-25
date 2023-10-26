@@ -58,6 +58,33 @@ module.exports.handleDeleteAccount = async (req, res) => {
   }
 };
 
+module.exports.handleUpdateAvatar = async (req, res) => {
+  console.log(req.body);
+  const updateAvatarQuery = await pool.query(
+    "UPDATE users SET avatar_url=$2 WHERE id=$1",
+    [req.body.userId, req.body.imageUrl]
+  );
+  res.json({
+    ...req.body,
+    status: "Avatar successfully updated",
+  });
+};
+
+module.exports.handleGetAvatar = async (req, res) => {
+  console.log("hi");
+  // console.log(req.body);
+  // const getAvatarQuery = await pool.query(
+  //   "SELECT avatar_url FROM users WHERE id=$1",
+  //   [req.body.userId]
+  // );
+  // console.log(getAvatarQuery.rows[0]);
+  // res.json({
+  //   ...req.body,
+  //   avatar_url: getAvatarQuery.rows[0],
+  //   status: "Avatar successfully sent",
+  // });
+};
+
 module.exports.handleUpdateUsername = async (req, res) => {
   const existingUser = await pool.query(
     "SELECT username, passhash from users WHERE username=$1",
