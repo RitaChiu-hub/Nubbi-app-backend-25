@@ -59,7 +59,6 @@ module.exports.handleDeleteAccount = async (req, res) => {
 };
 
 module.exports.handleUpdateAvatar = async (req, res) => {
-  console.log(req.body);
   const updateAvatarQuery = await pool.query(
     "UPDATE users SET avatar_url=$2 WHERE id=$1",
     [req.body.userId, req.body.imageUrl]
@@ -70,19 +69,27 @@ module.exports.handleUpdateAvatar = async (req, res) => {
   });
 };
 
+module.exports.handleDeleteAvatar = async (req, res) => {
+  const deleteAvatarQuery = await pool.query(
+    "UPDATE users SET avatar_url=NULL WHERE id=$1",
+    [req.body.userId]
+  );
+  res.json({
+    ...req.body,
+    status: "Avatar successfully deleted",
+  });
+};
+
 module.exports.handleGetAvatar = async (req, res) => {
-  console.log("hi");
-  // console.log(req.body);
-  // const getAvatarQuery = await pool.query(
-  //   "SELECT avatar_url FROM users WHERE id=$1",
-  //   [req.body.userId]
-  // );
-  // console.log(getAvatarQuery.rows[0]);
-  // res.json({
-  //   ...req.body,
-  //   avatar_url: getAvatarQuery.rows[0],
-  //   status: "Avatar successfully sent",
-  // });
+  const getAvatarQuery = await pool.query(
+    "SELECT avatar_url FROM users WHERE id=$1",
+    [req.body.userId]
+  );
+  res.json({
+    ...req.body,
+    avatar_url: getAvatarQuery.rows[0],
+    status: "Avatar successfully sent",
+  });
 };
 
 module.exports.handleUpdateUsername = async (req, res) => {

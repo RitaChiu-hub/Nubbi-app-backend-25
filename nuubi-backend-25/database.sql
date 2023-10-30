@@ -264,68 +264,6 @@ UNION
 post_id from post_comments)
 
 
-SELECT point_total, 
-a.post_id post_id, 
-number_comments FROM 
-((SELECT SUM(point_value) point_total, posts_id post_id 
- FROM points WHERE group_id = 26 GROUP BY posts_id)
-UNION
-(SELECT DISTINCT CASE WHEN id> 0 THEN 0 END point_total,
-post_id from post_comments)) a
-FULL OUTER JOIN 
-(SELECT count(id) number_comments, post_id from post_comments group by post_id) b 
-ON a.post_id = b.post_id;
-
-
-
-
--- get info, then left join with point total & left join with number of comments, then coalesce the nulls with 0
-SELECT posts.id post_id, sender_id, title, body_text, username post_author, 
- posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id
- WHERE group_id = 26;
-
--- get post_id and point totals
-SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = 26 GROUP BY posts_id;
-  
-  -- getting everything from info & point totals
-
-  SELECT * FROM
-
-(SELECT posts.id post_id, sender_id, title, body_text, username post_author, 
- posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id
- WHERE group_id = 26) a
- 
- LEFT JOIN 
- 
- (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = 26 GROUP BY posts_id) b 
- ON a.post_id = b.post_id
- ;
-
-
- -- get comment totals with post_id 
-
- select post_id, count(id) number_comments from post_comments group by post_id;
-
- -- now left join everything 
-
- SELECT * FROM (
-  SELECT * FROM
-
-(SELECT posts.id post_id, sender_id, title, body_text, username post_author, 
- posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id
- WHERE group_id = 26) a
- 
- LEFT JOIN 
- 
- (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = 26 GROUP BY posts_id) b 
- ON a.post_id = b.post_id
- ) c 
- LEFT JOIN (
-     select post_id, count(id) number_comments from post_comments group by post_id
- ) d 
- on c.post_id = d.post_id;
-
--- adding images to messages
  ALTER TABLE messages
 ADD COLUMN image bytea;
 
