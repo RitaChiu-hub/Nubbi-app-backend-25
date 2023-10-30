@@ -1,34 +1,19 @@
+require("dotenv").config();
 const express = require("express");
 // const PORT = process.env.PORT || 4000;
 const app = express();
 // const host = "0.0.0.0";
-const myRouter = require("./routers.js");
+
 const helmet = require("helmet");
-const authRouter = require("./routers/authRouter");
-const settingsRouter = require("./routers/settingsRouter");
-const groupRouter = require("./routers/groupRouter");
-const groupchatRouter = require("./routers/groupchatRouter");
+
+const { Sequelize } = require("sequelize");
+
 const { Server } = require("socket.io");
 const pool = require("./db");
 const cors = require("cors");
 
 app.use(express.json());
 app.use(helmet());
-app.use("/auth", authRouter);
-
-app.use("/settings", settingsRouter);
-app.use("/groups", groupRouter);
-app.use("/groupchat", groupchatRouter);
-
-app.use("/backend", myRouter);
-
-// app.get("/", function (req, res) {
-//   res.status(200).json({ message: "nothing" });
-// });
-
-// app.get("/helloworld", function (req, res) {
-//   res.status(200).json({ message: "hello world" });
-// });
 
 app.use(cors({ origin: true, credentials: true }));
 
@@ -55,6 +40,80 @@ const io = new Server(server, {
 //     credentials: true,
 //   })
 // );
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+});
+
+var DataTypes = require("sequelize").DataTypes;
+
+var initModels = require("./models/init-models");
+var models = initModels(sequelize);
+var User = require("./models/users.js")(sequelize, DataTypes);
+var Participant = require("./models/participants.js")(sequelize, DataTypes);
+var Group = require("./models/groups.js")(sequelize, DataTypes);
+
+// Find all users
+
+// Create an object to hold both exports
+const exportsObject = {
+  sequelize: sequelize,
+  User: User,
+  Participant: Participant,
+  Group: Group,
+};
+
+// Export the object containing both sequelize and User
+module.exports = exportsObject;
+
+const myRouter = require("./routers.js");
+const authRouter = require("./routers/authRouter");
+const settingsRouter = require("./routers/settingsRouter");
+const groupRouter = require("./routers/groupRouter");
+const groupchatRouter = require("./routers/groupchatRouter");
+const fileRouter = require("./routers/fileRouter");
+
+const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
+
+app.use("/auth", authRouter);
+
+app.use(
+  jwt({
+    secret: process.env.JWT_SECRET,
+    algorithms: ["HS256"],
+    onExpired: (req, err) => {
+      throw err;
+    },
+  })
+);
+
+app.use("/settings", settingsRouter);
+app.use("/groups", groupRouter);
+app.use("/groupchat", groupchatRouter);
+app.use("/file", fileRouter);
+app.use("/backend", myRouter);
+
+app.use((err, req, res, next) => {
+  console.log(err);
+  if (err.name === "UnauthorizedError") {
+    res.status(401).json({
+      loggedIn: false,
+      status: "Unauthorized",
+    });
+  } else {
+    next(err);
+  }
+});
 
 io.on("connection", (socket) => {
   console.log("a user connected");

@@ -34,13 +34,18 @@ const {
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
 const validateCreateComment = require("../controllers/validation/validateCreateComment");
+const { UnauthorizedError } = require("express-jwt");
+const { verifyUserID } = require("../controllers/jwt/verifyUserId");
 
 router.post("/creategroup", validateCreateGroup, handleCreateGroup);
 router.get("/getgroups", getAllGroups);
 router.get("/getpublicgroups", getAllPublicGroups);
-router.post("/mygroups", getMyGroups);
 router.post("/joingroup", handleJoinGroup);
 router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);
+
+router.use(verifyUserID);
+
+router.post("/mygroups", getMyGroups);
 
 router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
 router.post("/:group_id/posts", handleGetPosts);

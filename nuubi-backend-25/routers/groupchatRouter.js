@@ -8,8 +8,9 @@ const {
   getImage,
 } = require("../controllers/groupChatController");
 const validateAddMessage = require("../controllers/validation/validateMessage");
+const { verifyUserID } = require("../controllers/jwt/verifyUserId");
 
-// add validation that makes sure the message isn't null
+router.use(verifyUserID);
 router.post("/addmessage", validateAddMessage, addMessage);
 router.post("/getmessages", getMessages);
 router.post("/getlikes", getLikes);

@@ -11,7 +11,6 @@ const {
   attemptRegister,
   getMessage,
 } = require("../controllers/authController");
-require("dotenv").config();
 
 router.route("/login").get(handleLogin).post(validateLoginForm, attemptLogin);
 
