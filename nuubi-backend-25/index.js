@@ -81,19 +81,19 @@ const groupRouter = require("./routers/groupRouter");
 const groupchatRouter = require("./routers/groupchatRouter");
 const fileRouter = require("./routers/fileRouter");
 
-const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
+// const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
 
 app.use("/auth", authRouter);
 
-app.use(
-  jwt({
-    secret: process.env.JWT_SECRET,
-    algorithms: ["HS256"],
-    onExpired: (req, err) => {
-      throw err;
-    },
-  })
-);
+// app.use(
+//   jwt({
+//     secret: process.env.JWT_SECRET,
+//     algorithms: ["HS256"],
+//     onExpired: (req, err) => {
+//       throw err;
+//     },
+//   })
+// );
 
 app.use("/settings", settingsRouter);
 app.use("/groups", groupRouter);
@@ -101,17 +101,17 @@ app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/backend", myRouter);
 
-app.use((err, req, res, next) => {
-  console.log(err);
-  if (err.name === "UnauthorizedError") {
-    res.status(401).json({
-      loggedIn: false,
-      status: "Unauthorized",
-    });
-  } else {
-    next(err);
-  }
-});
+// app.use((err, req, res, next) => {
+//   console.log(err);
+//   if (err.name === "UnauthorizedError") {
+//     res.status(401).json({
+//       loggedIn: false,
+//       status: "Unauthorized",
+//     });
+//   } else {
+//     next(err);
+//   }
+// });
 
 io.on("connection", (socket) => {
   console.log("a user connected");

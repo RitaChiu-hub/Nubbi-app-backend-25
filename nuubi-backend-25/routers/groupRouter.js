@@ -43,7 +43,7 @@ router.get("/getpublicgroups", getAllPublicGroups);
 router.post("/joingroup", handleJoinGroup);
 router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);
 
-router.use(verifyUserID);
+// router.use(verifyUserID);
 
 router.post("/mygroups", getMyGroups);
 
