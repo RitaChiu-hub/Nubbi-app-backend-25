@@ -53,26 +53,26 @@ const sequelize = new Sequelize({
   },
 });
 
-var DataTypes = require("sequelize").DataTypes;
+// var DataTypes = require("sequelize").DataTypes;
 
-var initModels = require("./models/init-models");
-var models = initModels(sequelize);
-var User = require("./models/users.js")(sequelize, DataTypes);
-var Participant = require("./models/participants.js")(sequelize, DataTypes);
-var Group = require("./models/groups.js")(sequelize, DataTypes);
+// var initModels = require("./models/init-models");
+// var models = initModels(sequelize);
+// var User = require("./models/users.js")(sequelize, DataTypes);
+// var Participant = require("./models/participants.js")(sequelize, DataTypes);
+// var Group = require("./models/groups.js")(sequelize, DataTypes);
 
-// Find all users
+// // Find all users
 
-// Create an object to hold both exports
-const exportsObject = {
-  sequelize: sequelize,
-  User: User,
-  Participant: Participant,
-  Group: Group,
-};
+// // Create an object to hold both exports
+// const exportsObject = {
+//   sequelize: sequelize,
+//   User: User,
+//   Participant: Participant,
+//   Group: Group,
+// };
 
-// Export the object containing both sequelize and User
-module.exports = exportsObject;
+// // Export the object containing both sequelize and User
+// module.exports = exportsObject;
 
 const myRouter = require("./routers.js");
 const authRouter = require("./routers/authRouter");

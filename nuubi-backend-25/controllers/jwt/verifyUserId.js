@@ -1,6 +1,6 @@
-import { UnauthorizedError } from "express-jwt";
+const { UnauthorizedError } = require("express-jwt");
 
-export function verifyUserID(req, res, next) {
+module.exports.verifyUserID = (req, res, next) => {
   if (req.auth.id !== req.body.userId) {
     throw new UnauthorizedError("invalid_token", {
       message: "Invalid user id",
@@ -8,4 +8,4 @@ export function verifyUserID(req, res, next) {
   } else {
     next();
   }
-}
+};
