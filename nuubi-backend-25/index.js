@@ -1,7 +1,12 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 
 const helmet = require("helmet");
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 const { Sequelize } = require("sequelize");
 
 const { Server } = require("socket.io");
@@ -243,6 +248,65 @@ app.use("/auth", authRouter);
 //   })
 // );
 
+<<<<<<< HEAD
+=======
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+});
+
+// var DataTypes = require("sequelize").DataTypes;
+
+// var initModels = require("./models/init-models");
+// var models = initModels(sequelize);
+// var User = require("./models/users.js")(sequelize, DataTypes);
+// var Participant = require("./models/participants.js")(sequelize, DataTypes);
+// var Group = require("./models/groups.js")(sequelize, DataTypes);
+
+// // Find all users
+
+// // Create an object to hold both exports
+// const exportsObject = {
+//   sequelize: sequelize,
+//   User: User,
+//   Participant: Participant,
+//   Group: Group,
+// };
+
+// // Export the object containing both sequelize and User
+// module.exports = exportsObject;
+
+const myRouter = require("./routers.js");
+const authRouter = require("./routers/authRouter");
+const settingsRouter = require("./routers/settingsRouter");
+const groupRouter = require("./routers/groupRouter");
+const groupchatRouter = require("./routers/groupchatRouter");
+const fileRouter = require("./routers/fileRouter");
+
+// const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
+
+app.use("/auth", authRouter);
+
+// app.use(
+//   jwt({
+//     secret: process.env.JWT_SECRET,
+//     algorithms: ["HS256"],
+//     onExpired: (req, err) => {
+//       throw err;
+//     },
+//   })
+// );
+
+>>>>>>> master
 app.use("/settings", settingsRouter);
 app.use("/groups", groupRouter);
 app.use("/groupchat", groupchatRouter);
