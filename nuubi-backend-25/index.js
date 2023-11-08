@@ -1,37 +1,20 @@
 const express = require("express");
-// const PORT = process.env.PORT || 4000;
 const app = express();
-// const host = "0.0.0.0";
-const myRouter = require("./routers.js");
+
 const helmet = require("helmet");
-const authRouter = require("./routers/authRouter");
-const settingsRouter = require("./routers/settingsRouter");
-const groupRouter = require("./routers/groupRouter");
-const groupchatRouter = require("./routers/groupchatRouter");
+
 const { Server } = require("socket.io");
 const pool = require("./db");
 const cors = require("cors");
 
 app.use(express.json());
 app.use(helmet());
-app.use("/auth", authRouter);
 
-app.use("/settings", settingsRouter);
-app.use("/groups", groupRouter);
-app.use("/groupchat", groupchatRouter);
-
-app.use("/backend", myRouter);
-
-// app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
   cors: {
-    // origin: "https://coral-app-n96bn.ondigitalocean.app",
-    // origin: "http://localhost:8080",
-    //origin: "127.0.0.1:3000",
-    //  origin: "http://localhost:3000",
-    // origin: "*",
     origin: true,
     credentials: true,
   },
@@ -39,15 +22,22 @@ const io = new Server(server, {
 
 app.use(
   cors({
-    // //  origin: "https://coral-app-n96bn.ondigitalocean.app",
-    // //  origin: "http://localhost:8080",
-    // //  origin: "127.0.0.1:3000",
-    // // origin: "http://localhost:3000", // this works!!
-    // origin: "http://localhost:19006", // this works!!
-    origin: "*",
-    credentials: true,
+    origin: "http://localhost:19006",
   })
 );
+
+const myRouter = require("./routers.js");
+const authRouter = require("./routers/authRouter");
+const settingsRouter = require("./routers/settingsRouter");
+const groupRouter = require("./routers/groupRouter");
+const groupchatRouter = require("./routers/groupchatRouter");
+
+app.use("/auth", authRouter);
+app.use("/settings", settingsRouter);
+app.use("/groups", groupRouter);
+app.use("/groupchat", groupchatRouter);
+
+app.use("/backend", myRouter);
 
 io.on("connection", (socket) => {
   console.log("a user connected");
