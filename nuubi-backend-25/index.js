@@ -24,12 +24,13 @@ const io = new Server(server, {
 
 app.use(cors({ origin: "*", credentials: true }));
 
-// app.use(
-//   cors({
-//     origin: "http://localhost:19006",
-//     credentials: true,
-//   })
-// );
+app.use(
+  cors({
+    // origin: "http://localhost:19006",
+    origin: "https://coral-app-n96bn.ondigitalocean.app",
+    credentials: true,
+  })
+);
 
 const sequelize = new Sequelize({
   dialect: "postgres",
