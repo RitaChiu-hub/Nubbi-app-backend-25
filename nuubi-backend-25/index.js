@@ -22,15 +22,7 @@ app.use("/groupchat", groupchatRouter);
 
 app.use("/backend", myRouter);
 
-// app.get("/", function (req, res) {
-//   res.status(200).json({ message: "nothing" });
-// });
-
-// app.get("/helloworld", function (req, res) {
-//   res.status(200).json({ message: "hello world" });
-// });
-
-app.use(cors({ origin: true, credentials: true }));
+// app.use(cors({ origin: true, credentials: true }));
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
@@ -45,16 +37,17 @@ const io = new Server(server, {
   },
 });
 
-// app.use(
-//   cors({
-//     //  origin: "https://coral-app-n96bn.ondigitalocean.app",
-//     //  origin: "http://localhost:8080",
-//     //  origin: "127.0.0.1:3000",
-//     origin: "http://localhost:3000", // this works!!
-//     // origin: "*",
-//     credentials: true,
-//   })
-// );
+app.use(
+  cors({
+    // //  origin: "https://coral-app-n96bn.ondigitalocean.app",
+    // //  origin: "http://localhost:8080",
+    // //  origin: "127.0.0.1:3000",
+    // // origin: "http://localhost:3000", // this works!!
+    // origin: "http://localhost:19006", // this works!!
+    origin: "*",
+    credentials: true,
+  })
+);
 
 io.on("connection", (socket) => {
   console.log("a user connected");
