@@ -3,6 +3,9 @@ const bcrypt = require("bcrypt");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const { adjectives } = require("./adjectives");
 const { nouns } = require("./nouns");
+const { sequelize, User, Participant, Group } = require("../index");
+
+const { Op } = require("sequelize");
 
 module.exports.handleLogin = async (req, res) => {
   const token = getJwt(req);
@@ -14,11 +17,13 @@ module.exports.handleLogin = async (req, res) => {
 
   jwtVerify(token, process.env.JWT_SECRET)
     .then(async (decoded) => {
-      const potentialUser = await pool.query(
-        "SELECT username, id FROM users u WHERE u.username = $1",
-        [decoded.username]
-      );
-      if (potentialUser.rowCount === 0) {
+      const potentialUser = await User.findOne({
+        attributes: ["username", "id"],
+        where: {
+          username: decodedUsername,
+        },
+      });
+      if (!potentialUser) {
         res.json({ loggedIn: false, token: null });
         return;
       } else {
@@ -36,21 +41,32 @@ module.exports.handleLogin = async (req, res) => {
 };
 
 module.exports.attemptLogin = async (req, res) => {
-  const potentialLogin = await pool.query(
-    "SELECT id, username, passhash FROM users u WHERE u.username=$1 OR LOWER(u.email)=LOWER($1)",
-    [req.body.username]
-  );
+  const potentialLogin = await User.findOne({
+    attributes: ["id", "username", "passhash"],
+    where: {
+      [Op.or]: [
+        {
+          username: req.body.username,
+        },
+        sequelize.where(
+          sequelize.fn("LOWER", sequelize.col("email")),
+          sequelize.fn("LOWER", req.body.username)
+        ),
+      ],
+    },
+  });
 
-  if (potentialLogin.rowCount > 0) {
+  if (potentialLogin) {
     const isSamePass = await bcrypt.compare(
       req.body.password,
-      potentialLogin.rows[0].passhash
+      potentialLogin.passhash
     );
+
     if (isSamePass) {
       jwtSign(
         {
-          username: potentialLogin.rows[0].username,
-          id: potentialLogin.rows[0].id,
+          username: potentialLogin.username,
+          id: potentialLogin.id,
         },
         process.env.JWT_SECRET,
         { expiresIn: "365d" } //can change to "1min" to test logic when token expires
@@ -59,8 +75,8 @@ module.exports.attemptLogin = async (req, res) => {
           res.json({
             loggedIn: true,
             token,
-            userId: potentialLogin.rows[0].id,
-            username: potentialLogin.rows[0].username,
+            userId: potentialLogin.id,
+            username: potentialLogin.username,
           });
         })
         .catch((err) => {
@@ -84,12 +100,14 @@ module.exports.attemptLogin = async (req, res) => {
 };
 
 module.exports.attemptRegister = async (req, res) => {
-  const existingEmail = await pool.query(
-    "SELECT email from users WHERE email=$1",
-    [req.body.email]
-  );
+  const existingEmail = await User.findOne({
+    attributes: ["email"],
+    where: {
+      email: req.body.email,
+    },
+  });
 
-  if (existingEmail.rowCount === 0) {
+  if (!existingEmail) {
     async function generateUsername() {
       var a = adjectives;
       var b = nouns;
@@ -104,11 +122,13 @@ module.exports.attemptRegister = async (req, res) => {
       var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
 
       const usernameAttempt = capAdj + capNoun;
-      const existingUser = await pool.query(
-        "SELECT username from users WHERE username=$1",
-        [usernameAttempt]
-      );
-      if (existingUser.rowCount === 0) {
+      const existingUser = await User.findOne({
+        attributes: ["username"],
+        where: {
+          username: usernameAttempt,
+        },
+      });
+      if (!existingUser) {
         return usernameAttempt;
       } else {
         return generateUsername();
@@ -119,19 +139,21 @@ module.exports.attemptRegister = async (req, res) => {
 
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
-    const newUserQuery = await pool.query(
-      "INSERT INTO users(email, username, passhash) values($1,$2,$3) RETURNING id, username",
-      [req.body.email, newUsername, hashedPass]
-    );
+    const newUserQuery = await User.create({
+      email: req.body.email,
+      username: newUsername,
+      passhash: hashedPass,
+    });
     // 3 for prod with digitalocean db, 7 for localhost db
+    //adding to the default group
     const joinNuubiGroupQuery = await pool.query(
       "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
-      [newUserQuery.rows[0].id]
+      [newUserQuery.id]
     );
     jwtSign(
       {
         username: req.body.username,
-        id: newUserQuery.rows[0].id,
+        id: newUserQuery.id,
       },
       process.env.JWT_SECRET,
       { expiresIn: "365d" }
@@ -140,7 +162,7 @@ module.exports.attemptRegister = async (req, res) => {
         res.json({
           loggedIn: true,
           token,
-          userId: newUserQuery.rows[0].id,
+          userId: newUserQuery.id,
           username: newUsername,
           firstSignIn: true,
         });

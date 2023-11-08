@@ -41,6 +41,186 @@ const sequelize = new Sequelize({
   },
 });
 
+var DataTypes = require("sequelize").DataTypes;
+
+var _groups = function (sequelize, DataTypes) {
+  return sequelize.define(
+    "groups",
+    {
+      id: {
+        autoIncrement: true,
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        primaryKey: true,
+      },
+      name: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        defaultValue: "untitled group",
+      },
+      description: {
+        type: DataTypes.STRING(800),
+        allowNull: true,
+      },
+      is_public: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      invite_passcode: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+    },
+    {
+      sequelize,
+      tableName: "groups",
+      schema: "public",
+      timestamps: true,
+      indexes: [
+        {
+          name: "groups_pkey",
+          unique: true,
+          fields: [{ name: "id" }],
+        },
+      ],
+    }
+  );
+};
+
+var _messages = require("./models/messages");
+// var _participants = require("./models/participants");
+
+var _participants = function (sequelize, DataTypes) {
+  return sequelize.define(
+    "participants",
+    {
+      id: {
+        autoIncrement: true,
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        primaryKey: true,
+      },
+      user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "users",
+          key: "id",
+        },
+      },
+      group_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "groups",
+          key: "id",
+        },
+      },
+      is_admin: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+    },
+    {
+      sequelize,
+      tableName: "participants",
+      schema: "public",
+      timestamps: true,
+      indexes: [
+        {
+          name: "participants_pkey",
+          unique: true,
+          fields: [{ name: "id" }],
+        },
+      ],
+    }
+  );
+};
+
+var _points = require("./models/points");
+var _post_comments = require("./models/post_comments");
+var _posts = require("./models/posts");
+var _users = require("./models/users");
+
+function initModels(sequelize) {
+  var groups = _groups(sequelize, DataTypes);
+  var messages = _messages(sequelize, DataTypes);
+  var participants = _participants(sequelize, DataTypes);
+  var points = _points(sequelize, DataTypes);
+  var post_comments = _post_comments(sequelize, DataTypes);
+  var posts = _posts(sequelize, DataTypes);
+  var users = _users(sequelize, DataTypes);
+
+  messages.belongsTo(groups, { as: "group", foreignKey: "group_id" });
+  groups.hasMany(messages, { as: "messages", foreignKey: "group_id" });
+  participants.belongsTo(groups, { as: "groups", foreignKey: "groups_id" });
+  groups.hasMany(participants, { as: "participants", foreignKey: "groups_id" });
+  points.belongsTo(groups, { as: "group", foreignKey: "group_id" });
+  groups.hasMany(points, { as: "points", foreignKey: "group_id" });
+  posts.belongsTo(groups, { as: "group", foreignKey: "group_id" });
+  groups.hasMany(posts, { as: "posts", foreignKey: "group_id" });
+  points.belongsTo(messages, { as: "message", foreignKey: "messages_id" });
+  messages.hasMany(points, { as: "points", foreignKey: "messages_id" });
+  points.belongsTo(post_comments, { as: "comment", foreignKey: "comment_id" });
+  post_comments.hasMany(points, { as: "points", foreignKey: "comment_id" });
+  points.belongsTo(posts, { as: "post", foreignKey: "posts_id" });
+  posts.hasMany(points, { as: "points", foreignKey: "posts_id" });
+  post_comments.belongsTo(posts, { as: "post", foreignKey: "post_id" });
+  posts.hasMany(post_comments, { as: "post_comments", foreignKey: "post_id" });
+  messages.belongsTo(users, { as: "sender", foreignKey: "sender_id" });
+  users.hasMany(messages, { as: "messages", foreignKey: "sender_id" });
+  participants.belongsTo(users, { as: "user", foreignKey: "user_id" });
+  users.hasMany(participants, { as: "participants", foreignKey: "user_id" });
+  points.belongsTo(users, { as: "giver", foreignKey: "giver_id" });
+  users.hasMany(points, { as: "points", foreignKey: "giver_id" });
+  points.belongsTo(users, { as: "recipient", foreignKey: "recipient_id" });
+  users.hasMany(points, { as: "recipient_points", foreignKey: "recipient_id" });
+  post_comments.belongsTo(users, { as: "sender", foreignKey: "sender_id" });
+  users.hasMany(post_comments, {
+    as: "post_comments",
+    foreignKey: "sender_id",
+  });
+  posts.belongsTo(users, { as: "sender", foreignKey: "sender_id" });
+  users.hasMany(posts, { as: "posts", foreignKey: "sender_id" });
+
+  return {
+    groups,
+    messages,
+    participants,
+    points,
+    post_comments,
+    posts,
+    users,
+  };
+}
+
+// var initModels = require("./models/init-models");
+const models = initModels(sequelize);
+
+var User = require("./models/users.js")(sequelize, DataTypes);
+var Participant = require("./models/participants.js")(sequelize, DataTypes);
+var Group = require("./models/groups.js")(sequelize, DataTypes);
+var Message = require("./models/messages")(sequelize, DataTypes);
+var Points = require("./models/points")(sequelize, DataTypes);
+var Post = require("./models/posts")(sequelize, DataTypes);
+// Find all users
+
+// Create an object to hold both exports
+const exportsObject = {
+  sequelize: sequelize,
+  User: User,
+  Participant: Participant,
+  Group: Group,
+  Message: Message,
+  Points: Points,
+  Post: Post,
+};
+
+// Export the object containing both sequelize and User
+module.exports = exportsObject;
+
 const myRouter = require("./routers.js");
 const authRouter = require("./routers/authRouter");
 const settingsRouter = require("./routers/settingsRouter");
