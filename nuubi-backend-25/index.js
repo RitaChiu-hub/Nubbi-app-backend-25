@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 
 const helmet = require("helmet");
+const { Sequelize } = require("sequelize");
 
 const { Server } = require("socket.io");
 const pool = require("./db");
@@ -26,18 +27,58 @@ app.use(
   })
 );
 
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+});
+
 const myRouter = require("./routers.js");
 const authRouter = require("./routers/authRouter");
 const settingsRouter = require("./routers/settingsRouter");
 const groupRouter = require("./routers/groupRouter");
 const groupchatRouter = require("./routers/groupchatRouter");
+const fileRouter = require("./routers/fileRouter");
+
+const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
 
 app.use("/auth", authRouter);
+
+// app.use(
+//   jwt({
+//     secret: process.env.JWT_SECRET,
+//     algorithms: ["HS256"],
+//     onExpired: (req, err) => {
+//       throw err;
+//     },
+//   })
+// );
+
 app.use("/settings", settingsRouter);
 app.use("/groups", groupRouter);
 app.use("/groupchat", groupchatRouter);
-
+app.use("/file", fileRouter);
 app.use("/backend", myRouter);
+
+// app.use((err, req, res, next) => {
+//   console.log(err);
+//   if (err.name === "UnauthorizedError") {
+//     res.status(401).json({
+//       loggedIn: false,
+//       status: "Unauthorized",
+//     });
+//   } else {
+//     next(err);
+//   }
+// });
 
 io.on("connection", (socket) => {
   console.log("a user connected");
@@ -207,7 +248,3 @@ io.on("connection", (socket) => {
 server.listen(8080, () => {
   console.log("server listening on port 8080");
 });
-
-// app.listen(PORT, host, function () {
-//   console.log("listening on port " + PORT);
-// });
