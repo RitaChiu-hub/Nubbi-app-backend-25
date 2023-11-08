@@ -3,10 +3,6 @@ const express = require("express");
 const app = express();
 
 const helmet = require("helmet");
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 const { Sequelize } = require("sequelize");
 
 const { Server } = require("socket.io");
@@ -248,21 +244,19 @@ app.use("/auth", authRouter);
 //   })
 // );
 
-<<<<<<< HEAD
-=======
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  database: process.env.DATABASE_NAME,
-  host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
-  username: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
-  },
-});
+// const sequelize = new Sequelize({
+//   dialect: "postgres",
+//   database: process.env.DATABASE_NAME,
+//   host: process.env.DATABASE_HOST,
+//   port: process.env.DATABASE_PORT,
+//   username: process.env.DATABASE_USER,
+//   password: process.env.DATABASE_PASSWORD,
+//   dialectOptions: {
+//     ssl: {
+//       rejectUnauthorized: false, // Disable SSL certificate verification
+//     },
+//   },
+// });
 
 // var DataTypes = require("sequelize").DataTypes;
 
@@ -306,7 +300,6 @@ app.use("/auth", authRouter);
 //   })
 // );
 
->>>>>>> master
 app.use("/settings", settingsRouter);
 app.use("/groups", groupRouter);
 app.use("/groupchat", groupchatRouter);
