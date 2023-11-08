@@ -3,7 +3,37 @@ const bcrypt = require("bcrypt");
 const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const { adjectives } = require("./adjectives");
 const { nouns } = require("./nouns");
-const { sequelize, User, Participant, Group } = require("../index");
+const currentDate = new Date();
+
+const Sequelize = require("sequelize");
+
+var config = {
+  define: {
+    underscored: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+};
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+  config: config,
+});
+
+const DataTypes = require("sequelize").DataTypes;
+
+const { participants, groups, messages, points, post_comments, posts, users } =
+  require("../models/init-models")(sequelize, DataTypes);
 
 const { Op } = require("sequelize");
 
@@ -17,7 +47,7 @@ module.exports.handleLogin = async (req, res) => {
 
   jwtVerify(token, process.env.JWT_SECRET)
     .then(async (decoded) => {
-      const potentialUser = await User.findOne({
+      const potentialUser = await users.findOne({
         attributes: ["username", "id"],
         where: {
           username: decodedUsername,
@@ -41,7 +71,7 @@ module.exports.handleLogin = async (req, res) => {
 };
 
 module.exports.attemptLogin = async (req, res) => {
-  const potentialLogin = await User.findOne({
+  const potentialLogin = await users.findOne({
     attributes: ["id", "username", "passhash"],
     where: {
       [Op.or]: [
@@ -100,7 +130,7 @@ module.exports.attemptLogin = async (req, res) => {
 };
 
 module.exports.attemptRegister = async (req, res) => {
-  const existingEmail = await User.findOne({
+  const existingEmail = await users.findOne({
     attributes: ["email"],
     where: {
       email: req.body.email,
@@ -122,7 +152,7 @@ module.exports.attemptRegister = async (req, res) => {
       var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
 
       const usernameAttempt = capAdj + capNoun;
-      const existingUser = await User.findOne({
+      const existingUser = await users.findOne({
         attributes: ["username"],
         where: {
           username: usernameAttempt,
@@ -139,10 +169,12 @@ module.exports.attemptRegister = async (req, res) => {
 
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
-    const newUserQuery = await User.create({
+    const newUserQuery = await users.create({
       email: req.body.email,
       username: newUsername,
       passhash: hashedPass,
+      created_at: currentDate.getTime(),
+      updated_at: currentDate.getTime(),
     });
     // 3 for prod with digitalocean db, 7 for localhost db
     //adding to the default group

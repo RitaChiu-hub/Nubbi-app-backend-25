@@ -1,12 +1,36 @@
 const pool = require("../db");
-const {
-  Participant,
-  Group,
-  Message,
-  Points,
-  Post,
-  sequelize,
-} = require("../index");
+const currentDate = new Date();
+
+const Sequelize = require("sequelize");
+
+var config = {
+  define: {
+    underscored: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+};
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+  config: config,
+});
+
+const DataTypes = require("sequelize").DataTypes;
+
+const { participants, groups, messages, points, post_comments, posts, users } =
+  require("../models/init-models")(sequelize, DataTypes);
+
 module.exports.addMessage = async (req, res) => {
   // const newMessageQuery = await pool.query(
   //   "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
@@ -18,10 +42,12 @@ module.exports.addMessage = async (req, res) => {
   //   status: "Message successfully sent",
   // });
 
-  const newMessage = await Message.create({
+  const newMessage = await messages.create({
     sender_id: req.body.userId,
     group_id: req.body.currentGroup,
     text: req.body.mymessage,
+    created_at: currentDate.getTime(),
+    updated_at: currentDate.getTime(),
   });
 
   res.json({
@@ -31,41 +57,41 @@ module.exports.addMessage = async (req, res) => {
 };
 
 module.exports.getMessages = async (req, res) => {
-  // const getMessagesQuery = await pool.query(
-  //     "SELECT a.user_id, a.sender_username, a.text, a.messages_id, a.iso_time_sent, coalesce(b.count,0) message_points FROM (SELECT users.id user_id, username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent, messages.created_at messages_created_at FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1) a LEFT JOIN (SELECT COUNT(point_value), messages_id FROM points WHERE group_id = $1 GROUP BY messages_id) b ON a.messages_id = b.messages_id  ORDER BY a.messages_created_at ASC;",
-  //     [req.body.currentGroup]
-  // );
-  // res.send(getMessagesQuery.rows);
-  const messages = await Message.findAll({
-    attributes: [
-      [sequelize.col("a.id"), "user_id"],
-      "sender_username",
-      "text",
-      "messages_id",
-      "iso_time_sent",
-      [sequelize.fn("coalesce", sequelize.col("b.count"), 0), "message_points"],
-    ],
-    include: [
-      {
-        model: User,
-        attributes: ["id", "username"],
-      },
-      {
-        model: Points,
-        attributes: [
-          [sequelize.fn("COUNT", sequelize.col("point_value")), "point_count"],
-        ],
-        where: {
-          group_id: req.body.currentGroup,
-        },
-        required: false,
-        group: ["messages_id"],
-      },
-    ],
-    order: [[sequelize.col("messages_created_at"), "ASC"]],
-  });
+  const getMessagesQuery = await pool.query(
+    "SELECT a.user_id, a.sender_username, a.text, a.messages_id, a.iso_time_sent, coalesce(b.count,0) message_points FROM (SELECT users.id user_id, username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent, messages.created_at messages_created_at FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1) a LEFT JOIN (SELECT COUNT(point_value), messages_id FROM points WHERE group_id = $1 GROUP BY messages_id) b ON a.messages_id = b.messages_id  ORDER BY a.messages_created_at ASC;",
+    [req.body.currentGroup]
+  );
+  res.send(getMessagesQuery.rows);
+  // const getMessages = await messages.findAll({
+  //   attributes: [
+  //     [sequelize.col("a.id"), "user_id"],
+  //     "sender_username",
+  //     "text",
+  //     "messages_id",
+  //     "iso_time_sent",
+  //     [sequelize.fn("coalesce", sequelize.col("b.count"), 0), "message_points"],
+  //   ],
+  //   include: [
+  //     {
+  //       model: users,
+  //       attributes: ["id", "username"],
+  //     },
+  //     {
+  //       model: points,
+  //       attributes: [
+  //         [sequelize.fn("COUNT", sequelize.col("point_value")), "point_count"],
+  //       ],
+  //       where: {
+  //         group_id: req.body.currentGroup,
+  //       },
+  //       required: false,
+  //       group: ["messages_id"],
+  //     },
+  //   ],
+  //   order: [[sequelize.col("messages_created_at"), "ASC"]],
+  // });
 
-  res.send(messages);
+  // res.send(getMessages);
 };
 
 module.exports.getLikes = async (req, res) => {
@@ -74,7 +100,7 @@ module.exports.getLikes = async (req, res) => {
   //     [req.body.userId, req.body.currentGroup]
   // );
 
-  const getLikesQuery = await Points.findAll({
+  const getLikesQuery = await points.findAll({
     attributes: ["messages_id"],
     where: {
       giver_id: req.body.userId,

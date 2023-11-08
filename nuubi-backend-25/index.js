@@ -24,6 +24,7 @@ const io = new Server(server, {
 app.use(
   cors({
     origin: "http://localhost:19006",
+    credentials: true,
   })
 );
 

@@ -1,64 +1,71 @@
 const pool = require("../db");
-const {
-  Participant,
-  Group,
-  Message,
-  Points,
-  Post,
-  sequelize,
-} = require("../index");
-
-const DataTypes = require("sequelize").DataTypes;
 
 const Sequelize = require("sequelize");
 
-// const sequelize = new Sequelize({
-//   dialect: "postgres",
-//   database: process.env.DATABASE_NAME,
-//   host: process.env.DATABASE_HOST,
-//   port: process.env.DATABASE_PORT,
-//   username: process.env.DATABASE_USER,
-//   password: process.env.DATABASE_PASSWORD,
-//   dialectOptions: {
-//     ssl: {
-//       rejectUnauthorized: false, // Disable SSL certificate verification
-//     },
-//   },
-// });
+var config = {
+  define: {
+    underscored: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+};
 
-// const participants = require("../models/participants")(sequelize, DataTypes);
-const { participants, groups } = require("../models/init-models")(
-  sequelize,
-  DataTypes
-);
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+  config: config,
+});
+
+const DataTypes = require("sequelize").DataTypes;
+
+const { participants, groups, messages, points, post_comments, posts, users } =
+  require("../models/init-models")(sequelize, DataTypes);
 
 const bcrypt = require("bcrypt");
+const currentDate = new Date();
 require("dotenv").config();
 
 module.exports.handleCreateGroup = async (req, res) => {
+  console.log("the request body is: " + JSON.stringify(req.body));
   var isPublic = req.body.privacySelection === "Public" ? "true" : "false";
   var invitePasscode = Math.random().toString(10).substring(2, 8);
-
+  // var createdAt = currentDate.getTime();
+  // var updatedAt = currentDate.getTime();
   // const newGroupQuery = await pool.query(
   //   "INSERT INTO groups(name, description, is_public, invite_passcode) values($1,$2,$3,$4) RETURNING id",
   //   [req.body.groupname, req.body.description, isPublic, invitePasscode]
   // );
 
-  const newGroup = await Group.create({
+  const newGroup = await groups.create({
     name: req.body.groupname,
     description: req.body.description,
     is_public: isPublic,
     invite_passcode: invitePasscode,
+    created_at: currentDate.getTime(),
+    updated_at: currentDate.getTime(),
   });
+
+  // const groupId = newGroupQuery.rows[0].id;
 
   // const newParticipantQuery = await pool.query(
   //     "INSERT INTO participants(user_id, group_id, is_admin) values ($1, $2, true) RETURNING id, user_id, group_id",
   //     [req.body.userId, groupId]
   // );
-  const newParticipant = await Participant.create({
+  const newParticipant = await participants.create({
     user_id: req.body.userId,
     group_id: newGroup.id,
     is_admin: true,
+    created_at: currentDate.getTime(),
+    updated_at: currentDate.getTime(),
   });
 
   res.json({
@@ -72,80 +79,133 @@ module.exports.getAllGroups = async (req, res) => {
   //     "SELECT name, description, id FROM groups"
   // );
 
-  const getAllGroups = await Group.findAll({
+  const getAllGroups = await groups.findAll({
     attributes: ["name", "description", "id"],
   });
-  res.json(getAllGroups);
+  res.send(getAllGroups);
+  // res.send(allGroupsQuery.rows);
 };
 
 module.exports.getAllPublicGroups = async (req, res) => {
   // const allGroupsQuery = await pool.query(
-  //     "SELECT name, description, id FROM groups WHERE is_public"
+  //   "SELECT name, description, id FROM groups WHERE is_public"
   // );
-  const allPubGroups = await Group.findAll({
+  const allPubGroups = await groups.findAll({
     where: { is_public: true },
     attributes: ["name", "description", "id"],
   });
   res.json(allPubGroups);
+  // res.send(allGroupsQuery.rows);
 };
 
 module.exports.getMemberCount = async (req, res) => {
-  const { currentGroup } = req.body;
+  const memberCountQuery = await pool.query(
+    "SELECT COUNT(id) FROM participants WHERE group_id = $1;",
+    [req.body.currentGroup]
+  );
 
-  const memberCount = await Participant.count({
-    where: { group_id: currentGroup },
-  });
+  const memberCount = memberCountQuery.rows[0].count;
 
-  res.json({ memberCount });
+  res.send(memberCount);
+  // const { currentGroup } = req.body;
+
+  // const memberCount = await participants.count({
+  //   where: { group_id: currentGroup },
+  // });
+
+  // res.json({ memberCount });
 };
 
 module.exports.getMyGroups = async (req, res) => {
   // const myGroupsQuery = await pool.query(
-  //     "SELECT groups.invite_passcode invite_passcode, groups.id group_id, groups.name, groups.description, participants.user_id user_id FROM groups INNER JOIN participants ON groups.id = participants.group_id WHERE participants.user_id = $1 order by participants.created_at desc;",
-  //     [req.body.userId]
+  //   "SELECT groups.invite_passcode invite_passcode, groups.id group_id, groups.name, groups.description, participants.user_id user_id FROM groups INNER JOIN participants ON groups.id = participants.group_id WHERE participants.user_id = $1 order by participants.created_at desc;",
+  //   [req.body.userId]
   // );
   // res.send(myGroupsQuery.rows);
-  const myGroups = await groups.findAll({
-    attributes: ["invite_passcode", ["id", "group_id"], "name", "description"],
-    include: [
-      {
-        model: participants,
-        where: { user_id: req.body.userId },
-        attributes: ["user_id"],
-        required: true,
-      },
-    ],
-    order: [[Sequelize.literal("participants.created_at"), "DESC"]],
-  });
+  try {
+    const myGroups = await groups.findAll({
+      attributes: [
+        "invite_passcode",
+        ["id", "group_id"],
+        "name",
+        "description",
+      ],
+      include: [
+        {
+          model: participants,
+          where: { user_id: req.body.userId },
+          attributes: ["user_id"],
+          required: true,
+        },
+      ],
+      order: [[Sequelize.literal("participants.created_at"), "DESC"]],
+    });
 
-  res.json(myGroups);
+    res.json(myGroups);
+  } catch (error) {
+    console.error("Error fetching user groups:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
 
 module.exports.getGroupMembers = async (req, res) => {
-  const groupMembers = await User.findAll({
-    attributes: [
-      [Sequelize.col("c.user_id"), "user_id"],
-      "username",
-      "email",
-      "is_admin",
-    ],
-    include: [
-      {
-        model: Participant,
-        where: { group_id: req.body.currentGroup },
-        required: true,
-      },
-    ],
+  const groupMembersQuery = await pool.query(
+    "SELECT c.user_id as user_id, username, email, is_admin, coalesce(group_total_points,0) group_total_points FROM (  SELECT users.id user_id, users.username username, users.email email, participants.is_admin is_admin FROM participants INNER JOIN users ON participants.user_id = users.id WHERE participants.group_id = $1) c FULL OUTER JOIN ( SELECT user_id, recipient_id, count as group_total_points FROM (SELECT DISTINCT participants.user_id FROM participants INNER JOIN points ON participants.user_id = points.recipient_id WHERE participants.group_id = $1) a LEFT JOIN (SELECT recipient_id, count(point_value) FROM points WHERE group_id = $1 GROUP BY recipient_id) b ON a.user_id = b.recipient_id) d ON c.user_id = d.user_id ORDER BY group_total_points DESC;",
+    [req.body.currentGroup]
+  );
+  res.send(groupMembersQuery.rows);
 
-    order: [[Sequelize.literal("group_total_points"), "DESC"]],
-  });
+  // const groupMembers = await users.findAll({
+  //   attributes: [
+  //     [Sequelize.col("c.user_id"), "user_id"],
+  //     "username",
+  //     "email",
+  //     "is_admin",
+  //     [
+  //       Sequelize.literal("COALESCE(group_total_points, 0)"),
+  //       "group_total_points",
+  //     ],
+  //   ],
+  //   include: [
+  //     {
+  //       model: participants,
+  //       where: { group_id: req.body.currentGroup },
+  //       attributes: [],
+  //       required: true,
+  //     },
+  //   ],
 
-  res.json(groupMembers);
+  //   order: [[Sequelize.literal("group_total_points"), "DESC"]],
+  // });
+
+  // res.json(groupMembers);
 };
 
 module.exports.handleJoinGroup = async (req, res) => {
+  // const existingParticipant = await pool.query(
+  //     "SELECT user_id, group_id FROM participants WHERE user_id=$1 AND group_id=$2",
+  //     [req.body.userId, req.body.joinGroupId]
+  // );
+
+  // if (existingParticipant.rowCount === 0) {
+  //     //user isn't already participating & can be added
+  //     const joinGroupQuery = await pool.query(
+  //         "INSERT INTO participants(user_id, group_id, is_admin) values ($1, $2, false) RETURNING id, user_id, group_id",
+  //         [req.body.userId, req.body.joinGroupId]
+  //     );
+  //     res.json({
+  //         ...req.body,
+  //         status: "Successfully added 😘",
+  //     });
+  //     // now check to see if the user is already a participant or not. If not, add them to the group.
+  // } else {
+  //     res.json({
+  //         ...req.body,
+  //         status: "You're already in this group 😁",
+  //     });
+  // }
   try {
-    const existingParticipant = await Participant.findOne({
+    const existingParticipant = await participants.findOne({
       where: {
         user_id: req.body.userId,
         group_id: req.body.joinGroupId,
@@ -153,10 +213,12 @@ module.exports.handleJoinGroup = async (req, res) => {
     });
 
     if (!existingParticipant) {
-      await Participant.create({
+      await participants.create({
         user_id: req.body.userId,
         group_id: req.body.joinGroupId,
         is_admin: false,
+        created_at: currentDate.getTime(),
+        updated_at: currentDate.getTime(),
       });
 
       res.json({
@@ -176,14 +238,70 @@ module.exports.handleJoinGroup = async (req, res) => {
 };
 
 module.exports.handleJoinGroupWithPasscode = async (req, res) => {
-  const group = await Group.findOne({
+  // const getGroupId = await pool.query(
+  //     "select id group_id from groups WHERE invite_passcode = $1;",
+  //     [req.body.passcode]
+  // );
+
+  // if (getGroupId.rowCount !== 0) {
+  //     const getAdminId = await pool.query(
+  //         "SELECT participants.user_id admin_id FROM participants FULL OUTER JOIN groups ON groups.id = participants.group_id where participants.is_admin=true and groups.invite_passcode=$1;",
+  //         [req.body.passcode]
+  //     );
+
+  //     const GroupId = getGroupId.rows[0].group_id;
+  //     const AdminId = getAdminId.rows[0].admin_id;
+
+  //     const getAdminUsername = await pool.query(
+  //         "SELECT username FROM users WHERE id = $1;",
+  //         [AdminId]
+  //     );
+
+  //     const AdminUsername = getAdminUsername.rows[0].username;
+
+  //     if (AdminUsername === req.body.admin) {
+  //         const existingParticipant = await pool.query(
+  //             "SELECT user_id, group_id FROM participants WHERE user_id=$1 AND group_id=$2",
+  //             [req.body.userId, GroupId]
+  //         );
+
+  //         if (existingParticipant.rowCount === 0) {
+  //             //user isn't already participating & can be added
+  //             const joinGroupQuery = await pool.query(
+  //                 "INSERT INTO participants(user_id, group_id, is_admin) values ($1, $2, false) RETURNING id, user_id, group_id",
+  //                 [req.body.userId, GroupId]
+  //             );
+  //             res.json({
+  //                 ...req.body,
+  //                 status: "Successfully added 😘",
+  //             });
+  //             // now check to see if the user is already a participant or not. If not, add them to the group.
+  //         } else {
+  //             res.json({
+  //                 ...req.body,
+  //                 status: "You're already in this group 😁",
+  //             });
+  //         }
+  //     } else {
+  //         res.json({
+  //             ...req.body,
+  //             status: "Wrong passcode or admin username", //wrong admin username
+  //         });
+  //     }
+  // } else {
+  //     res.json({
+  //         ...req.body,
+  //         status: "Wrong passcode or admin username", //wrong passcode
+  //     });
+  // }
+  const group = await groups.findOne({
     where: {
       invite_passcode: req.body.passcode,
     },
   });
 
   if (group) {
-    const admin = await Participant.findOne({
+    const admin = await participants.findOne({
       where: {
         group_id: group.id,
         is_admin: true,
@@ -191,14 +309,14 @@ module.exports.handleJoinGroupWithPasscode = async (req, res) => {
       attributes: ["user_id"],
       include: [
         {
-          model: User,
+          model: users,
           attributes: ["username"],
         },
       ],
     });
 
-    if (admin.User.username === req.body.admin) {
-      const existingParticipant = await Participant.findOne({
+    if (admin.user.username === req.body.admin) {
+      const existingParticipant = await participants.findOne({
         where: {
           user_id: req.body.userId,
           group_id: group.id,
@@ -206,10 +324,12 @@ module.exports.handleJoinGroupWithPasscode = async (req, res) => {
       });
 
       if (!existingParticipant) {
-        await Participant.create({
+        await participants.create({
           user_id: req.body.userId,
           group_id: group.id,
           is_admin: false,
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
         });
 
         res.json({
@@ -237,7 +357,23 @@ module.exports.handleJoinGroupWithPasscode = async (req, res) => {
 };
 
 module.exports.handleIsAdmin = async (req, res) => {
-  const isAdmin = await Participant.findOne({
+  // const isAdmin = await pool.query(
+  //     "SELECT * FROM participants WHERE user_id = $1 AND group_id = $2 AND is_admin = true;",
+  //     [req.body.userId, req.body.currentGroup]
+  // );
+
+  // if (isAdmin.rowCount != 0) {
+  //     res.json({
+  //         ...req.body,
+  //         isAdmin: "true",
+  //     });
+  // } else {
+  //     res.json({
+  //         ...req.body,
+  //         isAdmin: "false",
+  //     });
+  // }
+  const isAdmin = await participants.findOne({
     where: {
       user_id: req.body.userId,
       group_id: req.body.currentGroup,
@@ -252,7 +388,27 @@ module.exports.handleIsAdmin = async (req, res) => {
 };
 
 module.exports.handleLeaveGroup = async (req, res) => {
-  const isAdmin = await Participant.findOne({
+  // const isAdmin = await pool.query(
+  //     "SELECT * FROM participants WHERE user_id = $1 AND group_id = $2 AND is_admin = true;",
+  //     [req.body.userId, req.body.currentGroup]
+  // );
+
+  // if (isAdmin.rowCount === 0) {
+  //     const leaveGroupQuery = await pool.query(
+  //         "DELETE FROM participants WHERE user_id = $1 AND group_id = $2",
+  //         [req.body.userId, req.body.currentGroup]
+  //     );
+  //     res.json({
+  //         ...req.body,
+  //         status: "Success",
+  //     });
+  // } else {
+  //     res.json({
+  //         ...req.body,
+  //         status: "You're can't leave bc you're the admin 😁",
+  //     });
+  // }
+  const isAdmin = await participants.findOne({
     where: {
       user_id: req.body.userId,
       group_id: req.body.currentGroup,
@@ -266,7 +422,7 @@ module.exports.handleLeaveGroup = async (req, res) => {
       status: "You can't leave because you're the admin 😁",
     });
   } else {
-    await Participant.destroy({
+    await participants.destroy({
       where: {
         user_id: req.body.userId,
         group_id: req.body.currentGroup,
@@ -281,82 +437,184 @@ module.exports.handleLeaveGroup = async (req, res) => {
 };
 
 module.exports.handleDeleteGroup = async (req, res) => {
-  const username = req.body.username;
-  const passattempt = req.body.passattempt;
-  const userId = req.body.userId;
-  const currentGroup = req.body.currentGroup;
+  // const existingUser = await pool.query(
+  //     "SELECT username, passhash from users WHERE username=$1",
+  //     [req.body.username]
+  // );
+  // if (existingUser.rowCount != 0) {
+  //     const isSamePass = await bcrypt.compare(
+  //         req.body.passattempt,
+  //         existingUser.rows[0].passhash
+  //     );
 
-  const existingUser = await User.findOne({
-    attributes: ["username", "passhash"],
-    where: { username },
+  //     const isAdmin = await pool.query(
+  //         "SELECT * FROM participants WHERE user_id = $1 AND group_id = $2 AND is_admin = true;",
+  //         [req.body.userId, req.body.currentGroup]
+  //     );
+
+  //     if (isAdmin.rowCount != 0) {
+  //         if (isSamePass) {
+  //             const updatePointsQuery = await pool.query(
+  //                 "UPDATE points SET group_id=NULL, posts_id=NULL, comment_id=NULL, messages_id=NULL WHERE group_id = $1",
+  //                 [req.body.currentGroup]
+  //             );
+
+  //             const deleteCommentsQuery = await pool.query(
+  //                 "DELETE FROM post_comments USING posts WHERE post_comments.post_id = posts.id AND posts.group_id=$1",
+  //                 [req.body.currentGroup]
+  //             );
+
+  //             const deletePostsQuery = await pool.query(
+  //                 "DELETE FROM posts WHERE group_id = $1",
+  //                 [req.body.currentGroup]
+  //             );
+
+  //             const deleteMessagesQuery = await pool.query(
+  //                 "DELETE FROM messages WHERE group_id = $1",
+  //                 [req.body.currentGroup]
+  //             );
+
+  //             const deleteParticipantsQuery = await pool.query(
+  //                 "DELETE FROM participants WHERE group_id = $1",
+  //                 [req.body.currentGroup]
+  //             );
+
+  //             const deleteGroupQuery = await pool.query(
+  //                 "DELETE FROM groups WHERE id = $1",
+  //                 [req.body.currentGroup]
+  //             );
+  //             res.json({ ...req.body, status: "Success" });
+  //         } else {
+  //             res.json({ ...req.body, status: "Wrong password" });
+  //         }
+  //     } else {
+  //         res.json({ ...req.body, status: "Not admin" });
+  //     }
+  // } else {
+  //     res.json({ ...req.body, status: "User does not exist" });
+  // }
+  const existingUser = await users.findOne({
+    where: {
+      username: req.body.username,
+    },
   });
 
-  if (existingUser) {
-    const isSamePass = await bcrypt.compare(passattempt, existingUser.passhash);
+  if (!existingUser) {
+    res.json({
+      ...req.body,
+      status: "User does not exist",
+    });
+    return;
+  }
 
-    const isAdmin = await Participant.findOne({
-      where: {
-        user_id: userId,
-        group_id: currentGroup,
-        is_admin: true,
-      },
+  const isSamePass = await bcrypt.compare(
+    req.body.passattempt,
+    existingUser.passhash
+  );
+
+  const isAdmin = await participants.findOne({
+    where: {
+      user_id: req.body.userId,
+      group_id: req.body.currentGroup,
+      is_admin: true,
+    },
+  });
+
+  if (!isAdmin) {
+    res.json({
+      ...req.body,
+      status: "Not admin",
+    });
+    return;
+  }
+
+  if (isSamePass) {
+    await sequelize.transaction(async (t) => {
+      await points.destroy({
+        where: {
+          group_id: req.body.currentGroup,
+        },
+        transaction: t,
+      });
+
+      await post_comments.destroy({
+        where: {},
+        include: [
+          {
+            model: posts,
+            where: {
+              group_id: req.body.currentGroup,
+            },
+          },
+        ],
+        transaction: t,
+      });
+
+      await posts.destroy({
+        where: {
+          group_id: req.body.currentGroup,
+        },
+        transaction: t,
+      });
+
+      await messages.destroy({
+        where: {
+          group_id: req.body.currentGroup,
+        },
+        transaction: t,
+      });
+
+      await participants.destroy({
+        where: {
+          group_id: req.body.currentGroup,
+        },
+        transaction: t,
+      });
+
+      await groups.destroy({
+        where: {
+          id: req.body.currentGroup,
+        },
+        transaction: t,
+      });
     });
 
-    if (isAdmin) {
-      if (isSamePass) {
-        await Points.update(
-          {
-            group_id: null,
-            posts_id: null,
-            comment_id: null,
-            messages_id: null,
-          },
-          {
-            where: { group_id: currentGroup },
-          }
-        );
-
-        await PostComment.destroy({
-          where: {},
-          include: [
-            {
-              model: Post,
-              where: { group_id: currentGroup },
-            },
-          ],
-        });
-
-        await Post.destroy({
-          where: { group_id: currentGroup },
-        });
-
-        await Message.destroy({
-          where: { group_id: currentGroup },
-        });
-
-        await Participant.destroy({
-          where: { group_id: currentGroup },
-        });
-
-        await Group.destroy({
-          where: { id: currentGroup },
-        });
-
-        res.json({ ...req.body, status: "Success" });
-      } else {
-        res.json({ ...req.body, status: "Wrong password" });
-      }
-    }
+    res.json({
+      ...req.body,
+      status: "Success",
+    });
+  } else {
+    res.json({
+      ...req.body,
+      status: "Wrong password",
+    });
   }
 };
 
 module.exports.handleCreatePost = async (req, res) => {
-  const newPost = await Post.create({
+  // const newPostQuery = await pool.query(
+  //     "INSERT INTO posts(title, body_text, image_url, sender_id, group_id) values($1,$2,$3,$4,$5) RETURNING id",
+  //     [
+  //         req.body.title,
+  //         req.body.body_text,
+  //         req.body.imageUrl,
+  //         req.body.userId,
+  //         req.params.group_id,
+  //     ]
+  // );
+
+  // res.json({
+  //     ...req.body,
+  //     status: "Post successfully created",
+  // });
+  const newPost = await posts.create({
     title: req.body.title,
     body_text: req.body.body_text,
     image_url: req.body.imageUrl,
     sender_id: req.body.userId,
     group_id: req.params.group_id,
+    created_at: currentDate.getTime(),
+    updated_at: currentDate.getTime(),
   });
 
   res.json({
@@ -381,7 +639,7 @@ module.exports.handleEditPost = async (req, res) => {
   //     ...req.body,
   //     status: "Post successfully edited",
   // });
-  const updatedRowCount = await Post.update(
+  const [updatedRowCount] = await posts.update(
     {
       title: req.body.title,
       body_text: req.body.body_text,
@@ -409,9 +667,26 @@ module.exports.handleEditPost = async (req, res) => {
 };
 
 module.exports.handleEditGroup = async (req, res) => {
+  // var isPublic = req.body.privacySelection === "Public" ? "true" : "false";
+
+  // const editGroupQuery = await pool.query(
+  //     "UPDATE groups SET name=$1, description=$2, is_public=$3 WHERE id=$4",
+  //     [
+  //         req.body.groupname,
+  //         req.body.description,
+  //         isPublic,
+  //         req.body.currentGroup,
+  //     ]
+  // );
+
+  // res.json({
+  //     ...req.body,
+  //     status: "Group successfully updated",
+  //     groupName: req.body.groupname,
+  // });
   const isPublic = req.body.privacySelection === "Public";
 
-  const updatedGroup = await Group.update(
+  const updatedGroup = await groups.update(
     {
       name: req.body.groupname,
       description: req.body.description,
@@ -434,98 +709,27 @@ module.exports.handleEditGroup = async (req, res) => {
 };
 
 module.exports.handleGetPosts = async (req, res) => {
-  const getPosts = await Post.findAll({
-    attributes: [
-      [Sequelize.col("c.post_id"), "post_id"],
-      "sender_id",
-      "title",
-      "body_text",
-      [Sequelize.col("post_author"), "post_author"],
-      "created_at",
-      [Sequelize.literal("COALESCE(point_total, 0)"), "point_total"],
-      [Sequelize.literal("COALESCE(number_comments, 0)"), "number_comments"],
-    ],
-    include: [
-      {
-        model: User,
-        attributes: ["username"],
-        where: { id: Sequelize.col("sender_id") },
-      },
-      {
-        model: Points,
-        attributes: [
-          [Sequelize.fn("SUM", Sequelize.col("point_value")), "point_total"],
-        ],
-        where: { group_id: req.body.currentGroup },
-        required: false,
-        group: ["post_id"],
-      },
-      {
-        model: PostComment,
-        attributes: [
-          [Sequelize.fn("COUNT", Sequelize.col("id")), "number_comments"],
-        ],
-        group: ["post_id"],
-        required: false,
-      },
-    ],
-  });
-
-  res.json(getPosts);
+  const getPostsQuery = await pool.query(
+    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, coalesce(point_total,0) point_total, coalesce(number_comments,0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (select post_id, count(id) number_comments from post_comments group by post_id) d on c.post_id = d.post_id;",
+    [req.body.currentGroup]
+  );
+  res.send(getPostsQuery.rows);
 };
 
 module.exports.handleGetPostInfo = async (req, res) => {
-  const postInfo = await Post.findOne({
-    attributes: ["title", "body_text", "image_url", "created_at"],
-    include: [
-      {
-        model: User,
-        attributes: ["username"],
-        where: {
-          id: Sequelize.col("post.sender_id"),
-        },
-      },
-    ],
-    where: {
-      id: req.body.currentPost,
-    },
-  });
-
-  if (postInfo) {
-    res.send(postInfo);
-  } else {
-    res.json({
-      ...req.body,
-      status: "Post not found",
-    });
-  }
+  const getPostInfoQuery = await pool.query(
+    "SELECT title post_title, body_text, username post_author, image_url, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
+    [req.body.currentPost]
+  );
+  res.send(getPostInfoQuery.rows[0]);
 };
 
 module.exports.handleGetGroupInfo = async (req, res) => {
-  const groupInfo = await Group.findOne({
-    attributes: ["name", "description", "is_public"],
-    include: [
-      {
-        model: Participant,
-        attributes: ["user_id"],
-        where: {
-          is_admin: true,
-        },
-      },
-    ],
-    where: {
-      id: req.body.currentGroup,
-    },
-  });
-
-  if (groupInfo) {
-    res.send(groupInfo);
-  } else {
-    res.json({
-      ...req.body,
-      status: "Group not found",
-    });
-  }
+  const getGroupInfoQuery = await pool.query(
+    "SELECT name groupname, description, is_public, participants.user_id admin_id FROM groups LEFT JOIN participants ON groups.id = participants.group_id WHERE groups.id=$1 and participants.is_admin=true;",
+    [req.body.currentGroup]
+  );
+  res.send(getGroupInfoQuery.rows[0]);
 };
 
 module.exports.handleCreateComment = async (req, res) => {
@@ -542,8 +746,6 @@ module.exports.handleCreateComment = async (req, res) => {
 
 module.exports.handleGetPostComments = async (req, res) => {
   const getPostCommentsQuery = await pool.query(
-    // "SELECT id post_comment_id, sender_id, comment_text FROM post_comments WHERE post_id = $1 ORDER BY created_at ASC;",
-    // "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, to_json(post_comments.created_at) comment_iso_time_sent  FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
     "SELECT a.sender_username, a.post_comment_id, a.sender_id, a.comment_text, a.comment_iso_time_sent, coalesce(b.count,0) comment_points FROM (SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC) a LEFT JOIN (SELECT COUNT(point_value), comment_id FROM points WHERE group_id = $2 GROUP BY comment_id) b ON a.post_comment_id = b.comment_id;",
     [req.params.post_id, req.body.currentGroup]
   );
@@ -552,22 +754,62 @@ module.exports.handleGetPostComments = async (req, res) => {
 };
 
 module.exports.handleAddPostPoint = async (req, res) => {
-  const pointGiven = await Points.sum("point_value", {
+  // const pointGiven = await pool.query(
+  //     "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and posts_id = $2",
+  //     [req.body.userId, req.body.currentPost]
+  // );
+
+  // const getRecipientId = await pool.query(
+  //     "SELECT sender_id FROM posts WHERE id = $1;",
+  //     [req.body.currentPost]
+  // );
+
+  // const recipient_id = getRecipientId.rows[0].sender_id;
+
+  // if (pointGiven.rows[0].sum == null) {
+  //     const newPostPoint = await pool.query(
+  //         "INSERT INTO points(recipient_id, giver_id, posts_id, group_id) values($1,$2,$3,$4);",
+  //         [
+  //             recipient_id,
+  //             req.body.userId,
+  //             req.body.currentPost,
+  //             req.body.currentGroup,
+  //         ]
+  //     );
+
+  //     res.json({
+  //         ...req.body,
+  //         status: "added a point",
+  //     });
+  // } else {
+  //     const deletePostPoint = await pool.query(
+  //         "DELETE FROM points WHERE giver_id = $1 AND posts_id = $2;",
+  //         [req.body.userId, req.body.currentPost]
+  //     );
+
+  //     res.json({
+  //         ...req.body,
+  //         status: "deleted a point",
+  //     });
+  // }
+  const pointGiven = await points.sum("point_value", {
     where: {
       giver_id: req.body.userId,
       posts_id: req.body.currentPost,
     },
   });
 
-  const post = await Post.findByPk(req.body.currentPost);
+  const post = await posts.findByPk(req.body.currentPost);
   const recipient_id = post.sender_id;
 
   if (pointGiven === null || pointGiven === 0) {
-    await Points.create({
+    await points.create({
       recipient_id,
       giver_id: req.body.userId,
       posts_id: req.body.currentPost,
       group_id: req.body.currentGroup,
+      created_at: currentDate.getTime(),
+      updated_at: currentDate.getTime(),
     });
 
     res.json({
@@ -575,7 +817,7 @@ module.exports.handleAddPostPoint = async (req, res) => {
       status: "added a point",
     });
   } else {
-    await Points.destroy({
+    await points.destroy({
       where: {
         giver_id: req.body.userId,
         posts_id: req.body.currentPost,
@@ -590,14 +832,43 @@ module.exports.handleAddPostPoint = async (req, res) => {
 };
 
 module.exports.handleAddMessagePoint = async (req, res) => {
-  const pointGiven = await Points.sum("point_value", {
+  // const pointGiven = await pool.query(
+  //     "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and messages_id = $2",
+  //     [req.body.userId, req.body.message_id]
+  // );
+  // const getRecipientId = await pool.query(
+  //     "SELECT sender_id FROM messages WHERE id = $1;",
+  //     [req.body.message_id]
+  // );
+  // const recipient_id = getRecipientId.rows[0].sender_id;
+  // if (pointGiven.rows[0].sum == null) {
+  //     const newMessagePoint = await pool.query(
+  //         "INSERT INTO points(recipient_id, giver_id, messages_id, group_id) values($1,$2,$3,$4);",
+  //         [
+  //             recipient_id,
+  //             req.body.userId,
+  //             req.body.message_id,
+  //             req.body.currentGroup,
+  //         ]
+  //     );
+  // } else {
+  //     const deleteMessagePoint = await pool.query(
+  //         "DELETE FROM points WHERE giver_id = $1 AND messages_id = $2;",
+  //         [req.body.userId, req.body.message_id]
+  //     );
+  // }
+  // res.json({
+  //     ...req.body,
+  //     status: "added a point",
+  // });
+  const pointGiven = await points.sum("point_value", {
     where: {
       giver_id: req.body.userId,
       messages_id: req.body.message_id,
     },
   });
 
-  const message = await Message.findOne({
+  const message = await messages.findOne({
     where: {
       id: req.body.message_id,
     },
@@ -605,14 +876,16 @@ module.exports.handleAddMessagePoint = async (req, res) => {
   const recipient_id = message.sender_id;
 
   if (pointGiven === null || pointGiven === 0) {
-    await Points.create({
+    await points.create({
       recipient_id,
       giver_id: req.body.userId,
       messages_id: req.body.message_id,
       group_id: req.body.currentGroup,
+      created_at: currentDate.getTime(),
+      updated_at: currentDate.getTime(),
     });
   } else {
-    await Points.destroy({
+    await points.destroy({
       where: {
         giver_id: req.body.userId,
         messages_id: req.body.message_id,
@@ -663,61 +936,42 @@ module.exports.handleAddCommentPoint = async (req, res) => {
 };
 
 module.exports.handleGetPostPoints = async (req, res) => {
-  const postPointsResult = await Points.sum("point_value", {
-    where: {
-      posts_id: req.body.currentPost,
-    },
-  });
+  const getPostPoints = await pool.query(
+    "SELECT SUM(point_value) FROM points WHERE posts_id = $1;",
+    [req.body.currentPost]
+  );
 
-  const postPoints = postPointsResult || 0;
+  if (getPostPoints.rows[0].sum == null) {
+    postPoints = "0";
+  } else {
+    postPoints = getPostPoints.rows[0].sum;
+  }
 
   res.send(postPoints);
 };
 
 module.exports.handleGetUserPoints = async (req, res) => {
-  const userPointsResult = await Points.sum("point_value", {
+  // const getUserPoints = await pool.query(
+  //     "SELECT SUM(point_value) FROM points WHERE recipient_id = $1;",
+  //     [req.body.userId]
+  // );
+
+  // if (getUserPoints.rows[0].sum == null) {
+  //     userPoints = "0";
+  // } else {
+  //     userPoints = getUserPoints.rows[0].sum;
+  // }
+
+  // res.send(userPoints);
+  const userPointsResult = await points.sum("point_value", {
     where: {
       recipient_id: req.body.userId,
     },
   });
 
   const userPoints = userPointsResult || 0;
-
-  res.send(userPoints);
+  res.send({ userPoints: userPoints });
 };
-
-// module.exports.handleAddPostCommentPoint = async (req, res) => {
-// 	const pointGiven = await pool.query(
-// 		"SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
-// 		[req.body.userId, req.body.post_comment_id]
-// 	);
-
-// 	if (pointGiven.rows[0].sum == null) {
-// 		const newCommentPoint = await pool.query(
-// 			"INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
-// 			[
-// 				req.body.sender_id,
-// 				req.body.userId,
-// 				req.body.post_comment_id,
-// 				req.body.currentGroup,
-// 			]
-// 		);
-// 		console.log("point added");
-
-// 		// pool.query(
-// 		// 	"SELECT SUM(point_value) FROM points WHERE posts_id = $1;",
-// 		// 	[req.currentPost],
-// 		// 	(err, res) => {
-// 		// 		if (err) throw err;
-// 		// 		io.emit("add post point return updated sum", res.rows[0].sum);
-// 	} else {
-// 		console.log("can't add anymore points to this comment");
-// 		res.json({
-// 			...req.body,
-// 			status: "You already gave a point",
-// 		});
-// 	}
-// };
 
 module.exports.getCommentLikes = async (req, res) => {
   const getLikesQuery = await pool.query(
@@ -728,10 +982,20 @@ module.exports.getCommentLikes = async (req, res) => {
 };
 
 module.exports.getPostLiked = async (req, res) => {
+  // const getPostLikedQuery = await pool.query(
+  //     "SELECT id FROM points WHERE giver_id = $1 AND posts_id = $2;",
+  //     [req.body.userId, req.body.currentPost]
+  // );
+
+  // if (getPostLikedQuery.rowCount === 0) {
+  //     res.send(false);
+  // } else {
+  //     res.send(true);
+  // }
   const postId = req.body.currentPost;
   const userId = req.body.userId;
 
-  const likedRecord = await Points.findOne({
+  const likedRecord = await points.findOne({
     where: {
       giver_id: userId,
       posts_id: postId,

@@ -2,53 +2,109 @@ const pool = require("../db");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const nodemailer = require("nodemailer");
+const currentDate = new Date();
+
+const Sequelize = require("sequelize");
+
+var config = {
+  define: {
+    underscored: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+};
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+  config: config,
+});
+
+const DataTypes = require("sequelize").DataTypes;
+
+const { participants, groups, messages, points, post_comments, posts, users } =
+  require("../models/init-models")(sequelize, DataTypes);
+
+const { Op } = require("sequelize");
 
 module.exports.handleDeleteAccount = async (req, res) => {
-  const existingUser = await pool.query(
-    "SELECT username, passhash from users WHERE username=$1",
-    [req.body.username]
-  );
-  if (existingUser.rowCount != 0) {
+  const existingUser = await users.findOne({
+    attributes: ["username", "passhash"],
+    where: {
+      username: req.body.username,
+    },
+  });
+
+  if (existingUser) {
     // account exists and can be deleted
     const isSamePass = await bcrypt.compare(
       req.body.passattempt,
-      existingUser.rows[0].passhash
+      existingUser.passhash
     );
     if (isSamePass) {
-      const deleteParticipantsQuery = await pool.query(
-        "DELETE FROM participants WHERE user_id = $1",
-        [req.body.userId]
+      const deleteParticipantsQuery = await participants.destroy({
+        where: {
+          user_id: req.body.userId,
+        },
+      });
+
+      const deletePointsReceivedQuery = await points.destroy({
+        where: {
+          recipient_id: req.body.userId,
+        },
+      });
+
+      const updatePointsSentQuery = await points.update(
+        { giver_id: null },
+        {
+          where: {
+            giver_id: req.body.userId,
+          },
+        }
       );
 
-      const deletePointsRecievedQuery = await pool.query(
-        "DELETE FROM points WHERE recipient_id = $1",
-        [req.body.userId]
+      const updatePostsQuery = await posts.update(
+        { sender_id: null },
+        {
+          where: {
+            sender_id: req.body.userId,
+          },
+        }
       );
 
-      const updatePointsSentQuery = await pool.query(
-        "UPDATE points SET giver_id=NULL WHERE giver_id = $1",
-        [req.body.userId]
+      const updateCommentsQuery = await post_comments.update(
+        { sender_id: null },
+        {
+          where: {
+            sender_id: req.body.userId,
+          },
+        }
       );
 
-      const updatePostsQuery = await pool.query(
-        "UPDATE posts SET sender_id=NULL WHERE sender_id = $1",
-        [req.body.userId]
+      const updateMessagesQuery = await messages.update(
+        { sender_id: null },
+        {
+          where: {
+            sender_id: req.body.userId,
+          },
+        }
       );
 
-      const updateCommentsQuery = await pool.query(
-        "UPDATE post_comments SET sender_id=NULL WHERE sender_id = $1",
-        [req.body.userId]
-      );
+      const deleteUserQuery = await users.destroy({
+        where: {
+          username: req.body.username,
+        },
+      });
 
-      const updateMessagesQuery = await pool.query(
-        "UPDATE messages SET sender_id=NULL WHERE sender_id = $1",
-        [req.body.userId]
-      );
-
-      const deleteUserQuery = await pool.query(
-        "DELETE FROM users WHERE username=$1",
-        [req.body.username]
-      );
       res.json({ loggedIn: false, status: "User successfully deleted" });
     } else {
       res.json({ ...req.body, status: "Wrong password!" });
@@ -93,26 +149,34 @@ module.exports.handleGetAvatar = async (req, res) => {
 };
 
 module.exports.handleUpdateUsername = async (req, res) => {
-  const existingUser = await pool.query(
-    "SELECT username, passhash from users WHERE username=$1",
-    [req.body.username]
-  );
+  const existingUser = await users.findOne({
+    attributes: ["username", "passhash"],
+    where: {
+      username: req.body.username,
+    },
+  });
   const isSamePass = await bcrypt.compare(
     req.body.passattempt,
-    existingUser.rows[0].passhash
+    existingUser.passhash
   );
   if (isSamePass) {
     // password is correct, now check and see if the desired new username is taken
-    const usernameTaken = await pool.query(
-      "SELECT username from users WHERE username=$1",
-      [req.body.newusername]
-    );
-    if (usernameTaken.rowCount === 0) {
+    const usernameTaken = await users.findOne({
+      attributes: ["username"],
+      where: {
+        username: req.body.newusername,
+      },
+    });
+    if (!usernameTaken) {
       //username is not taken & can be used
 
-      const updateUsernameQuery = await pool.query(
-        "UPDATE users SET username=$2 WHERE username=$1",
-        [req.body.username, req.body.newusername]
+      const updateUsernameQuery = await users.update(
+        { username: req.body.newusername },
+        {
+          where: {
+            username: req.body.username,
+          },
+        }
       );
       res.json({
         ...req.body,
@@ -132,19 +196,26 @@ module.exports.handleUpdateUsername = async (req, res) => {
 };
 
 module.exports.handleUpdatePassword = async (req, res) => {
-  const existingUser = await pool.query(
-    "SELECT username, passhash from users WHERE username=$1",
-    [req.body.username]
-  );
+  const existingUser = await users.findOne({
+    attributes: ["username", "passhash"],
+    where: {
+      username: req.body.username,
+    },
+  });
+
   const isSamePass = await bcrypt.compare(
     req.body.password,
-    existingUser.rows[0].passhash
+    existingUser.passhash
   );
   if (isSamePass) {
     const hashedPass = await bcrypt.hash(req.body.passattempt1, 10);
-    const updatePasswordQuery = await pool.query(
-      "UPDATE users SET passhash=$1 WHERE username=$2",
-      [hashedPass, existingUser.rows[0].username]
+    const updatePasswordQuery = await users.update(
+      { passhash: hashedPass },
+      {
+        where: {
+          username: req.body.username,
+        },
+      }
     );
 
     res.json({
@@ -214,6 +285,63 @@ module.exports.handleGeneratePasscode = async (req, res) => {
     });
   }
 };
+//   const existingUser = await users.findOne({
+//     attributes: ["username", "email"],
+//     where: {
+//       [Op.or]: [{ email: req.body.email }, { username: req.body.username }],
+//     },
+//   });
+
+//   if (existingUser) {
+//     const userEmail = existingUser.email;
+
+//     if (req.body.mypasscode != null) {
+//       // need to send an email to the user
+
+//       let transporter = nodemailer.createTransport({
+//         service: "gmail",
+//         auth: {
+//           user: process.env.EMAIL_USER,
+//           pass: process.env.EMAIL_PASS,
+//           //  user: 'youremail@address.com',
+//           //  pass: 'yourpassword'
+//         },
+//       });
+
+//       // send mail with defined transport object
+//       let info = await transporter.sendMail({
+//         from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
+//         // to: "email@email.com", // list of receivers
+//         to: userEmail,
+//         subject: "Requested password reset code", // Subject line
+//         // text: "Wait where is this text?", // plain text body
+//         html:
+//           "<b>You requested a password reset! This is your code. If you didn't request a reset, you can safely ignore this message. CODE: </b>" +
+//           req.body.mypasscode, // html body
+//       });
+
+//       // console.log("Message sent: %s", info.messageId);
+
+//       if (info.messageId != null) {
+//         res.json({
+//           ...req.body,
+//           status: "Passcode sent to email. May need to check spam folder.",
+//         });
+//       }
+//     } else {
+//       res.json({
+//         ...req.body,
+//         status:
+//           "You need to generate a passcode. We don't have one on file for you yet.",
+//       });
+//     }
+//   } else {
+//     res.json({
+//       ...req.body,
+//       status: "User with this email does not exist.",
+//     });
+//   }
+// };
 
 module.exports.handleForgotPassword = async (req, res) => {
   const existingUser = await pool.query(
@@ -248,3 +376,41 @@ module.exports.handleForgotPassword = async (req, res) => {
     res.json({ ...req.body, status: "User with this email does not exist." });
   }
 };
+//   const existingUser = await users.findOne({
+//     attributes: ["username"],
+//     where: {
+//       email: req.body.email,
+//     },
+//   });
+
+//   if (existingUser) {
+//     if (req.body.passcode == req.body.mypasscode) {
+//       const hashedPass = await bcrypt.hash(req.body.passattempt1, 10);
+//       const updatePasswordQuery = await users.update(
+//         { passhash: hashedPass },
+//         {
+//           where: {
+//             username: existingUser.username,
+//           },
+//         }
+//       );
+
+//       if (req.body.loggedIn === true) {
+//         res.json({
+//           ...req.body,
+//           status: "password successfully updated",
+//         });
+//       } else {
+//         res.json({
+//           ...req.body,
+//           status:
+//             "password successfully updated. You may now log in with your new password.",
+//         });
+//       }
+//     } else {
+//       res.json({ ...req.body, status: "Passcode is incorrect." });
+//     }
+//   } else {
+//     res.json({ ...req.body, status: "User with this email does not exist." });
+//   }
+// };
