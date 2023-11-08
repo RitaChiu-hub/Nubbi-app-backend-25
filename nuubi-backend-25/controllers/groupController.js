@@ -951,26 +951,26 @@ module.exports.handleGetPostPoints = async (req, res) => {
 };
 
 module.exports.handleGetUserPoints = async (req, res) => {
-  // const getUserPoints = await pool.query(
-  //     "SELECT SUM(point_value) FROM points WHERE recipient_id = $1;",
-  //     [req.body.userId]
-  // );
+  const getUserPoints = await pool.query(
+    "SELECT SUM(point_value) FROM points WHERE recipient_id = $1;",
+    [req.body.userId]
+  );
 
-  // if (getUserPoints.rows[0].sum == null) {
-  //     userPoints = "0";
-  // } else {
-  //     userPoints = getUserPoints.rows[0].sum;
-  // }
+  if (getUserPoints.rows[0].sum == null) {
+    userPoints = "0";
+  } else {
+    userPoints = getUserPoints.rows[0].sum;
+  }
 
-  // res.send(userPoints);
-  const userPointsResult = await points.sum("point_value", {
-    where: {
-      recipient_id: req.body.userId,
-    },
-  });
+  res.send(userPoints);
+  // const userPointsResult = await points.sum("point_value", {
+  //   where: {
+  //     recipient_id: req.body.userId,
+  //   },
+  // });
 
-  const userPoints = userPointsResult || 0;
-  res.send({ userPoints: userPoints });
+  // const userPoints = userPointsResult || 0;
+  // res.send({ userPoints: userPoints });
 };
 
 module.exports.getCommentLikes = async (req, res) => {
