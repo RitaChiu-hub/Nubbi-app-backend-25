@@ -27,7 +27,8 @@ app.use(cors({ origin: "*", credentials: true }));
 app.use(
   cors({
     // origin: "http://localhost:19006",
-    origin: "https://coral-app-n96bn.ondigitalocean.app",
+    // origin: "https://coral-app-n96bn.ondigitalocean.app",
+    origin: "*",
     credentials: true,
   })
 );
