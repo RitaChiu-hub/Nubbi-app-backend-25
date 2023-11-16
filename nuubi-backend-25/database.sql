@@ -101,3 +101,5 @@ update users
 set uuid = public.gen_random_uuid();
 
 ALTER TABLE users ALTER COLUMN uuid SET NOT NULL;
+
+ALTER TABLE users ALTER COLUMN uuid DROP NOT NULL;
