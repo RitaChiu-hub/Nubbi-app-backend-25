@@ -66,7 +66,7 @@ module.exports.handleLogin = async (req, res) => {
           // loggedIn: true,
           token,
           //  userId: potentialLogin.rows[0].id,
-          // username: req.body.username,
+          //  username: req.body.username,
         });
       }
     })
@@ -112,7 +112,7 @@ module.exports.attemptLogin = async (req, res) => {
             // loggedIn: true,
             token,
             //  userId: potentialLogin.id,
-            // username: potentialLogin.username,
+            //  username: potentialLogin.username,
           });
         })
         .catch((err) => {
