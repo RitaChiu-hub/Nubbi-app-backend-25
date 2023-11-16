@@ -206,7 +206,7 @@ module.exports.attemptRegister = async (req, res) => {
           // loggedIn: true,
           token,
           //   userId: newUserQuery.id,
-          // username: newUsername,
+          username: newUsername,
           firstSignIn: true,
         });
         console.log("new user registered");
