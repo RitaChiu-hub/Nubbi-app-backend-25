@@ -4,6 +4,7 @@ const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const { adjectives } = require("./adjectives");
 const { nouns } = require("./nouns");
 const currentDate = new Date();
+const { uuid } = require("uuidv4");
 
 const Sequelize = require("sequelize");
 
@@ -41,32 +42,36 @@ module.exports.handleLogin = async (req, res) => {
   const token = getJwt(req);
 
   if (!token) {
-    res.json({ loggedIn: false });
+    // res.json({ loggedIn: false });
+    res.json({ token: null });
     return;
   }
 
   jwtVerify(token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const potentialUser = await users.findOne({
-        attributes: ["username", "id"],
-        where: {
-          username: decodedUsername,
-        },
+        attributes: ["id"],
+        // attributes: ["username", "id"],
+        // where: {
+        //   username: decodedUsername,
+        // },
       });
       if (!potentialUser) {
-        res.json({ loggedIn: false, token: null });
+        //  res.json({ loggedIn: false, token: null });
+        res.json({ token: null });
         return;
       } else {
         res.json({
-          loggedIn: true,
+          // loggedIn: true,
           token,
-          userId: potentialLogin.rows[0].id,
-          username: req.body.username,
+          //  userId: potentialLogin.rows[0].id,
+          // username: req.body.username,
         });
       }
     })
     .catch(async () => {
-      res.json({ loggedIn: false });
+      //  res.json({ loggedIn: false });
+      res.json({ token: null });
     });
 };
 
@@ -95,7 +100,7 @@ module.exports.attemptLogin = async (req, res) => {
     if (isSamePass) {
       jwtSign(
         {
-          username: potentialLogin.username,
+          // username: potentialLogin.username,
           id: potentialLogin.id,
         },
         process.env.JWT_SECRET,
@@ -103,29 +108,32 @@ module.exports.attemptLogin = async (req, res) => {
       )
         .then((token) => {
           res.json({
-            loggedIn: true,
+            // loggedIn: true,
             token,
-            userId: potentialLogin.id,
-            username: potentialLogin.username,
+            //  userId: potentialLogin.id,
+            // username: potentialLogin.username,
           });
         })
         .catch((err) => {
           console.log(err);
           res.json({
-            loggedIn: false,
+            //  loggedIn: false,
+            token: null,
             status: "Something went wrong, try again later",
           });
         });
     } else {
       res.json({
-        loggedIn: false,
+        //  loggedIn: false,
+        token: null,
         status: "Wrong username, email or password!",
       });
       console.log("wrong password");
     }
   } else {
     console.log("not good");
-    res.json({ loggedIn: false, status: "Wrong username, email or password!" });
+    //  res.json({ loggedIn: false, status: "Wrong username, email or password!" });
+    res.json({ token: null, status: "Wrong username, email or password!" });
   }
 };
 
@@ -184,7 +192,7 @@ module.exports.attemptRegister = async (req, res) => {
     );
     jwtSign(
       {
-        username: req.body.username,
+        // username: req.body.username,
         id: newUserQuery.id,
       },
       process.env.JWT_SECRET,
@@ -192,10 +200,10 @@ module.exports.attemptRegister = async (req, res) => {
     )
       .then((token) => {
         res.json({
-          loggedIn: true,
+          // loggedIn: true,
           token,
-          userId: newUserQuery.id,
-          username: newUsername,
+          //   userId: newUserQuery.id,
+          // username: newUsername,
           firstSignIn: true,
         });
         console.log("new user registered");
@@ -203,15 +211,14 @@ module.exports.attemptRegister = async (req, res) => {
       .catch((err) => {
         console.log(err);
         res.json({
-          loggedIn: false,
+          //  loggedIn: false,
+          token: null,
           status: "Something went wrong, try again later",
         });
       });
-    // } else {
-    //   res.json({ loggedIn: false, status: "Username taken" });
-    // }
   } else {
-    res.json({ loggedIn: false, status: "Email is already being used" });
+    //  res.json({ loggedIn: false, status: "Email is already being used" });
+    res.json({ token: null, status: "Email is already being used" });
   }
 };
 

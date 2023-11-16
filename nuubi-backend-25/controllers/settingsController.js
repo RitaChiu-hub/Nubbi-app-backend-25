@@ -230,6 +230,10 @@ module.exports.handleUpdatePassword = async (req, res) => {
 };
 
 module.exports.handleGeneratePasscode = async (req, res) => {
+  const myNumber = Math.random().toString(10).substring(2, 8);
+  const mypasscode = myNumber;
+  const hashedOTP = await bcrypt.hash(mypasscode, 10);
+
   const existingUser = await pool.query(
     "SELECT username, email from users WHERE email=$1 OR username=$2",
     [req.body.email, req.body.username]
@@ -238,110 +242,40 @@ module.exports.handleGeneratePasscode = async (req, res) => {
   if (existingUser.rowCount != 0) {
     const userEmail = existingUser.rows[0].email;
 
-    if (req.body.mypasscode != null) {
-      // need to send an email to the user
+    let transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
 
-      let transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-          //  user: 'youremail@address.com',
-          //  pass: 'yourpassword'
-        },
-      });
+    // send mail with defined transport object
+    let info = await transporter.sendMail({
+      from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
+      // to: "email@email.com", // list of receivers
+      to: userEmail,
+      subject: "Requested password reset code", // Subject line
+      // text: "Wait where is this text?", // plain text body
+      html:
+        "<b>You requested a password reset! This is your code. If you didn't request a reset, you can safely ignore this message. CODE: </b>" +
+        mypasscode, // html body
+    });
 
-      // send mail with defined transport object
-      let info = await transporter.sendMail({
-        from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
-        // to: "email@email.com", // list of receivers
-        to: userEmail,
-        subject: "Requested password reset code", // Subject line
-        // text: "Wait where is this text?", // plain text body
-        html:
-          "<b>You requested a password reset! This is your code. If you didn't request a reset, you can safely ignore this message. CODE: </b>" +
-          req.body.mypasscode, // html body
-      });
-
-      // console.log("Message sent: %s", info.messageId);
-
-      if (info.messageId != null) {
-        res.json({
-          ...req.body,
-          status: "Passcode sent to email. May need to check spam folder.",
-        });
-      }
-    } else {
+    if (info.messageId != null) {
       res.json({
         ...req.body,
-        status:
-          "You need to generate a passcode. We don't have one on file for you yet.",
+        hashedOTP: hashedOTP,
+        status: "Passcode sent to email. May need to check spam folder.",
       });
     }
   } else {
     res.json({
-      ...req.body,
+      loggedIn: false,
       status: "User with this email does not exist.",
     });
   }
 };
-//   const existingUser = await users.findOne({
-//     attributes: ["username", "email"],
-//     where: {
-//       [Op.or]: [{ email: req.body.email }, { username: req.body.username }],
-//     },
-//   });
-
-//   if (existingUser) {
-//     const userEmail = existingUser.email;
-
-//     if (req.body.mypasscode != null) {
-//       // need to send an email to the user
-
-//       let transporter = nodemailer.createTransport({
-//         service: "gmail",
-//         auth: {
-//           user: process.env.EMAIL_USER,
-//           pass: process.env.EMAIL_PASS,
-//           //  user: 'youremail@address.com',
-//           //  pass: 'yourpassword'
-//         },
-//       });
-
-//       // send mail with defined transport object
-//       let info = await transporter.sendMail({
-//         from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
-//         // to: "email@email.com", // list of receivers
-//         to: userEmail,
-//         subject: "Requested password reset code", // Subject line
-//         // text: "Wait where is this text?", // plain text body
-//         html:
-//           "<b>You requested a password reset! This is your code. If you didn't request a reset, you can safely ignore this message. CODE: </b>" +
-//           req.body.mypasscode, // html body
-//       });
-
-//       // console.log("Message sent: %s", info.messageId);
-
-//       if (info.messageId != null) {
-//         res.json({
-//           ...req.body,
-//           status: "Passcode sent to email. May need to check spam folder.",
-//         });
-//       }
-//     } else {
-//       res.json({
-//         ...req.body,
-//         status:
-//           "You need to generate a passcode. We don't have one on file for you yet.",
-//       });
-//     }
-//   } else {
-//     res.json({
-//       ...req.body,
-//       status: "User with this email does not exist.",
-//     });
-//   }
-// };
 
 module.exports.handleForgotPassword = async (req, res) => {
   const existingUser = await pool.query(
@@ -350,7 +284,13 @@ module.exports.handleForgotPassword = async (req, res) => {
   );
 
   if (existingUser.rowCount != 0) {
-    if (req.body.passcode == req.body.mypasscode) {
+    const isSameOTP = await bcrypt.compare(
+      req.body.passcode,
+      req.body.hashedOTP
+    );
+
+    //  if (req.body.passcode == req.body.mypasscode) {
+    if (isSameOTP) {
       const hashedPass = await bcrypt.hash(req.body.passattempt1, 10);
       const updatePasswordQuery = await pool.query(
         "UPDATE users SET passhash=$1 WHERE username=$2",
@@ -364,7 +304,7 @@ module.exports.handleForgotPassword = async (req, res) => {
         });
       } else {
         res.json({
-          ...req.body,
+          loggedIn: false,
           status:
             "password successfully updated. You may now log in with your new password.",
         });
@@ -373,44 +313,9 @@ module.exports.handleForgotPassword = async (req, res) => {
       res.json({ ...req.body, status: "Passcode is incorrect." });
     }
   } else {
-    res.json({ ...req.body, status: "User with this email does not exist." });
+    res.json({
+      loggedIn: false,
+      status: "User with this email does not exist.",
+    });
   }
 };
-//   const existingUser = await users.findOne({
-//     attributes: ["username"],
-//     where: {
-//       email: req.body.email,
-//     },
-//   });
-
-//   if (existingUser) {
-//     if (req.body.passcode == req.body.mypasscode) {
-//       const hashedPass = await bcrypt.hash(req.body.passattempt1, 10);
-//       const updatePasswordQuery = await users.update(
-//         { passhash: hashedPass },
-//         {
-//           where: {
-//             username: existingUser.username,
-//           },
-//         }
-//       );
-
-//       if (req.body.loggedIn === true) {
-//         res.json({
-//           ...req.body,
-//           status: "password successfully updated",
-//         });
-//       } else {
-//         res.json({
-//           ...req.body,
-//           status:
-//             "password successfully updated. You may now log in with your new password.",
-//         });
-//       }
-//     } else {
-//       res.json({ ...req.body, status: "Passcode is incorrect." });
-//     }
-//   } else {
-//     res.json({ ...req.body, status: "User with this email does not exist." });
-//   }
-// };
