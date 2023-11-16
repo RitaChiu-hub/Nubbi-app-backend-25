@@ -4,7 +4,8 @@ const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const { adjectives } = require("./adjectives");
 const { nouns } = require("./nouns");
 const currentDate = new Date();
-const { uuid } = require("uuidv4");
+// const { uuid } = require("uuidv4");
+const { v4: uuidv4 } = require("uuid");
 
 const Sequelize = require("sequelize");
 
@@ -178,14 +179,16 @@ module.exports.attemptRegister = async (req, res) => {
     const hashedPass = await bcrypt.hash(req.body.password, 10);
 
     const newUserQuery = await users.create({
+      id: uuidv4(),
       email: req.body.email,
       username: newUsername,
       passhash: hashedPass,
       created_at: currentDate.getTime(),
       updated_at: currentDate.getTime(),
     });
+
     // 3 for prod with digitalocean db, 7 for localhost db
-    //adding to the default group
+    // adding to the default group
     const joinNuubiGroupQuery = await pool.query(
       "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
       [newUserQuery.id]

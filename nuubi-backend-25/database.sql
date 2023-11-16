@@ -1,7 +1,7 @@
 CREATE EXTENSION citext;
 
 CREATE TABLE users(
-    id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY UNIQUE,
     email citext NOT NULL UNIQUE,
     username VARCHAR(28) NOT NULL UNIQUE,
     passhash VARCHAR NOT NULL
@@ -24,6 +24,34 @@ CREATE TABLE participants(
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE participants DROP CONSTRAINT participants_user_id_fkey;
+ALTER TABLE messages DROP CONSTRAINT messages_sender_id_fkey;
+ALTER TABLE posts DROP CONSTRAINT posts_sender_id_fkey;
+ALTER TABLE post_comments DROP CONSTRAINT post_comments_sender_id_fkey;
+
+ALTER TABLE points DROP CONSTRAINT points_giver_id_fkey;
+ALTER TABLE points DROP CONSTRAINT points_recipient_id_fkey;
+
+ALTER TABLE users ALTER COLUMN id TYPE VARCHAR;
+
+ALTER TABLE participants ALTER COLUMN user_id TYPE VARCHAR;
+
+ALTER TABLE participants ADD CONSTRAINT participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+
+ALTER TABLE messages ALTER COLUMN sender_id TYPE VARCHAR;
+ALTER TABLE posts ALTER COLUMN sender_id TYPE VARCHAR;
+ALTER TABLE post_comments ALTER COLUMN sender_id TYPE VARCHAR;
+ALTER TABLE points ALTER COLUMN giver_id TYPE VARCHAR;
+ALTER TABLE points ALTER COLUMN recipient_id TYPE VARCHAR;
+
+ALTER TABLE messages ADD CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES users(id);
+ALTER TABLE posts ADD CONSTRAINT posts_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES users(id);
+ALTER TABLE post_comments ADD CONSTRAINT post_comments_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES users(id);
+ALTER TABLE points ADD CONSTRAINT points_giver_id_fkey FOREIGN KEY (giver_id) REFERENCES users(id);
+ALTER TABLE points ADD CONSTRAINT points_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES users(id);
+
+    -- then add all the fkey contrainsts back 
 
 CREATE TABLE messages(
     id SERIAL PRIMARY KEY,
@@ -56,7 +84,7 @@ CREATE TABLE post_comments(
 
 CREATE TABLE chat_replies(
     id SERIAL PRIMARY KEY,
-    sender_id INTEGER REFERENCES users(id),
+    sender_id INTEGER REFERENCES users(uuid),
     parent_chat_id INTEGER REFERENCES messages(id),
     reply_text VARCHAR NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -103,3 +131,12 @@ set uuid = public.gen_random_uuid();
 ALTER TABLE users ALTER COLUMN uuid SET NOT NULL;
 
 ALTER TABLE users ALTER COLUMN uuid DROP NOT NULL;
+
+ALTER TABLE users ADD CONSTRAINT unique_uuid UNIQUE (uuid);
+
+ALTER TABLE users ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE users 
+    ALTER COLUMN id TYPE VARCHAR;
+
+ALTER TABLE participants 
+    ALTER COLUMN user_id TYPE VARCHAR;

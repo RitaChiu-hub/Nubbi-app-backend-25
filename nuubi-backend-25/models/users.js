@@ -4,10 +4,10 @@ module.exports = function (sequelize, DataTypes) {
     "users",
     {
       id: {
-        autoIncrement: true,
-        type: DataTypes.INTEGER,
+        type: DataTypes.UUIDV4,
         allowNull: false,
         primaryKey: true,
+        unique: "users_pkey",
       },
       email: {
         type: DataTypes.TEXT,

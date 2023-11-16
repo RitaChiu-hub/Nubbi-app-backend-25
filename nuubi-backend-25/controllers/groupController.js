@@ -1,4 +1,5 @@
 const pool = require("../db");
+const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
 const Sequelize = require("sequelize");
 
@@ -117,35 +118,37 @@ module.exports.getMemberCount = async (req, res) => {
 };
 
 module.exports.getMyGroups = async (req, res) => {
-  // const myGroupsQuery = await pool.query(
-  //   "SELECT groups.invite_passcode invite_passcode, groups.id group_id, groups.name, groups.description, participants.user_id user_id FROM groups INNER JOIN participants ON groups.id = participants.group_id WHERE participants.user_id = $1 order by participants.created_at desc;",
-  //   [req.body.userId]
-  // );
-  // res.send(myGroupsQuery.rows);
-  try {
-    const myGroups = await groups.findAll({
-      attributes: [
-        "invite_passcode",
-        ["id", "group_id"],
-        "name",
-        "description",
-      ],
-      include: [
-        {
-          model: participants,
-          where: { user_id: req.body.userId },
-          attributes: ["user_id"],
-          required: true,
-        },
-      ],
-      order: [[Sequelize.literal("participants.created_at"), "DESC"]],
-    });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const myGroups = await groups.findAll({
+          attributes: [
+            "invite_passcode",
+            ["id", "group_id"],
+            "name",
+            "description",
+          ],
+          include: [
+            {
+              model: participants,
+              where: { user_id: userID },
+              attributes: ["user_id"],
+              required: true,
+            },
+          ],
+          order: [[Sequelize.literal("participants.created_at"), "DESC"]],
+        });
 
-    res.json(myGroups);
-  } catch (error) {
-    console.error("Error fetching user groups:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+        res.json(myGroups);
+      } catch (error) {
+        console.error("Error fetching user groups:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.getGroupMembers = async (req, res) => {
