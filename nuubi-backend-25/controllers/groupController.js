@@ -36,30 +36,44 @@ const currentDate = new Date();
 require("dotenv").config();
 
 module.exports.handleCreateGroup = async (req, res) => {
-  var isPublic = req.body.privacySelection === "Public" ? "true" : "false";
-  var invitePasscode = Math.random().toString(10).substring(2, 8);
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        var isPublic =
+          req.body.privacySelection === "Public" ? "true" : "false";
+        var invitePasscode = Math.random().toString(10).substring(2, 8);
 
-  const newGroup = await groups.create({
-    name: req.body.groupname,
-    description: req.body.description,
-    is_public: isPublic,
-    invite_passcode: invitePasscode,
-    created_at: currentDate.getTime(),
-    updated_at: currentDate.getTime(),
-  });
+        const newGroup = await groups.create({
+          name: req.body.groupname,
+          description: req.body.description,
+          is_public: isPublic,
+          invite_passcode: invitePasscode,
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
+        });
 
-  const newParticipant = await participants.create({
-    user_id: req.body.userId,
-    group_id: newGroup.id,
-    is_admin: true,
-    created_at: currentDate.getTime(),
-    updated_at: currentDate.getTime(),
-  });
+        const newParticipant = await participants.create({
+          user_id: userID,
+          group_id: newGroup.id,
+          is_admin: true,
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
+        });
 
-  res.json({
-    ...req.body,
-    status: "Group successfully created & you are the admin of this group",
-  });
+        res.json({
+          ...req.body,
+          status:
+            "Group successfully created & you are the admin of this group",
+        });
+      } catch (error) {
+        console.error("Error creating group: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.getAllGroups = async (req, res) => {
@@ -131,100 +145,124 @@ module.exports.getGroupMembers = async (req, res) => {
 };
 
 module.exports.handleJoinGroup = async (req, res) => {
-  try {
-    const existingParticipant = await participants.findOne({
-      where: {
-        user_id: req.body.userId,
-        group_id: req.body.joinGroupId,
-      },
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        try {
+          const existingParticipant = await participants.findOne({
+            where: {
+              user_id: userID,
+              group_id: req.body.joinGroupId,
+            },
+          });
+
+          if (!existingParticipant) {
+            await participants.create({
+              user_id: userID,
+              group_id: req.body.joinGroupId,
+              is_admin: false,
+              created_at: currentDate.getTime(),
+              updated_at: currentDate.getTime(),
+            });
+
+            res.json({
+              ...req.body,
+              status: "Successfully added 😘",
+            });
+          } else {
+            res.json({
+              ...req.body,
+              status: "You're already in this group 😁",
+            });
+          }
+        } catch (error) {
+          console.error("Error joining group: ", error);
+          res.status(500).json({ error: "Internal server error" });
+        }
+      } catch (error) {
+        console.error("Error joining group: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
     });
-
-    if (!existingParticipant) {
-      await participants.create({
-        user_id: req.body.userId,
-        group_id: req.body.joinGroupId,
-        is_admin: false,
-        created_at: currentDate.getTime(),
-        updated_at: currentDate.getTime(),
-      });
-
-      res.json({
-        ...req.body,
-        status: "Successfully added 😘",
-      });
-    } else {
-      res.json({
-        ...req.body,
-        status: "You're already in this group 😁",
-      });
-    }
-  } catch (error) {
-    console.error("Error joining group:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
 };
 
 module.exports.handleJoinGroupWithPasscode = async (req, res) => {
-  const group = await groups.findOne({
-    where: {
-      invite_passcode: req.body.passcode,
-    },
-  });
-
-  if (group) {
-    const admin = await participants.findOne({
-      where: {
-        group_id: group.id,
-        is_admin: true,
-      },
-      attributes: ["user_id"],
-      include: [
-        {
-          model: users,
-          attributes: ["username"],
-        },
-      ],
-    });
-
-    if (admin.user.username === req.body.admin) {
-      const existingParticipant = await participants.findOne({
-        where: {
-          user_id: req.body.userId,
-          group_id: group.id,
-        },
-      });
-
-      if (!existingParticipant) {
-        await participants.create({
-          user_id: req.body.userId,
-          group_id: group.id,
-          is_admin: false,
-          created_at: currentDate.getTime(),
-          updated_at: currentDate.getTime(),
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const group = await groups.findOne({
+          where: {
+            invite_passcode: req.body.passcode,
+          },
         });
 
-        res.json({
-          ...req.body,
-          status: "Successfully added 😘",
-        });
-      } else {
-        res.json({
-          ...req.body,
-          status: "You're already in this group 😁",
-        });
+        if (group) {
+          const admin = await participants.findOne({
+            where: {
+              group_id: group.id,
+              is_admin: true,
+            },
+            attributes: ["user_id"],
+            include: [
+              {
+                model: users,
+                attributes: ["username"],
+              },
+            ],
+          });
+
+          if (admin.user.username === req.body.admin) {
+            const existingParticipant = await participants.findOne({
+              where: {
+                user_id: userID,
+                group_id: group.id,
+              },
+            });
+
+            if (!existingParticipant) {
+              await participants.create({
+                user_id: userID,
+                group_id: group.id,
+                is_admin: false,
+                created_at: currentDate.getTime(),
+                updated_at: currentDate.getTime(),
+              });
+
+              res.json({
+                ...req.body,
+                status: "Successfully added 😘",
+              });
+            } else {
+              res.json({
+                ...req.body,
+                status: "You're already in this group 😁",
+              });
+            }
+          } else {
+            res.json({
+              ...req.body,
+              status: "Wrong passcode or admin username", // Wrong admin username
+            });
+          }
+        } else {
+          res.json({
+            ...req.body,
+            status: "Wrong passcode or admin username", // Wrong passcode
+          });
+        }
+      } catch (error) {
+        console.error("Error joining group: ", error);
+        res.status(500).json({ error: "Internal server error" });
       }
-    } else {
-      res.json({
-        ...req.body,
-        status: "Wrong passcode or admin username", // Wrong admin username
-      });
-    }
-  } else {
-    res.json({
-      ...req.body,
-      status: "Wrong passcode or admin username", // Wrong passcode
+    })
+    .catch(async () => {
+      res.json({ token: null });
     });
-  }
 };
 
 module.exports.handleIsAdmin = async (req, res) => {
@@ -255,177 +293,225 @@ module.exports.handleIsAdmin = async (req, res) => {
 };
 
 module.exports.handleLeaveGroup = async (req, res) => {
-  const isAdmin = await participants.findOne({
-    where: {
-      user_id: req.body.userId,
-      group_id: req.body.currentGroup,
-      is_admin: true,
-    },
-  });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const isAdmin = await participants.findOne({
+          where: {
+            user_id: userID,
+            group_id: req.body.currentGroup,
+            is_admin: true,
+          },
+        });
 
-  if (isAdmin) {
-    res.json({
-      ...req.body,
-      status: "You can't leave because you're the admin 😁",
-    });
-  } else {
-    await participants.destroy({
-      where: {
-        user_id: req.body.userId,
-        group_id: req.body.currentGroup,
-      },
-    });
+        if (isAdmin) {
+          res.json({
+            ...req.body,
+            status: "You can't leave because you're the admin 😁",
+          });
+        } else {
+          await participants.destroy({
+            where: {
+              user_id: userID,
+              group_id: req.body.currentGroup,
+            },
+          });
 
-    res.json({
-      ...req.body,
-      status: "Success",
+          res.json({
+            ...req.body,
+            status: "Success",
+          });
+        }
+      } catch (error) {
+        console.error("Error leaving group: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
     });
-  }
 };
 
 module.exports.handleDeleteGroup = async (req, res) => {
-  const existingUser = await users.findOne({
-    where: {
-      // username: req.body.username,
-      user_id: req.body.userId,
-    },
-  });
-
-  if (!existingUser) {
-    res.json({
-      ...req.body,
-      status: "User does not exist",
-    });
-    return;
-  }
-
-  const isSamePass = await bcrypt.compare(
-    req.body.passattempt,
-    existingUser.passhash
-  );
-
-  const isAdmin = await participants.findOne({
-    where: {
-      user_id: req.body.userId,
-      group_id: req.body.currentGroup,
-      is_admin: true,
-    },
-  });
-
-  if (!isAdmin) {
-    res.json({
-      ...req.body,
-      status: "Not admin",
-    });
-    return;
-  }
-
-  if (isSamePass) {
-    await sequelize.transaction(async (t) => {
-      await points.destroy({
-        where: {
-          group_id: req.body.currentGroup,
-        },
-        transaction: t,
-      });
-
-      await post_comments.destroy({
-        where: {},
-        include: [
-          {
-            model: posts,
-            where: {
-              group_id: req.body.currentGroup,
-            },
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const existingUser = await users.findOne({
+          where: {
+            // username: req.body.username,
+            user_id: userID,
           },
-        ],
-        transaction: t,
-      });
+        });
 
-      await posts.destroy({
-        where: {
-          group_id: req.body.currentGroup,
-        },
-        transaction: t,
-      });
+        if (!existingUser) {
+          res.json({
+            ...req.body,
+            status: "User does not exist",
+          });
+          return;
+        }
 
-      await messages.destroy({
-        where: {
-          group_id: req.body.currentGroup,
-        },
-        transaction: t,
-      });
+        const isSamePass = await bcrypt.compare(
+          req.body.passattempt,
+          existingUser.passhash
+        );
 
-      await participants.destroy({
-        where: {
-          group_id: req.body.currentGroup,
-        },
-        transaction: t,
-      });
+        const isAdmin = await participants.findOne({
+          where: {
+            user_id: userID,
+            group_id: req.body.currentGroup,
+            is_admin: true,
+          },
+        });
 
-      await groups.destroy({
-        where: {
-          id: req.body.currentGroup,
-        },
-        transaction: t,
-      });
+        if (!isAdmin) {
+          res.json({
+            ...req.body,
+            status: "Not admin",
+          });
+          return;
+        }
+
+        if (isSamePass) {
+          await sequelize.transaction(async (t) => {
+            await points.destroy({
+              where: {
+                group_id: req.body.currentGroup,
+              },
+              transaction: t,
+            });
+
+            await post_comments.destroy({
+              where: {},
+              include: [
+                {
+                  model: posts,
+                  where: {
+                    group_id: req.body.currentGroup,
+                  },
+                },
+              ],
+              transaction: t,
+            });
+
+            await posts.destroy({
+              where: {
+                group_id: req.body.currentGroup,
+              },
+              transaction: t,
+            });
+
+            await messages.destroy({
+              where: {
+                group_id: req.body.currentGroup,
+              },
+              transaction: t,
+            });
+
+            await participants.destroy({
+              where: {
+                group_id: req.body.currentGroup,
+              },
+              transaction: t,
+            });
+
+            await groups.destroy({
+              where: {
+                id: req.body.currentGroup,
+              },
+              transaction: t,
+            });
+          });
+
+          res.json({
+            ...req.body,
+            status: "Success",
+          });
+        } else {
+          res.json({
+            ...req.body,
+            status: "Wrong password",
+          });
+        }
+      } catch (error) {
+        console.error("Error deleting group: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
     });
-
-    res.json({
-      ...req.body,
-      status: "Success",
-    });
-  } else {
-    res.json({
-      ...req.body,
-      status: "Wrong password",
-    });
-  }
 };
 
 module.exports.handleCreatePost = async (req, res) => {
-  const newPost = await posts.create({
-    title: req.body.title,
-    body_text: req.body.body_text,
-    image_url: req.body.imageUrl,
-    sender_id: req.body.userId,
-    group_id: req.params.group_id,
-    created_at: currentDate.getTime(),
-    updated_at: currentDate.getTime(),
-  });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const newPost = await posts.create({
+          title: req.body.title,
+          body_text: req.body.body_text,
+          image_url: req.body.imageUrl,
+          sender_id: userID,
+          group_id: req.params.group_id,
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
+        });
 
-  res.json({
-    ...req.body,
-    status: "Post successfully created",
-  });
+        res.json({
+          ...req.body,
+          status: "Post successfully created",
+        });
+      } catch (error) {
+        console.error("Error creating post: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleEditPost = async (req, res) => {
-  const [updatedRowCount] = await posts.update(
-    {
-      title: req.body.title,
-      body_text: req.body.body_text,
-      image_url: req.body.imageUrl,
-    },
-    {
-      where: {
-        sender_id: req.body.userId,
-        id: req.body.currentPost,
-      },
-    }
-  );
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const [updatedRowCount] = await posts.update(
+          {
+            title: req.body.title,
+            body_text: req.body.body_text,
+            image_url: req.body.imageUrl,
+          },
+          {
+            where: {
+              sender_id: userID,
+              id: req.body.currentPost,
+            },
+          }
+        );
 
-  if (updatedRowCount > 0) {
-    res.json({
-      ...req.body,
-      status: "Post successfully edited",
+        if (updatedRowCount > 0) {
+          res.json({
+            ...req.body,
+            status: "Post successfully edited",
+          });
+        } else {
+          res.json({
+            ...req.body,
+            status: "Post not found or you do not have permission to edit",
+          });
+        }
+      } catch (error) {
+        console.error("Error editing post: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
     });
-  } else {
-    res.json({
-      ...req.body,
-      status: "Post not found or you do not have permission to edit",
-    });
-  }
 };
 
 module.exports.handleEditGroup = async (req, res) => {
@@ -478,15 +564,27 @@ module.exports.handleGetGroupInfo = async (req, res) => {
 };
 
 module.exports.handleCreateComment = async (req, res) => {
-  const newPostQuery = await pool.query(
-    "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
-    [req.body.mycomment, req.body.userId, req.params.post_id]
-  );
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const newPostQuery = await pool.query(
+          "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
+          [req.body.mycomment, userID, req.params.post_id]
+        );
 
-  res.json({
-    ...req.body,
-    status: "Comment successfully created",
-  });
+        res.json({
+          ...req.body,
+          status: "Comment successfully created",
+        });
+      } catch (error) {
+        console.error("Error creating comment: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleGetPostComments = async (req, res) => {
@@ -499,43 +597,55 @@ module.exports.handleGetPostComments = async (req, res) => {
 };
 
 module.exports.handleAddPostPoint = async (req, res) => {
-  const pointGiven = await points.sum("point_value", {
-    where: {
-      giver_id: req.body.userId,
-      posts_id: req.body.currentPost,
-    },
-  });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const pointGiven = await points.sum("point_value", {
+          where: {
+            giver_id: userID,
+            posts_id: req.body.currentPost,
+          },
+        });
 
-  const post = await posts.findByPk(req.body.currentPost);
-  const recipient_id = post.sender_id;
+        const post = await posts.findByPk(req.body.currentPost);
+        const recipient_id = post.sender_id;
 
-  if (pointGiven === null || pointGiven === 0) {
-    await points.create({
-      recipient_id,
-      giver_id: req.body.userId,
-      posts_id: req.body.currentPost,
-      group_id: req.body.currentGroup,
-      created_at: currentDate.getTime(),
-      updated_at: currentDate.getTime(),
-    });
+        if (pointGiven === null || pointGiven === 0) {
+          await points.create({
+            recipient_id,
+            giver_id: userID,
+            posts_id: req.body.currentPost,
+            group_id: req.body.currentGroup,
+            created_at: currentDate.getTime(),
+            updated_at: currentDate.getTime(),
+          });
 
-    res.json({
-      ...req.body,
-      status: "added a point",
-    });
-  } else {
-    await points.destroy({
-      where: {
-        giver_id: req.body.userId,
-        posts_id: req.body.currentPost,
-      },
-    });
+          res.json({
+            ...req.body,
+            status: "added a point",
+          });
+        } else {
+          await points.destroy({
+            where: {
+              giver_id: userID,
+              posts_id: req.body.currentPost,
+            },
+          });
 
-    res.json({
-      ...req.body,
-      status: "deleted a point",
+          res.json({
+            ...req.body,
+            status: "deleted a point",
+          });
+        }
+      } catch (error) {
+        console.error("Error adding post point: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
     });
-  }
 };
 
 module.exports.handleAddMessagePoint = async (req, res) => {
@@ -590,39 +700,46 @@ module.exports.handleAddMessagePoint = async (req, res) => {
 };
 
 module.exports.handleAddCommentPoint = async (req, res) => {
-  const pointGiven = await pool.query(
-    "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
-    [req.body.userId, req.body.comment_id]
-  );
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const pointGiven = await pool.query(
+          "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
+          [userID, req.body.comment_id]
+        );
 
-  const getRecipientId = await pool.query(
-    "SELECT sender_id FROM post_comments WHERE id = $1;",
-    [req.body.comment_id]
-  );
+        const getRecipientId = await pool.query(
+          "SELECT sender_id FROM post_comments WHERE id = $1;",
+          [req.body.comment_id]
+        );
 
-  const recipient_id = getRecipientId.rows[0].sender_id;
+        const recipient_id = getRecipientId.rows[0].sender_id;
 
-  if (pointGiven.rows[0].sum == null) {
-    const newCommentPoint = await pool.query(
-      "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
-      [
-        recipient_id,
-        req.body.userId,
-        req.body.comment_id,
-        req.body.currentGroup,
-      ]
-    );
-  } else {
-    const deleteCommentPoint = await pool.query(
-      "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
-      [req.body.userId, req.body.comment_id]
-    );
-  }
+        if (pointGiven.rows[0].sum == null) {
+          const newCommentPoint = await pool.query(
+            "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
+            [recipient_id, userID, req.body.comment_id, req.body.currentGroup]
+          );
+        } else {
+          const deleteCommentPoint = await pool.query(
+            "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
+            [userID, req.body.comment_id]
+          );
+        }
 
-  res.json({
-    ...req.body,
-    status: "added a point",
-  });
+        res.json({
+          ...req.body,
+          status: "added a point",
+        });
+      } catch (error) {
+        console.error("Error adding comment point:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleGetPostPoints = async (req, res) => {
@@ -641,38 +758,74 @@ module.exports.handleGetPostPoints = async (req, res) => {
 };
 
 module.exports.handleGetUserPoints = async (req, res) => {
-  const getUserPoints = await pool.query(
-    "SELECT SUM(point_value) FROM points WHERE recipient_id = $1;",
-    [req.body.userId]
-  );
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const getUserPoints = await pool.query(
+          "SELECT SUM(point_value) FROM points WHERE recipient_id = $1;",
+          [userID]
+        );
 
-  if (getUserPoints.rows[0].sum == null) {
-    userPoints = "0";
-  } else {
-    userPoints = getUserPoints.rows[0].sum;
-  }
+        if (getUserPoints.rows[0].sum == null) {
+          userPoints = "0";
+        } else {
+          userPoints = getUserPoints.rows[0].sum;
+        }
 
-  res.send(userPoints);
+        res.send(userPoints);
+      } catch (error) {
+        console.error("Error getting user points:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.getCommentLikes = async (req, res) => {
-  const getLikesQuery = await pool.query(
-    "SELECT comment_id FROM points WHERE giver_id = $1 AND group_id = $2;",
-    [req.body.userId, req.body.currentGroup]
-  );
-  res.send(getLikesQuery.rows);
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const getLikesQuery = await pool.query(
+          "SELECT comment_id FROM points WHERE giver_id = $1 AND group_id = $2;",
+          [userID, req.body.currentGroup]
+        );
+        res.send(getLikesQuery.rows);
+      } catch (error) {
+        console.error("Error getting comment likes:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.getPostLiked = async (req, res) => {
-  const postId = req.body.currentPost;
-  const userId = req.body.userId;
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const postId = req.body.currentPost;
+        const userId = userID;
 
-  const likedRecord = await points.findOne({
-    where: {
-      giver_id: userId,
-      posts_id: postId,
-    },
-  });
+        const likedRecord = await points.findOne({
+          where: {
+            giver_id: userId,
+            posts_id: postId,
+          },
+        });
 
-  res.send(likedRecord !== null);
+        res.send(likedRecord !== null);
+      } catch (error) {
+        console.error("Error getting post liked:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
