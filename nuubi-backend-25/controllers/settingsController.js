@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 const currentDate = new Date();
+const { jwtVerify } = require("./jwt/jwtAuth");
 
 const Sequelize = require("sequelize");
 
@@ -37,204 +38,276 @@ const { participants, groups, messages, points, post_comments, posts, users } =
 const { Op } = require("sequelize");
 
 module.exports.handleDeleteAccount = async (req, res) => {
-  const existingUser = await users.findOne({
-    attributes: ["username", "passhash"],
-    where: {
-      //  username: req.body.username,
-      user_id: req.body.userId,
-    },
-  });
-
-  if (existingUser) {
-    // account exists and can be deleted
-    const isSamePass = await bcrypt.compare(
-      req.body.passattempt,
-      existingUser.passhash
-    );
-    if (isSamePass) {
-      const deleteParticipantsQuery = await participants.destroy({
-        where: {
-          user_id: req.body.userId,
-        },
-      });
-
-      const deletePointsReceivedQuery = await points.destroy({
-        where: {
-          recipient_id: req.body.userId,
-        },
-      });
-
-      const updatePointsSentQuery = await points.update(
-        { giver_id: null },
-        {
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const existingUser = await users.findOne({
+          attributes: ["username", "passhash"],
           where: {
-            giver_id: req.body.userId,
+            //  username: req.body.username,
+            user_id: userID,
           },
+        });
+
+        if (existingUser) {
+          // account exists and can be deleted
+          const isSamePass = await bcrypt.compare(
+            req.body.passattempt,
+            existingUser.passhash
+          );
+          if (isSamePass) {
+            const deleteParticipantsQuery = await participants.destroy({
+              where: {
+                user_id: userID,
+              },
+            });
+
+            const deletePointsReceivedQuery = await points.destroy({
+              where: {
+                recipient_id: userID,
+              },
+            });
+
+            const updatePointsSentQuery = await points.update(
+              { giver_id: null },
+              {
+                where: {
+                  giver_id: userID,
+                },
+              }
+            );
+
+            const updatePostsQuery = await posts.update(
+              { sender_id: null },
+              {
+                where: {
+                  sender_id: userID,
+                },
+              }
+            );
+
+            const updateCommentsQuery = await post_comments.update(
+              { sender_id: null },
+              {
+                where: {
+                  sender_id: userID,
+                },
+              }
+            );
+
+            const updateMessagesQuery = await messages.update(
+              { sender_id: null },
+              {
+                where: {
+                  sender_id: userID,
+                },
+              }
+            );
+
+            const deleteUserQuery = await users.destroy({
+              where: {
+                //  username: req.body.username,
+                user_id: userID,
+              },
+            });
+
+            // res.json({ loggedIn: false, status: "User successfully deleted" });
+            res.json({ token: null, status: "User successfully deleted" });
+          } else {
+            res.json({ ...req.body, status: "Wrong password!" });
+          }
+        } else {
+          //  res.json({ loggedIn: false, status: "User does not exist" });
+          res.json({ token: null, status: "User does not exist" });
         }
-      );
-
-      const updatePostsQuery = await posts.update(
-        { sender_id: null },
-        {
-          where: {
-            sender_id: req.body.userId,
-          },
-        }
-      );
-
-      const updateCommentsQuery = await post_comments.update(
-        { sender_id: null },
-        {
-          where: {
-            sender_id: req.body.userId,
-          },
-        }
-      );
-
-      const updateMessagesQuery = await messages.update(
-        { sender_id: null },
-        {
-          where: {
-            sender_id: req.body.userId,
-          },
-        }
-      );
-
-      const deleteUserQuery = await users.destroy({
-        where: {
-          //  username: req.body.username,
-          user_id: req.body.userId,
-        },
-      });
-
-      // res.json({ loggedIn: false, status: "User successfully deleted" });
-      res.json({ token: null, status: "User successfully deleted" });
-    } else {
-      res.json({ ...req.body, status: "Wrong password!" });
-    }
-  } else {
-    //  res.json({ loggedIn: false, status: "User does not exist" });
-    res.json({ token: null, status: "User does not exist" });
-  }
+      } catch (error) {
+        console.error("Error deleting account: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleUpdateAvatar = async (req, res) => {
-  const updateAvatarQuery = await pool.query(
-    "UPDATE users SET avatar_url=$2 WHERE id=$1",
-    [req.body.userId, req.body.imageUrl]
-  );
-  res.json({
-    ...req.body,
-    status: "Avatar successfully updated",
-  });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const updateAvatarQuery = await pool.query(
+          "UPDATE users SET avatar_url=$2 WHERE id=$1",
+          [userID, req.body.imageUrl]
+        );
+        res.json({
+          ...req.body,
+          status: "Avatar successfully updated",
+        });
+      } catch (error) {
+        console.error("Error updating avatar: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleDeleteAvatar = async (req, res) => {
-  const deleteAvatarQuery = await pool.query(
-    "UPDATE users SET avatar_url=NULL WHERE id=$1",
-    [req.body.userId]
-  );
-  res.json({
-    ...req.body,
-    status: "Avatar successfully deleted",
-  });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const deleteAvatarQuery = await pool.query(
+          "UPDATE users SET avatar_url=NULL WHERE id=$1",
+          [userID]
+        );
+        res.json({
+          ...req.body,
+          status: "Avatar successfully deleted",
+        });
+      } catch (error) {
+        console.error("Error deleting avatar: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleGetAvatar = async (req, res) => {
-  const getAvatarQuery = await pool.query(
-    "SELECT avatar_url FROM users WHERE id=$1",
-    [req.body.userId]
-  );
-  res.json({
-    ...req.body,
-    avatar_url: getAvatarQuery.rows[0],
-    status: "Avatar successfully sent",
-  });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const getAvatarQuery = await pool.query(
+          "SELECT avatar_url FROM users WHERE id=$1",
+          [userID]
+        );
+        res.json({
+          ...req.body,
+          avatar_url: getAvatarQuery.rows[0],
+          status: "Avatar successfully sent",
+        });
+      } catch (error) {
+        console.error("Error deleting avatar: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleUpdateUsername = async (req, res) => {
-  const existingUser = await users.findOne({
-    attributes: ["username", "passhash"],
-    where: {
-      // username: req.body.username,
-      user_id: req.body.userId,
-    },
-  });
-  const isSamePass = await bcrypt.compare(
-    req.body.passattempt,
-    existingUser.passhash
-  );
-  if (isSamePass) {
-    // password is correct, now check and see if the desired new username is taken
-    const usernameTaken = await users.findOne({
-      attributes: ["username"],
-      where: {
-        username: req.body.newusername,
-      },
-    });
-    if (!usernameTaken) {
-      //username is not taken & can be used
-
-      const updateUsernameQuery = await users.update(
-        { username: req.body.newusername },
-        {
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const existingUser = await users.findOne({
+          attributes: ["username", "passhash"],
           where: {
             // username: req.body.username,
-            user_id: req.body.userId,
+            user_id: userID,
           },
+        });
+        const isSamePass = await bcrypt.compare(
+          req.body.passattempt,
+          existingUser.passhash
+        );
+        if (isSamePass) {
+          // password is correct, now check and see if the desired new username is taken
+          const usernameTaken = await users.findOne({
+            attributes: ["username"],
+            where: {
+              username: req.body.newusername,
+            },
+          });
+          if (!usernameTaken) {
+            //username is not taken & can be used
+
+            const updateUsernameQuery = await users.update(
+              { username: req.body.newusername },
+              {
+                where: {
+                  // username: req.body.username,
+                  user_id: userID,
+                },
+              }
+            );
+            res.json({
+              ...req.body,
+              // loggedIn: true,
+              // username: req.body.newusername,
+              status: "Username successfully updated",
+            });
+          } else {
+            res.json({
+              ...req.body,
+              status: "Username is already taken!",
+            });
+          }
+        } else {
+          res.json({ ...req.body, status: "Wrong password!" });
         }
-      );
-      res.json({
-        ...req.body,
-        // loggedIn: true,
-        // username: req.body.newusername,
-        status: "Username successfully updated",
-      });
-    } else {
-      res.json({
-        ...req.body,
-        status: "Username is already taken!",
-      });
-    }
-  } else {
-    res.json({ ...req.body, status: "Wrong password!" });
-  }
+      } catch (error) {
+        console.error("Error updating username: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleUpdatePassword = async (req, res) => {
-  const existingUser = await users.findOne({
-    attributes: ["username", "passhash"],
-    where: {
-      //username: req.body.username,
-      user_id: req.body.userId,
-    },
-  });
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const existingUser = await users.findOne({
+          attributes: ["username", "passhash"],
+          where: {
+            //username: req.body.username,
+            user_id: userID,
+          },
+        });
 
-  const isSamePass = await bcrypt.compare(
-    req.body.password,
-    existingUser.passhash
-  );
-  if (isSamePass) {
-    const hashedPass = await bcrypt.hash(req.body.passattempt1, 10);
-    const updatePasswordQuery = await users.update(
-      { passhash: hashedPass },
-      {
-        where: {
-          //  username: req.body.username,
-          user_id: req.body.userId,
-        },
+        const isSamePass = await bcrypt.compare(
+          req.body.password,
+          existingUser.passhash
+        );
+        if (isSamePass) {
+          const hashedPass = await bcrypt.hash(req.body.passattempt1, 10);
+          const updatePasswordQuery = await users.update(
+            { passhash: hashedPass },
+            {
+              where: {
+                //  username: req.body.username,
+                user_id: userID,
+              },
+            }
+          );
+
+          res.json({
+            ...req.body,
+            // loggedIn: true,
+            //  username: req.body.username,
+            status: "password successfully updated",
+          });
+        } else {
+          res.json({ ...req.body, status: "Wrong password!" });
+        }
+      } catch (error) {
+        console.error("Error updating password: ", error);
+        res.status(500).json({ error: "Internal server error" });
       }
-    );
-
-    res.json({
-      ...req.body,
-      // loggedIn: true,
-      //  username: req.body.username,
-      status: "password successfully updated",
+    })
+    .catch(async () => {
+      res.json({ token: null });
     });
-  } else {
-    res.json({ ...req.body, status: "Wrong password!" });
-  }
 };
 
 module.exports.handleGeneratePasscode = async (req, res) => {
