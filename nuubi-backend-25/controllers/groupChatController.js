@@ -1,5 +1,6 @@
 const pool = require("../db");
 const currentDate = new Date();
+const { jwtVerify } = require("./jwt/jwtAuth");
 
 const Sequelize = require("sequelize");
 
@@ -32,16 +33,6 @@ const { participants, groups, messages, points, post_comments, posts, users } =
   require("../models/init-models")(sequelize, DataTypes);
 
 module.exports.addMessage = async (req, res) => {
-  // const newMessageQuery = await pool.query(
-  //   "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
-  //   [req.body.userId, req.body.currentGroup, req.body.mymessage]
-  // );
-
-  // res.json({
-  //   ...req.body,
-  //   status: "Message successfully sent",
-  // });
-
   const newMessage = await messages.create({
     sender_id: req.body.userId,
     group_id: req.body.currentGroup,
@@ -57,58 +48,37 @@ module.exports.addMessage = async (req, res) => {
 };
 
 module.exports.getMessages = async (req, res) => {
+  console.log("get messages is here ");
   const getMessagesQuery = await pool.query(
     "SELECT a.user_id, a.sender_username, a.text, a.messages_id, a.iso_time_sent, coalesce(b.count,0) message_points FROM (SELECT users.id user_id, username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent, messages.created_at messages_created_at FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1) a LEFT JOIN (SELECT COUNT(point_value), messages_id FROM points WHERE group_id = $1 GROUP BY messages_id) b ON a.messages_id = b.messages_id  ORDER BY a.messages_created_at ASC;",
     [req.body.currentGroup]
   );
   res.send(getMessagesQuery.rows);
-  // const getMessages = await messages.findAll({
-  //   attributes: [
-  //     [sequelize.col("a.id"), "user_id"],
-  //     "sender_username",
-  //     "text",
-  //     "messages_id",
-  //     "iso_time_sent",
-  //     [sequelize.fn("coalesce", sequelize.col("b.count"), 0), "message_points"],
-  //   ],
-  //   include: [
-  //     {
-  //       model: users,
-  //       attributes: ["id", "username"],
-  //     },
-  //     {
-  //       model: points,
-  //       attributes: [
-  //         [sequelize.fn("COUNT", sequelize.col("point_value")), "point_count"],
-  //       ],
-  //       where: {
-  //         group_id: req.body.currentGroup,
-  //       },
-  //       required: false,
-  //       group: ["messages_id"],
-  //     },
-  //   ],
-  //   order: [[sequelize.col("messages_created_at"), "ASC"]],
-  // });
-
-  // res.send(getMessages);
 };
 
 module.exports.getLikes = async (req, res) => {
-  // const getLikesQuery = await pool.query(
-  //     "SELECT messages_id FROM points WHERE giver_id = $1 AND group_id = $2;",
-  //     [req.body.userId, req.body.currentGroup]
-  // );
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      console.log("hello from getLikes " + userID);
+      try {
+        const getLikesQuery = await points.findAll({
+          attributes: ["messages_id"],
+          where: {
+            giver_id: userID,
+            group_id: req.body.currentGroup,
+          },
+        });
 
-  const getLikesQuery = await points.findAll({
-    attributes: ["messages_id"],
-    where: {
-      giver_id: req.body.userId,
-      group_id: req.body.currentGroup,
-    },
-  });
-
-  res.json(getLikesQuery);
+        res.json(getLikesQuery);
+      } catch (error) {
+        console.error("Error fetching message likes:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.getImage = async (req, res) => {

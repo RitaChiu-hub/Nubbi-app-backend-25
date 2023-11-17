@@ -1,4 +1,5 @@
 require("dotenv").config();
+const { jwtSign, jwtVerify, getJwt } = require("./controllers/jwt/jwtAuth");
 const express = require("express");
 const app = express();
 
@@ -270,19 +271,31 @@ io.on("connection", (socket) => {
   console.log("a user connected");
 
   socket.on("insert msg return updated list", (req) => {
-    const firstQuery = pool.query(
-      "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
-      [req.userId, req.currentGroup, req.mymessage]
-    );
+    jwtVerify(req.token, process.env.JWT_SECRET)
+      .then(async (decoded) => {
+        const userID = decoded.id;
+        try {
+          const firstQuery = pool.query(
+            "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
+            [userID, req.currentGroup, req.mymessage]
+          );
 
-    pool.query(
-      "SELECT username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1 ORDER BY messages.created_at DESC",
-      [req.currentGroup],
-      (err, res) => {
-        if (err) throw err;
-        io.emit("insert msg return updated list", res.rows);
-      }
-    );
+          pool.query(
+            "SELECT username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1 ORDER BY messages.created_at DESC",
+            [req.currentGroup],
+            (err, res) => {
+              if (err) throw err;
+              io.emit("insert msg return updated list", res.rows);
+            }
+          );
+        } catch (error) {
+          console.error("Error fetching and adding messages:", error);
+          res.status(500).json({ error: "Internal server error" });
+        }
+      })
+      .catch(async () => {
+        res.json({ token: null });
+      });
   });
 
   socket.on("insert comment return updated list", (req) => {
@@ -383,47 +396,65 @@ io.on("connection", (socket) => {
   });
 
   socket.on("add message point return updated sum", async (req) => {
-    const pointGiven = await pool.query(
-      "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and messages_id = $2",
-      [req.userId, req.message_id]
-    );
+    jwtVerify(req.token, process.env.JWT_SECRET)
+      .then(async (decoded) => {
+        const userID = decoded.id;
+        try {
+          const pointGiven = await pool.query(
+            "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and messages_id = $2",
+            [userID, req.message_id]
+          );
 
-    const getRecipientId = await pool.query(
-      "SELECT sender_id FROM messages WHERE id = $1;",
-      [req.message_id]
-    );
+          const getRecipientId = await pool.query(
+            "SELECT sender_id FROM messages WHERE id = $1;",
+            [req.message_id]
+          );
 
-    const recipient_id = getRecipientId.rows[0].sender_id;
+          const recipient_id = getRecipientId.rows[0].sender_id;
 
-    if (pointGiven.rows[0].sum == null) {
-      const newMessagePoint = await pool.query(
-        "INSERT INTO points(recipient_id, giver_id, messages_id, group_id) values($1,$2,$3,$4);",
-        [recipient_id, req.userId, req.message_id, req.currentGroup]
-      );
+          if (pointGiven.rows[0].sum == null) {
+            const newMessagePoint = await pool.query(
+              "INSERT INTO points(recipient_id, giver_id, messages_id, group_id) values($1,$2,$3,$4);",
+              [recipient_id, userID, req.message_id, req.currentGroup]
+            );
 
-      pool.query(
-        "SELECT SUM(point_value) FROM points WHERE messages_id = $1;",
-        [req.message_id],
-        (err, res) => {
-          if (err) throw err;
-          io.emit("add message point return updated sum", res.rows[0].sum);
+            pool.query(
+              "SELECT SUM(point_value) FROM points WHERE messages_id = $1;",
+              [req.message_id],
+              (err, res) => {
+                if (err) throw err;
+                io.emit(
+                  "add message point return updated sum",
+                  res.rows[0].sum
+                );
+              }
+            );
+          } else {
+            const deleteMessagePoint = await pool.query(
+              "DELETE FROM points WHERE giver_id = $1 AND messages_id = $2;",
+              [userID, req.message_id]
+            );
+
+            pool.query(
+              "SELECT COALESCE(SUM(point_value),0) FROM points WHERE messages_id = $1;",
+              [req.message_id],
+              (err, res) => {
+                if (err) throw err;
+                io.emit(
+                  "add message point return updated sum",
+                  res.rows[0].sum
+                );
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching and adding messages:", error);
+          res.status(500).json({ error: "Internal server error" });
         }
-      );
-    } else {
-      const deleteMessagePoint = await pool.query(
-        "DELETE FROM points WHERE giver_id = $1 AND messages_id = $2;",
-        [req.userId, req.message_id]
-      );
-
-      pool.query(
-        "SELECT COALESCE(SUM(point_value),0) FROM points WHERE messages_id = $1;",
-        [req.message_id],
-        (err, res) => {
-          if (err) throw err;
-          io.emit("add message point return updated sum", res.rows[0].sum);
-        }
-      );
-    }
+      })
+      .catch(async () => {
+        res.json({ token: null });
+      });
   });
 
   socket.on("disconnect", () => {
