@@ -299,100 +299,142 @@ io.on("connection", (socket) => {
   });
 
   socket.on("insert comment return updated list", (req) => {
-    const firstQuery = pool.query(
-      "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
-      [req.mycomment, req.userId, req.currentPost]
-    );
+    jwtVerify(req.token, process.env.JWT_SECRET)
+      .then(async (decoded) => {
+        const userID = decoded.id;
+        try {
+          const firstQuery = pool.query(
+            "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
+            [req.mycomment, userID, req.currentPost]
+          );
 
-    pool.query(
-      "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
-      [req.currentPost],
-      (err, res) => {
-        if (err) throw err;
-        io.emit("insert comment return updated list", res.rows);
-      }
-    );
+          pool.query(
+            "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
+            [req.currentPost],
+            (err, res) => {
+              if (err) throw err;
+              io.emit("insert comment return updated list", res.rows);
+            }
+          );
+        } catch (error) {
+          console.error("Error fetching and adding messages:", error);
+          res.status(500).json({ error: "Internal server error" });
+        }
+      })
+      .catch(async () => {
+        res.json({ token: null });
+      });
   });
 
   socket.on("add post point return updated sum", async (req) => {
-    const pointGiven = await pool.query(
-      "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and posts_id = $2",
-      [req.userId, req.currentPost]
-    );
+    jwtVerify(req.token, process.env.JWT_SECRET)
+      .then(async (decoded) => {
+        const userID = decoded.id;
+        try {
+          const pointGiven = await pool.query(
+            "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and posts_id = $2",
+            [userID, req.currentPost]
+          );
 
-    const getRecipientId = await pool.query(
-      "SELECT sender_id FROM posts WHERE id = $1;",
-      [req.currentPost]
-    );
+          const getRecipientId = await pool.query(
+            "SELECT sender_id FROM posts WHERE id = $1;",
+            [req.currentPost]
+          );
 
-    const recipient_id = getRecipientId.rows[0].sender_id;
+          const recipient_id = getRecipientId.rows[0].sender_id;
 
-    if (pointGiven.rows[0].sum == null) {
-      const newPostPoint = await pool.query(
-        "INSERT INTO points(recipient_id, giver_id, posts_id, group_id) values($1,$2,$3,$4);",
-        [recipient_id, req.userId, req.currentPost, req.currentGroup]
-      );
+          if (pointGiven.rows[0].sum == null) {
+            const newPostPoint = await pool.query(
+              "INSERT INTO points(recipient_id, giver_id, posts_id, group_id) values($1,$2,$3,$4);",
+              [recipient_id, userID, req.currentPost, req.currentGroup]
+            );
 
-      pool.query(
-        "SELECT SUM(point_value) FROM points WHERE posts_id = $1;",
-        [req.currentPost],
-        (err, res) => {
-          if (err) throw err;
-          io.emit("add post point return updated sum", res.rows[0].sum);
+            pool.query(
+              "SELECT SUM(point_value) FROM points WHERE posts_id = $1;",
+              [req.currentPost],
+              (err, res) => {
+                if (err) throw err;
+                io.emit("add post point return updated sum", res.rows[0].sum);
+              }
+            );
+          } else {
+            const deletePostPoint = await pool.query(
+              "DELETE FROM points WHERE giver_id = $1 AND posts_id = $2;",
+              [userID, req.currentPost]
+            );
+
+            pool.query(
+              "SELECT COALESCE(SUM(point_value),0) FROM points WHERE posts_id = $1;",
+              [req.currentPost],
+              (err, res) => {
+                if (err) throw err;
+                io.emit("add post point return updated sum", res.rows[0].sum);
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching and adding messages:", error);
+          res.status(500).json({ error: "Internal server error" });
         }
-      );
-    } else {
-      const deletePostPoint = await pool.query(
-        "DELETE FROM points WHERE giver_id = $1 AND posts_id = $2;",
-        [req.userId, req.currentPost]
-      );
-
-      pool.query(
-        "SELECT COALESCE(SUM(point_value),0) FROM points WHERE posts_id = $1;",
-        [req.currentPost],
-        (err, res) => {
-          if (err) throw err;
-          io.emit("add post point return updated sum", res.rows[0].sum);
-        }
-      );
-    }
+      })
+      .catch(async () => {
+        res.json({ token: null });
+      });
   });
 
   socket.on("add comment point return updated sum", async (req) => {
-    const pointGiven = await pool.query(
-      "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
-      [req.userId, req.post_comment_id]
-    );
+    jwtVerify(req.token, process.env.JWT_SECRET)
+      .then(async (decoded) => {
+        const userID = decoded.id;
+        try {
+          const pointGiven = await pool.query(
+            "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
+            [userID, req.post_comment_id]
+          );
 
-    if (pointGiven.rows[0].sum == null) {
-      const newCommentPoint = await pool.query(
-        "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
-        [req.sender_id, req.userId, req.post_comment_id, req.currentGroup]
-      );
+          if (pointGiven.rows[0].sum == null) {
+            const newCommentPoint = await pool.query(
+              "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
+              [req.sender_id, userID, req.post_comment_id, req.currentGroup]
+            );
 
-      pool.query(
-        "SELECT SUM(point_value) FROM points WHERE comment_id = $1;",
-        [req.post_comment_id],
-        (err, res) => {
-          if (err) throw err;
-          io.emit("add comment point return updated sum", res.rows[0].sum);
+            pool.query(
+              "SELECT SUM(point_value) FROM points WHERE comment_id = $1;",
+              [req.post_comment_id],
+              (err, res) => {
+                if (err) throw err;
+                io.emit(
+                  "add comment point return updated sum",
+                  res.rows[0].sum
+                );
+              }
+            );
+          } else {
+            const deleteCommentPoint = await pool.query(
+              "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
+              [userID, req.post_comment_id]
+            );
+
+            pool.query(
+              "SELECT COALESCE(SUM(point_value),0) FROM points WHERE comment_id = $1;",
+              [req.post_comment_id],
+              (err, res) => {
+                if (err) throw err;
+                io.emit(
+                  "add comment point return updated sum",
+                  res.rows[0].sum
+                );
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching and adding messages:", error);
+          res.status(500).json({ error: "Internal server error" });
         }
-      );
-    } else {
-      const deleteCommentPoint = await pool.query(
-        "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
-        [req.userId, req.post_comment_id]
-      );
-
-      pool.query(
-        "SELECT COALESCE(SUM(point_value),0) FROM points WHERE comment_id = $1;",
-        [req.post_comment_id],
-        (err, res) => {
-          if (err) throw err;
-          io.emit("add comment point return updated sum", res.rows[0].sum);
-        }
-      );
-    }
+      })
+      .catch(async () => {
+        res.json({ token: null });
+      });
   });
 
   socket.on("add message point return updated sum", async (req) => {
