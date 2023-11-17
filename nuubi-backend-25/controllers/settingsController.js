@@ -40,7 +40,8 @@ module.exports.handleDeleteAccount = async (req, res) => {
   const existingUser = await users.findOne({
     attributes: ["username", "passhash"],
     where: {
-      username: req.body.username,
+      //  username: req.body.username,
+      user_id: req.body.userId,
     },
   });
 
@@ -101,16 +102,19 @@ module.exports.handleDeleteAccount = async (req, res) => {
 
       const deleteUserQuery = await users.destroy({
         where: {
-          username: req.body.username,
+          //  username: req.body.username,
+          user_id: req.body.userId,
         },
       });
 
-      res.json({ loggedIn: false, status: "User successfully deleted" });
+      // res.json({ loggedIn: false, status: "User successfully deleted" });
+      res.json({ token: null, status: "User successfully deleted" });
     } else {
       res.json({ ...req.body, status: "Wrong password!" });
     }
   } else {
-    res.json({ loggedIn: false, status: "User does not exist" });
+    //  res.json({ loggedIn: false, status: "User does not exist" });
+    res.json({ token: null, status: "User does not exist" });
   }
 };
 
@@ -152,7 +156,8 @@ module.exports.handleUpdateUsername = async (req, res) => {
   const existingUser = await users.findOne({
     attributes: ["username", "passhash"],
     where: {
-      username: req.body.username,
+      // username: req.body.username,
+      user_id: req.body.userId,
     },
   });
   const isSamePass = await bcrypt.compare(
@@ -174,14 +179,15 @@ module.exports.handleUpdateUsername = async (req, res) => {
         { username: req.body.newusername },
         {
           where: {
-            username: req.body.username,
+            // username: req.body.username,
+            user_id: req.body.userId,
           },
         }
       );
       res.json({
         ...req.body,
-        loggedIn: true,
-        username: req.body.newusername,
+        // loggedIn: true,
+        // username: req.body.newusername,
         status: "Username successfully updated",
       });
     } else {
@@ -199,7 +205,8 @@ module.exports.handleUpdatePassword = async (req, res) => {
   const existingUser = await users.findOne({
     attributes: ["username", "passhash"],
     where: {
-      username: req.body.username,
+      //username: req.body.username,
+      user_id: req.body.userId,
     },
   });
 
@@ -213,15 +220,16 @@ module.exports.handleUpdatePassword = async (req, res) => {
       { passhash: hashedPass },
       {
         where: {
-          username: req.body.username,
+          //  username: req.body.username,
+          user_id: req.body.userId,
         },
       }
     );
 
     res.json({
       ...req.body,
-      loggedIn: true,
-      username: req.body.username,
+      // loggedIn: true,
+      //  username: req.body.username,
       status: "password successfully updated",
     });
   } else {
@@ -271,7 +279,8 @@ module.exports.handleGeneratePasscode = async (req, res) => {
     }
   } else {
     res.json({
-      loggedIn: false,
+      // loggedIn: false,
+      token: null,
       status: "User with this email does not exist.",
     });
   }
@@ -297,14 +306,16 @@ module.exports.handleForgotPassword = async (req, res) => {
         [hashedPass, existingUser.rows[0].username]
       );
 
-      if (req.body.loggedIn === true) {
+      // if (req.body.loggedIn === true) {
+      if (req.body.token !== null && req.body.token !== "undefined") {
         res.json({
           ...req.body,
           status: "password successfully updated",
         });
       } else {
         res.json({
-          loggedIn: false,
+          //  loggedIn: false,
+          token: null,
           status:
             "password successfully updated. You may now log in with your new password.",
         });
@@ -314,7 +325,8 @@ module.exports.handleForgotPassword = async (req, res) => {
     }
   } else {
     res.json({
-      loggedIn: false,
+      //  loggedIn: false,
+      token: null,
       status: "User with this email does not exist.",
     });
   }

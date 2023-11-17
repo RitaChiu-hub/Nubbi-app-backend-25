@@ -286,7 +286,8 @@ module.exports.handleLeaveGroup = async (req, res) => {
 module.exports.handleDeleteGroup = async (req, res) => {
   const existingUser = await users.findOne({
     where: {
-      username: req.body.username,
+      // username: req.body.username,
+      user_id: req.body.userId,
     },
   });
 
