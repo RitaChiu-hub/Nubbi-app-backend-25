@@ -317,7 +317,7 @@ io.on("connection", (socket) => {
             }
           );
         } catch (error) {
-          console.error("Error fetching and adding messages:", error);
+          console.error("Error fetching and adding comments: ", error);
           res.status(500).json({ error: "Internal server error" });
         }
       })
@@ -373,7 +373,7 @@ io.on("connection", (socket) => {
             );
           }
         } catch (error) {
-          console.error("Error fetching and adding messages:", error);
+          console.error("Error adding post point: ", error);
           res.status(500).json({ error: "Internal server error" });
         }
       })
@@ -428,7 +428,7 @@ io.on("connection", (socket) => {
             );
           }
         } catch (error) {
-          console.error("Error fetching and adding messages:", error);
+          console.error("Error adding comment point: ", error);
           res.status(500).json({ error: "Internal server error" });
         }
       })
@@ -490,7 +490,7 @@ io.on("connection", (socket) => {
             );
           }
         } catch (error) {
-          console.error("Error fetching and adding messages:", error);
+          console.error("Error adding message point: ", error);
           res.status(500).json({ error: "Internal server error" });
         }
       })
