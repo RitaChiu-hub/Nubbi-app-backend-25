@@ -767,8 +767,7 @@ module.exports.handleGetUserPoints = async (req, res) => {
           [userID]
         );
 
-        const username = getUsername.rows[0];
-        console.log(username);
+        const username = getUsername.rows[0].username;
         const getUserPoints = await pool.query(
           "SELECT SUM(point_value) FROM points WHERE recipient_id = $1;",
           [userID]
@@ -779,8 +778,7 @@ module.exports.handleGetUserPoints = async (req, res) => {
         } else {
           userPoints = getUserPoints.rows[0].sum;
         }
-        console.log(userPoints);
-        res.send({ username, userPoints });
+        res.send({ username: username, userPoints: userPoints });
       } catch (error) {
         console.error("Error getting user points:", error);
         res.status(500).json({ error: "Internal server error" });
