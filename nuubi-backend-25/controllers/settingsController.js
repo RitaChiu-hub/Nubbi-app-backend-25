@@ -46,7 +46,7 @@ module.exports.handleDeleteAccount = async (req, res) => {
           attributes: ["username", "passhash"],
           where: {
             //  username: req.body.username,
-            user_id: userID,
+            id: userID,
           },
         });
 
@@ -108,7 +108,7 @@ module.exports.handleDeleteAccount = async (req, res) => {
             const deleteUserQuery = await users.destroy({
               where: {
                 //  username: req.body.username,
-                user_id: userID,
+                id: userID,
               },
             });
 
