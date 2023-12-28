@@ -235,7 +235,6 @@ module.exports.checkEmail = async (req, res) => {
   if (!existingEmail) {
     res.json({ token: null});
 } else {
-  //  res.json({ loggedIn: false, status: "Email is already being used" });
   res.json({ token: null, status: "Email is already being used" });
 }
 };
