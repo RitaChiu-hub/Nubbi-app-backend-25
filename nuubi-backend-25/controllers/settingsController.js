@@ -359,6 +359,71 @@ module.exports.handleGeneratePasscode = async (req, res) => {
   }
 };
 
+module.exports.handleGenerateSignUpCode = async (req, res) => {
+  const myNumber = Math.random().toString(10).substring(2, 8);
+  const mypasscode = myNumber;
+  const hashedOTP = await bcrypt.hash(mypasscode, 10);
+
+  const userEmail = req.body.email;
+
+
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  // send mail with defined transport object
+  let info = await transporter.sendMail({
+    from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
+    // to: "email@email.com", // list of receivers
+    to: userEmail,
+    subject: "Sign up verification code", // Subject line
+    // text: "Wait where is this text?", // plain text body
+    html:
+      "<b>You attempted to create a new account! This is your code. If you didn't request a reset, you can safely ignore this message. CODE: </b>" +
+      mypasscode, // html body
+  });
+
+
+  if (info.messageId != null) {
+    res.json({
+      ...req.body,
+      hashedOTP: hashedOTP,
+      status: "Passcode sent to email. May need to check spam folder.",
+    });
+  }
+};
+
+
+module.exports.handleValidateSignUp = async (req, res) => {
+  // Compare the user's input with the hashedOTP
+  const isSameOTP = await bcrypt.compare(
+    req.body.userInputCode,
+    req.body.hashedOTP
+  );
+
+  // If they are validated to be the same, reply with an appropriate message.
+  if (isSameOTP) {
+    if (req.body.token !== null && req.body.token !== "undefined") {
+      res.status(200).json({
+        ...req.body,
+        status: "OTP is valid!",
+      });
+    } else {
+      res.status(200).json({
+        token: null,
+        status: "OTP is valid!",
+      });
+    }
+  } else {
+    res.status(401).json({ ...req.body, status: "OTP Passcode is incorrect." });
+  }
+};
+
+
 module.exports.handleForgotPassword = async (req, res) => {
   const existingUser = await pool.query(
     "SELECT username from users WHERE email=$1",

@@ -9,9 +9,12 @@ const {
   handleUpdatePassword,
   handleForgotPassword,
   handleGeneratePasscode,
+  handleGenerateSignUpCode,
   handleUpdateAvatar,
   handleGetAvatar,
   handleDeleteAvatar,
+  handleValidateSignUpCode,
+  handleValidateSignUp,
 } = require("../controllers/settingsController");
 const validateChangeUsernameForm = require("../controllers/validation/validateChangeUsernameForm");
 const validateChangePasswordForm = require("../controllers/validation/validateChangePasswordForm");
@@ -36,6 +39,10 @@ router.post(
   handleUpdatePassword
 );
 router.post("/generatepasscode", handleGeneratePasscode);
+
+router.post("/generatesignupcode", handleGenerateSignUpCode);
+
+router.post("/validatesignup", handleValidateSignUp);
 
 router.post(
   "/forgotpassword",
