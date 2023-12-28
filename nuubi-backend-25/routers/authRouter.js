@@ -10,11 +10,14 @@ const {
   attemptLogin,
   attemptRegister,
   getMessage,
+  checkEmail
 } = require("../controllers/authController");
 
 router.route("/login").get(handleLogin).post(validateLoginForm, attemptLogin);
 
 router.post("/signup", validateSignupForm, attemptRegister);
+
+router.post("/checkemail", checkEmail);
 
 router.post("/getmessage", getMessage);
 

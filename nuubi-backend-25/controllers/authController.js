@@ -225,6 +225,21 @@ module.exports.attemptRegister = async (req, res) => {
   }
 };
 
+module.exports.checkEmail = async (req, res) => {
+  const existingEmail = await users.findOne({
+    attributes: ["email"],
+    where: {
+      email: req.body.email,
+    },
+  });
+  if (!existingEmail) {
+    res.json({ token: null});
+} else {
+  //  res.json({ loggedIn: false, status: "Email is already being used" });
+  res.json({ token: null, status: "Email is already being used" });
+}
+};
+
 module.exports.getMessage = async (req, res) => {
   res.json({
     message: "testing! ",
