@@ -8,7 +8,8 @@ module.exports.signFile = async (req, res) => {
     console.log(
       `public_id=${public_id}&timestamp=${timestamp}${cloudinarySecret}`
     );
-    fileHashes[public_id] = createHash("sha1")
+    fileHashes[public_id] = crypto
+      .createHash("sha1")
       .update(
         `public_id=${public_id}&timestamp=${timestamp}${cloudinarySecret}`
       )
