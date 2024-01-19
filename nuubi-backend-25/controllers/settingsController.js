@@ -295,7 +295,7 @@ module.exports.handleUpdatePassword = async (req, res) => {
             ...req.body,
             // loggedIn: true,
             //  username: req.body.username,
-            status: "password successfully updated",
+            status: "Password successfully updated",
           });
         } else {
           res.json({ ...req.body, status: "Wrong password!" });
@@ -448,14 +448,14 @@ module.exports.handleForgotPassword = async (req, res) => {
       if (req.body.token !== null && req.body.token !== "undefined") {
         res.json({
           ...req.body,
-          status: "password successfully updated",
+          status: "Password successfully updated",
         });
       } else {
         res.json({
           //  loggedIn: false,
           token: null,
           status:
-            "password successfully updated. You may now log in with your new password.",
+            "Password successfully updated. You may now log in with your new password.",
         });
       }
     } else {
