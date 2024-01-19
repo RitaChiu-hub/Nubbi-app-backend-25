@@ -210,7 +210,7 @@ module.exports.handleUpdateUsername = async (req, res) => {
           attributes: ["username", "passhash"],
           where: {
             // username: req.body.username,
-            user_id: userID,
+            id: userID,
           },
         });
         const isSamePass = await bcrypt.compare(
@@ -233,7 +233,7 @@ module.exports.handleUpdateUsername = async (req, res) => {
               {
                 where: {
                   // username: req.body.username,
-                  user_id: userID,
+                  id: userID,
                 },
               }
             );
@@ -271,7 +271,7 @@ module.exports.handleUpdatePassword = async (req, res) => {
           attributes: ["username", "passhash"],
           where: {
             //username: req.body.username,
-            user_id: userID,
+            id: userID,
           },
         });
 
@@ -286,7 +286,7 @@ module.exports.handleUpdatePassword = async (req, res) => {
             {
               where: {
                 //  username: req.body.username,
-                user_id: userID,
+                id: userID,
               },
             }
           );
