@@ -439,7 +439,7 @@ module.exports.handleSendFeedback = async (req, res) => {
           subject: "User Feedback", // Subject line
           // text: "Wait where is this text?", // plain text body
           html:
-            "<p>A user sent feedback! UserFeedback: </p>" +
+            "<p>A user sent feedback! Here's what they have to say: </p>" +
             req.body.userFeedback +
             "<p> The user's email is: </p>" +
             userEmail, // html body
