@@ -1,0 +1,80 @@
+<mjml>
+  <mj-head>
+    <mj-style>
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');</mj-style>
+  </mj-head>
+  <mj-body background-color="#FFFFFF">
+    <mj-section>
+      <mj-column>
+        <mj-image src="cid:image1" align="center"></mj-image>
+      </mj-column>
+    </mj-section>
+    <mj-section>
+      <mj-column>
+        <mj-text font-size="16px" font-family="Poppins, sans-serif">Hi {{ userName }},
+          <br /><br />
+          <b>Your Security Verification:</b>
+          <br /><br />
+          Here’s the 6-digit verification code you requested.
+          Please enter it into the two-factor authentication prompt to sign in.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section>
+      <mj-column>
+        <mj-text font-size="26px" font-family="Poppins, sans-serif" align="center">{{ mypasscode }}</mj-text>
+        <mj-text font-size="14px" font-family="Poppins, sans-serif" color="#FF0000" align="center"><br />
+          To help protect your account, this code will expire in 20 minutes.
+          <br /><br />
+        </mj-text>
+        <mj-text font-size="16px" font-family="Poppins, sans-serif"><b>Not your request?</b>
+          <br /> <br />
+          If you believe an unauthorized person has accessed your account, please update your password as soon as possible from your <span style="text-decoration: underline; color: #2482AA;"><a href="https://www.nuubi.app/">Nuubi Account page.</a></span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#EBEBEB">
+      <mj-column>
+        <mj-text font-size="12px" align="center" font-family="Poppins, sans-serif">
+          Dont have the Nuubi App? Download it now: <br /><br />
+        </mj-text>
+        <mj-text align="center" font-family="Arial, sans-serif" padding="0px">
+          <div style="display: inline-block; width: 220px;">
+            <a href="https://apps.apple.com/us/app/nuubi/id6447013076?itsct=apps_box_badge&amp;itscg=30200" style="display: block; overflow: hidden; border-radius: 13px; width: 100%; height: 78px;">
+              <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=240x83&amp;releaseDate=1681948800" alt="Download on the App Store" style="border-radius: 13px; width: 100%; height: 100%; object-fit: cover;">
+            </a>
+          </div>
+          <div style="display: inline-block; width: 245px;">
+            <a href='https://play.google.com/store/apps/details?id=com.kittykat.nuubiapp&hl=en&gl=US&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1' style="display: block; overflow: hidden; border-radius: 13px; width: 100%; height: 80px;">
+              <img alt='Get it on Google Play' src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' style="width: 100%; height: 100%; object-fit: cover;">
+            </a>
+          </div>
+        </mj-text>
+        </div>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#EBEBEB">
+      <mj-column>
+        <mj-text font-size="12px" font-family="Poppins, sans-serif" align="left">
+          Follow us on our socials</mj-text>
+        <mj-social icon-size="26px" mode="horizontal" align="left">
+          <mj-social-element name="facebook" href="https://www.facebook.com/">
+          </mj-social-element>
+          <mj-social-element name="instagram" href="https://www.instagram.com/nuubi.app/?hl=en">
+          </mj-social-element>
+          <mj-social-element name="linkedin" href="https://www.linkedin.com/company/nuubi-app/">
+          </mj-social-element>
+        </mj-social>
+        <mj-divider border-width="2px" border-style="solid" border-color="lightgrey"></mj-divider>
+        <mj-text font-size="12px" font-family="Poppins, sans-serif">By continuing to use Nuubi, you are accepting our <span style="text-decoration: underline; color: #2482AA;"><a href="https://www.nuubi.app/"> Terms and Privacy Policy.</a></span>
+          <br /> <br /><br />
+          Nuubi Inc.
+          <br />
+          252 NW 29th street, 9th Floor, Miami, FL 33127
+          <br />
+          Copyright 2023 Nuubi Inc. All rights reserved.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>
