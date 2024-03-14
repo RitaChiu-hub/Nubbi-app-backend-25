@@ -326,7 +326,7 @@ module.exports.handleGeneratePasscode = async (req, res) => {
   );
 
   const userEmail = req.body.email;
-  const userName = existingUser.rows[0].username;
+  //const userName = existingUser.rows[0].username;
 
   let transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -345,7 +345,7 @@ module.exports.handleGeneratePasscode = async (req, res) => {
   const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, 'utf-8');
 
   // Replace the placeholders with actual values
-  const compiledHtml = mjml(mjmlTemplate.replace('{{ userName }}', userName).replace('{{ mypasscode }}', mypasscode), { filePath: mjmlTemplatePath });
+  const compiledHtml = mjml(mjmlTemplate.replace('{{ mypasscode }}', mypasscode), { filePath: mjmlTemplatePath });
 
   // send mail with defined transport object
   let info = await transporter.sendMail({
@@ -413,7 +413,7 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
     [req.body.email]
   );
 
-  const userName = existingUser.rows[0].username;
+  // const userName = existingUser.rows[0].username;
 
   let transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -432,7 +432,7 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
   const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, 'utf-8');
 
   // Replace the placeholders with actual values
-  const compiledHtml = mjml(mjmlTemplate.replace('{{ userName }}', userName).replace('{{ mypasscode }}', mypasscode), { filePath: mjmlTemplatePath });
+  const compiledHtml = mjml(mjmlTemplate.replace('{{ mypasscode }}', mypasscode), { filePath: mjmlTemplatePath });
 
   // send mail with defined transport object
   let info = await transporter.sendMail({
