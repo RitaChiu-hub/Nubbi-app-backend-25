@@ -410,7 +410,6 @@ module.exports.handleGeneratePasscode = async (req, res) => {
 };
 
 module.exports.handleSendFeedback = async (req, res) => {
-  console.log(req.body);
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
@@ -421,8 +420,6 @@ module.exports.handleSendFeedback = async (req, res) => {
         );
 
         const userEmail = getUserEmail.rows[0].email;
-        console.log(req.body);
-        console.log(userEmail);
 
         let transporter = nodemailer.createTransport({
           service: "gmail",
