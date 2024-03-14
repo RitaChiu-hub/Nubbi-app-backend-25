@@ -3,9 +3,9 @@ const bcrypt = require("bcrypt");
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 
-const mjml = require('mjml');
-const fs = require('fs');
-const path = require('path');
+const mjml = require("mjml");
+const fs = require("fs");
+const path = require("path");
 
 const currentDate = new Date();
 const { jwtVerify } = require("./jwt/jwtAuth");
@@ -329,7 +329,7 @@ module.exports.handleGeneratePasscode = async (req, res) => {
   //const userName = existingUser.rows[0].username;
 
   let transporter = nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -337,28 +337,36 @@ module.exports.handleGeneratePasscode = async (req, res) => {
   });
 
   // Construct the correct path to the image file
-  const imagePath = path.join(__dirname, '..', 'assets', 'Logo_Tagline.png');
-  const imageContent = fs.readFileSync(imagePath, { encoding: 'base64' });
+  const imagePath = path.join(__dirname, "..", "assets", "Logo_Tagline.png");
+  const imageContent = fs.readFileSync(imagePath, { encoding: "base64" });
 
   // Read and compile MJML template
-  const mjmlTemplatePath = path.join(__dirname, '..', 'templates', 'resetPasswordEmail.mjml');
-  const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, 'utf-8');
+  const mjmlTemplatePath = path.join(
+    __dirname,
+    "..",
+    "templates",
+    "resetPasswordEmail.mjml"
+  );
+  const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, "utf-8");
 
   // Replace the placeholders with actual values
-  const compiledHtml = mjml(mjmlTemplate.replace('{{ mypasscode }}', mypasscode), { filePath: mjmlTemplatePath });
+  const compiledHtml = mjml(
+    mjmlTemplate.replace("{{ mypasscode }}", mypasscode),
+    { filePath: mjmlTemplatePath }
+  );
 
   // send mail with defined transport object
   let info = await transporter.sendMail({
-    from: 'Nuubi Support Team ' + process.env.EMAIL_USER, // sender address
+    from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
     to: userEmail,
-    subject: 'Reset Password on Nuubi', // Subject line
+    subject: "Reset Password on Nuubi", // Subject line
     html: compiledHtml.html, // Use the compiled HTML
     attachments: [
       {
-        filename: 'Logo_Tagline.png',
+        filename: "Logo_Tagline.png",
         content: imageContent,
-        encoding: 'base64',
-        cid: 'image1', // Content-ID for referencing the image in the HTML
+        encoding: "base64",
+        cid: "image1", // Content-ID for referencing the image in the HTML
       },
     ],
   });
@@ -385,13 +393,13 @@ module.exports.handleGeneratePasscode = async (req, res) => {
   //       mypasscode, // html body
   //   });
 
-    if (info.messageId != null) {
-      res.json({
-        ...req.body,
-        hashedOTP: hashedOTP,
-        status: "Passcode sent to email. May need to check spam folder.",
-      });
-  //  }
+  if (info.messageId != null) {
+    res.json({
+      ...req.body,
+      hashedOTP: hashedOTP,
+      status: "Passcode sent to email. May need to check spam folder.",
+    });
+    //  }
   } else {
     res.json({
       // loggedIn: false,
@@ -399,6 +407,53 @@ module.exports.handleGeneratePasscode = async (req, res) => {
       status: "User with this email does not exist.",
     });
   }
+};
+
+module.exports.handleSendFeedback = async (req, res) => {
+  console.log(req.body);
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const getUserEmail = await pool.query(
+          "SELECT email FROM users WHERE id = $1;",
+          [userID]
+        );
+
+        const userEmail = getUserEmail.rows[0].email;
+        console.log(req.body);
+        console.log(userEmail);
+
+        let transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+        });
+
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+          from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
+          to: process.env.EMAIL_USER, // send to Kat
+          subject: "User Feedback", // Subject line
+          // text: "Wait where is this text?", // plain text body
+          html:
+            "<p>A user sent feedback! UserFeedback: </p>" +
+            req.body.userFeedback +
+            "<p> The user's email is: </p>" +
+            userEmail, // html body
+        });
+
+        res.json({ ...req.body, status: "Email successfully sent" });
+      } catch (error) {
+        console.error("Error sending email:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(async () => {
+      res.json({ token: null });
+    });
 };
 
 module.exports.handleGenerateSignUpCode = async (req, res) => {
@@ -416,7 +471,7 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
   // const userName = existingUser.rows[0].username;
 
   let transporter = nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -424,28 +479,36 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
   });
 
   // Construct the correct path to the image file
-  const imagePath = path.join(__dirname, '..', 'assets', 'Logo_Tagline.png');
-  const imageContent = fs.readFileSync(imagePath, { encoding: 'base64' });
+  const imagePath = path.join(__dirname, "..", "assets", "Logo_Tagline.png");
+  const imageContent = fs.readFileSync(imagePath, { encoding: "base64" });
 
   // Read and compile MJML template
-  const mjmlTemplatePath = path.join(__dirname, '..', 'templates', 'codeVerificationEmail.mjml');
-  const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, 'utf-8');
+  const mjmlTemplatePath = path.join(
+    __dirname,
+    "..",
+    "templates",
+    "codeVerificationEmail.mjml"
+  );
+  const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, "utf-8");
 
   // Replace the placeholders with actual values
-  const compiledHtml = mjml(mjmlTemplate.replace('{{ mypasscode }}', mypasscode), { filePath: mjmlTemplatePath });
+  const compiledHtml = mjml(
+    mjmlTemplate.replace("{{ mypasscode }}", mypasscode),
+    { filePath: mjmlTemplatePath }
+  );
 
   // send mail with defined transport object
   let info = await transporter.sendMail({
-    from: 'Nuubi Support Team ' + process.env.EMAIL_USER, // sender address
+    from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
     to: userEmail,
-    subject: 'Security Verification Code', // Subject line
+    subject: "Security Verification Code", // Subject line
     html: compiledHtml.html, // Use the compiled HTML
     attachments: [
       {
-        filename: 'Logo_Tagline.png',
+        filename: "Logo_Tagline.png",
         content: imageContent,
-        encoding: 'base64',
-        cid: 'image1', // Content-ID for referencing the image in the HTML
+        encoding: "base64",
+        cid: "image1", // Content-ID for referencing the image in the HTML
       },
     ],
   });
@@ -454,12 +517,10 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
     res.json({
       ...req.body,
       hashedOTP: hashedOTP,
-      status: 'Passcode sent to email. May need to check spam folder.',
+      status: "Passcode sent to email. May need to check spam folder.",
     });
   }
 };
-
-
 
 module.exports.handleValidateSignUp = async (req, res) => {
   // Compare the user's input with the hashedOTP
@@ -486,14 +547,12 @@ module.exports.handleValidateSignUp = async (req, res) => {
   }
 };
 
-
 // module.exports.handleGenerateSignUpCode = async (req, res) => {
 //   const myNumber = Math.random().toString(10).substring(2, 8);
 //   const mypasscode = myNumber;
 //   const hashedOTP = await bcrypt.hash(mypasscode, 10);
 
 //   const userEmail = req.body.email;
-
 
 //   let transporter = nodemailer.createTransport({
 //     service: "gmail",
@@ -515,7 +574,6 @@ module.exports.handleValidateSignUp = async (req, res) => {
 //       mypasscode, // html body
 //   });
 
-
 //   if (info.messageId != null) {
 //     res.json({
 //       ...req.body,
@@ -524,7 +582,6 @@ module.exports.handleValidateSignUp = async (req, res) => {
 //     });
 //   }
 // };
-
 
 // module.exports.handleValidateSignUp = async (req, res) => {
 //   // Compare the user's input with the hashedOTP
@@ -550,7 +607,6 @@ module.exports.handleValidateSignUp = async (req, res) => {
 //     res.status(401).json({ ...req.body, status: "OTP Passcode is incorrect." });
 //   }
 // };
-
 
 module.exports.handleForgotPassword = async (req, res) => {
   const existingUser = await pool.query(
