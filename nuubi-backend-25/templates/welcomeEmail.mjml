@@ -12,7 +12,7 @@
     <mj-section>
       <mj-column>
         <mj-text font-size="20px" font-family="Poppins, sans-serif">
-          <b>Welcome to Nuubi, {{ userName }}! </b>
+          <b>Welcome to Nuubi! </b>
         </mj-text>
       </mj-column>
     </mj-section>

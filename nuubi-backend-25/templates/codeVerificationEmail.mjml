@@ -11,7 +11,7 @@
     </mj-section>
     <mj-section>
       <mj-column>
-        <mj-text font-size="16px" font-family="Poppins, sans-serif">Hi {{ userName }},
+        <mj-text font-size="16px" font-family="Poppins, sans-serif">Hi there,
           <br /><br />
           <b>Your Security Verification:</b>
           <br /><br />
