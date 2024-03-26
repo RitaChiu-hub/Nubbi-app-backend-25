@@ -338,102 +338,61 @@ module.exports.handleDeleteGroup = async (req, res) => {
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
-        const existingUser = await users.findOne({
-          where: {
-            // username: req.body.username,
-            user_id: userID,
-          },
-        });
-
-        if (!existingUser) {
-          res.json({
-            ...req.body,
-            status: "User does not exist",
-          });
-          return;
-        }
-
-        const isSamePass = await bcrypt.compare(
-          req.body.passattempt,
-          existingUser.passhash
+        const existingUser = await pool.query(
+          "SELECT username, passhash from users WHERE id=$1",
+          [userID]
         );
+        if (existingUser.rowCount != 0) {
+          const isSamePass = await bcrypt.compare(
+            req.body.passattempt,
+            existingUser.rows[0].passhash
+          );
 
-        const isAdmin = await participants.findOne({
-          where: {
-            user_id: userID,
-            group_id: req.body.currentGroup,
-            is_admin: true,
-          },
-        });
+          const isAdmin = await pool.query(
+            "SELECT * FROM participants WHERE user_id = $1 AND group_id = $2 AND is_admin = true;",
+            [userID, req.body.currentGroup]
+          );
 
-        if (!isAdmin) {
-          res.json({
-            ...req.body,
-            status: "Not admin",
-          });
-          return;
-        }
+          if (isAdmin.rowCount != 0) {
+            if (isSamePass) {
+              const updatePointsQuery = await pool.query(
+                "UPDATE points SET group_id=NULL, posts_id=NULL, comment_id=NULL, messages_id=NULL WHERE group_id = $1",
+                [req.body.currentGroup]
+              );
 
-        if (isSamePass) {
-          await sequelize.transaction(async (t) => {
-            await points.destroy({
-              where: {
-                group_id: req.body.currentGroup,
-              },
-              transaction: t,
-            });
+              const deleteCommentsQuery = await pool.query(
+                "DELETE FROM post_comments USING posts WHERE post_comments.post_id = posts.id AND posts.group_id=$1",
+                [req.body.currentGroup]
+              );
 
-            await post_comments.destroy({
-              where: {},
-              include: [
-                {
-                  model: posts,
-                  where: {
-                    group_id: req.body.currentGroup,
-                  },
-                },
-              ],
-              transaction: t,
-            });
+              const deletePostsQuery = await pool.query(
+                "DELETE FROM posts WHERE group_id = $1",
+                [req.body.currentGroup]
+              );
 
-            await posts.destroy({
-              where: {
-                group_id: req.body.currentGroup,
-              },
-              transaction: t,
-            });
+              const deleteMessagesQuery = await pool.query(
+                "DELETE FROM messages WHERE group_id = $1",
+                [req.body.currentGroup]
+              );
 
-            await messages.destroy({
-              where: {
-                group_id: req.body.currentGroup,
-              },
-              transaction: t,
-            });
+              const deleteParticipantsQuery = await pool.query(
+                "DELETE FROM participants WHERE group_id = $1",
+                [req.body.currentGroup]
+              );
 
-            await participants.destroy({
-              where: {
-                group_id: req.body.currentGroup,
-              },
-              transaction: t,
-            });
-
-            await groups.destroy({
-              where: {
-                id: req.body.currentGroup,
-              },
-              transaction: t,
-            });
-          });
-
-          res.json({
-            ...req.body,
-            status: "Success",
-          });
+              const deleteGroupQuery = await pool.query(
+                "DELETE FROM groups WHERE id = $1",
+                [req.body.currentGroup]
+              );
+              res.json({ ...req.body, status: "Success" });
+            } else {
+              res.json({ ...req.body, status: "Wrong password" });
+            }
+          } else {
+            res.json({ ...req.body, status: "Not admin" });
+          }
         } else {
-          res.json({
-            ...req.body,
-            status: "Wrong password",
-          });
+          res.json({ ...req.body, status: "User does not exist" });
         }
       } catch (error) {
         console.error("Error deleting group: ", error);
@@ -444,6 +403,126 @@ module.exports.handleDeleteGroup = async (req, res) => {
       res.json({ token: null });
     });
 };
+
+// module.exports.handleDeleteGroup = async (req, res) => {
+//   console.log("hi!!!");
+//   jwtVerify(req.body.token, process.env.JWT_SECRET)
+//     .then(async (decoded) => {
+//       const userID = decoded.id;
+//       try {
+//         const existingUser = await users.findOne({
+//           where: {
+//             // username: req.body.username,
+//             id: userID,
+//           },
+//         });
+
+//         if (!existingUser) {
+//           res.json({
+//             ...req.body,
+//             status: "User does not exist",
+//           });
+//           return;
+//         }
+
+//         const isSamePass = await bcrypt.compare(
+//           req.body.passattempt,
+//           existingUser.passhash
+//         );
+
+//         const isAdmin = await participants.findOne({
+//           where: {
+//             user_id: userID,
+//             group_id: req.body.currentGroup,
+//             is_admin: true,
+//           },
+//         });
+
+//         if (!isAdmin) {
+//           res.json({
+//             ...req.body,
+//             status: "Not admin",
+//           });
+//           return;
+//         }
+
+//         if (isSamePass) {
+//           await sequelize.transaction(async (t) => {
+//             await points.destroy({
+//               where: {
+//                 group_id: req.body.currentGroup,
+//               },
+//               transaction: t,
+//             });
+
+//             await points.destroy({
+//               where: {
+//                 group_id: req.body.currentGroup,
+//               },
+//               transaction: t,
+//             });
+
+//             await post_comments.destroy({
+//               where: {},
+//               include: [
+//                 {
+//                   model: posts,
+//                   where: {
+//                     group_id: req.body.currentGroup,
+//                   },
+//                 },
+//               ],
+//               transaction: t,
+//             });
+
+//             await posts.destroy({
+//               where: {
+//                 group_id: req.body.currentGroup,
+//               },
+//               transaction: t,
+//             });
+
+//             await messages.destroy({
+//               where: {
+//                 group_id: req.body.currentGroup,
+//               },
+//               transaction: t,
+//             });
+
+//             await participants.destroy({
+//               where: {
+//                 group_id: req.body.currentGroup,
+//               },
+//               transaction: t,
+//             });
+
+//             await groups.destroy({
+//               where: {
+//                 id: req.body.currentGroup,
+//               },
+//               transaction: t,
+//             });
+//           });
+
+//           res.json({
+//             ...req.body,
+//             status: "Success",
+//           });
+//         } else {
+//           res.json({
+//             ...req.body,
+//             status: "Wrong password",
+//           });
+//         }
+//       } catch (error) {
+//         console.error("Error deleting group: ", error);
+//         res.status(500).json({ error: "Internal server error" });
+//       }
+//     })
+//     .catch(async () => {
+//       res.json({ token: null });
+//     });
+// };
 
 module.exports.handleCreatePost = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
