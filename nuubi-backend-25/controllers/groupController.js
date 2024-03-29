@@ -535,7 +535,7 @@ module.exports.handleCreatePost = async (req, res) => {
           title: req.body.title,
           body_text: req.body.body_text,
           image_url: req.body.imageUrl,
-          file_url: req.body.fileUrl, // add this once I start passing this to the backend
+          file_url: req.body.fileUrl,
           sender_id: userID,
           group_id: req.params.group_id,
           created_at: currentDate.getTime(),
