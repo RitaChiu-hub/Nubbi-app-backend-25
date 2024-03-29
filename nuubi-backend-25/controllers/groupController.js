@@ -525,15 +525,17 @@ module.exports.handleDeleteGroup = async (req, res) => {
 // };
 
 module.exports.handleCreatePost = async (req, res) => {
+  console.log("hi???");
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
+      console.log({ ...req.body });
       const userID = decoded.id;
       try {
         const newPost = await posts.create({
           title: req.body.title,
           body_text: req.body.body_text,
           image_url: req.body.imageUrl,
-          //   file_url: req.body.fileUrl, // add this once I start passing this to the backend
+          file_url: req.body.fileUrl, // add this once I start passing this to the backend
           sender_id: userID,
           group_id: req.params.group_id,
           created_at: currentDate.getTime(),
