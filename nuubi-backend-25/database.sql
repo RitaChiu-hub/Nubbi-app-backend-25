@@ -140,3 +140,5 @@ ALTER TABLE users
 
 ALTER TABLE participants 
     ALTER COLUMN user_id TYPE VARCHAR;
+
+ALTER TABLE posts ADD COLUMN file_url VARCHAR;
