@@ -405,7 +405,6 @@ module.exports.handleDeleteGroup = async (req, res) => {
 };
 
 // module.exports.handleDeleteGroup = async (req, res) => {
-//   console.log("hi!!!");
 //   jwtVerify(req.body.token, process.env.JWT_SECRET)
 //     .then(async (decoded) => {
 //       const userID = decoded.id;
@@ -525,10 +524,8 @@ module.exports.handleDeleteGroup = async (req, res) => {
 // };
 
 module.exports.handleCreatePost = async (req, res) => {
-  console.log("hi???");
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
-      console.log({ ...req.body });
       const userID = decoded.id;
       try {
         const newPost = await posts.create({
