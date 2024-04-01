@@ -532,7 +532,7 @@ module.exports.handleCreatePost = async (req, res) => {
           title: req.body.title,
           body_text: req.body.body_text,
           image_url: req.body.imageUrl,
-          file_url: req.body.fileUrl,
+          file_url: req.body.fileUrl || null,
           sender_id: userID,
           group_id: req.params.group_id,
           created_at: currentDate.getTime(),
