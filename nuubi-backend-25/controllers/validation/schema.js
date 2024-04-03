@@ -33,13 +33,15 @@ const newPasswordSchema = Yup.object({
   password: Yup.string().required("Password required"),
   passattempt1: Yup.string()
     .required("Password required")
-    .min(6, "Password too short")
-    .max(28, "Password too long!"),
+    .min(8, "Password must contain at least 8 characters")
+    .max(28, "Password can be a maximum of 28 characters")
+    .minLowercase(1, "Password must contain at least 1 lower case letter")
+    .minUppercase(1, "Password must contain at least 1 upper case letter")
+    .minNumbers(1, "Password must contain at least 1 number")
+    .minSymbols(1, "Password must contain at least 1 special character"),
   passattempt2: Yup.string()
     .required("Password required")
-    .min(6, "Password too short")
-    .max(28, "Password too long!")
-    .oneOf([Yup.ref("passattempt1"), null], "Passwords don't match!"),
+    .oneOf([Yup.ref("passattempt1"), null], "Passwords must match"),
 });
 
 const forgotPasswordSchema = Yup.object({
