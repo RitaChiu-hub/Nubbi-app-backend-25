@@ -628,7 +628,7 @@ module.exports.handleGetPosts = async (req, res) => {
 
 module.exports.handleGetPostInfo = async (req, res) => {
   const getPostInfoQuery = await pool.query(
-    "SELECT title post_title, body_text, username post_author, image_url, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
+    "SELECT title post_title, body_text, username post_author, image_url, file_url, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
     [req.body.currentPost]
   );
   res.send(getPostInfoQuery.rows[0]);
