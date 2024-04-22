@@ -30,6 +30,7 @@ const {
   getCommentLikes,
   handleAddCommentPoint,
   getPostLiked,
+  getLeaderboard,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -65,6 +66,7 @@ router.post("/leavegroup", handleLeaveGroup);
 router.post("/isadmin", handleIsAdmin);
 router.post("/deletegroup", handleDeleteGroup);
 router.post("/getmembers", getGroupMembers);
+router.post("/getleaderboard", getLeaderboard);
 router.post("/editpost", handleEditPost);
 router.post("/editgroup", handleEditGroup);
 router.post("/getpostinfo", handleGetPostInfo);
