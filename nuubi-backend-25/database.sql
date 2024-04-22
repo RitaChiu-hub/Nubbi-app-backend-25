@@ -142,3 +142,146 @@ ALTER TABLE participants
     ALTER COLUMN user_id TYPE VARCHAR;
 
 ALTER TABLE posts ADD COLUMN file_url VARCHAR;
+
+--- comments below for scratch work
+---------- points per user per month/year, without units assigned
+
+SELECT 
+    EXTRACT(YEAR FROM p.updated_at) AS year,
+    EXTRACT(MONTH FROM p.updated_at) AS month,
+    p.recipient_id,
+    u.username,
+    SUM(p.point_value) AS total_points
+FROM 
+    points p
+JOIN
+    users u ON p.recipient_id = u.id
+WHERE
+    p.group_id = 4
+GROUP BY 
+    EXTRACT(YEAR FROM p.updated_at),
+    EXTRACT(MONTH FROM p.updated_at),
+    p.recipient_id,
+    u.username
+ORDER BY 
+    year, month;
+
+
+--------------------- get units assigned to the points per user
+
+WITH RankedMonths AS (
+    SELECT 
+        EXTRACT(YEAR FROM p.updated_at) AS year,
+        EXTRACT(MONTH FROM p.updated_at) AS month,
+        DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank
+    FROM 
+        points p
+    WHERE
+        p.group_id = 4
+    GROUP BY 
+        EXTRACT(YEAR FROM p.updated_at),
+        EXTRACT(MONTH FROM p.updated_at)
+),
+MonthlyPoints AS (
+    SELECT 
+        EXTRACT(YEAR FROM p.updated_at) AS year,
+        EXTRACT(MONTH FROM p.updated_at) AS month,
+        p.recipient_id,
+        u.username,
+        SUM(p.point_value) AS total_points
+    FROM 
+        points p
+    JOIN
+        users u ON p.recipient_id = u.id
+    WHERE
+        p.group_id = 4
+    GROUP BY 
+        EXTRACT(YEAR FROM p.updated_at),
+        EXTRACT(MONTH FROM p.updated_at),
+        p.recipient_id,
+        u.username
+)
+SELECT 
+    mp.year,
+    mp.month,
+    mp.username,
+    CASE 
+        WHEN rm.month_rank = 1 THEN 'Unit 1'
+        ELSE CONCAT('Unit ', rm.month_rank)
+    END AS unit_name,
+    mp.total_points
+FROM 
+    MonthlyPoints mp
+JOIN
+    RankedMonths rm ON mp.year = rm.year AND mp.month = rm.month
+ORDER BY 
+    mp.year, mp.month;
+
+
+
+    ------------------- user infomration and the unit points
+
+    WITH RankedMonths AS (
+    SELECT 
+        EXTRACT(YEAR FROM p.updated_at) AS year,
+        EXTRACT(MONTH FROM p.updated_at) AS month,
+        DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank
+    FROM 
+        points p
+    WHERE
+        p.group_id = 4
+    GROUP BY 
+        EXTRACT(YEAR FROM p.updated_at),
+        EXTRACT(MONTH FROM p.updated_at)
+),
+MonthlyPoints AS (
+    SELECT 
+        EXTRACT(YEAR FROM p.updated_at) AS year,
+        EXTRACT(MONTH FROM p.updated_at) AS month,
+        p.recipient_id,
+        SUM(p.point_value) AS total_points
+    FROM 
+        points p
+    WHERE
+        p.group_id = 4
+    GROUP BY 
+        EXTRACT(YEAR FROM p.updated_at),
+        EXTRACT(MONTH FROM p.updated_at),
+        p.recipient_id
+),
+UserDetails AS (
+    SELECT 
+        u.id AS user_id,
+        u.username,
+        u.email
+    FROM 
+        users u
+    JOIN
+        participants p ON u.id = p.user_id
+    WHERE
+        p.group_id = 4
+)
+SELECT 
+    ud.user_id,
+    ud.username,
+    ud.email,
+    MAX(CASE WHEN rm.month_rank = 1 THEN mp.total_points ELSE 0 END) AS Unit_1,
+    MAX(CASE WHEN rm.month_rank = 2 THEN mp.total_points ELSE 0 END) AS Unit_2,
+    MAX(CASE WHEN rm.month_rank = 3 THEN mp.total_points ELSE 0 END) AS Unit_3,
+    MAX(CASE WHEN rm.month_rank = 4 THEN mp.total_points ELSE 0 END) AS Unit_4,
+    MAX(CASE WHEN rm.month_rank = 5 THEN mp.total_points ELSE 0 END) AS Unit_5,
+    MAX(CASE WHEN rm.month_rank = 6 THEN mp.total_points ELSE 0 END) AS Unit_6,
+    MAX(CASE WHEN rm.month_rank = 7 THEN mp.total_points ELSE 0 END) AS Unit_7,
+    MAX(CASE WHEN rm.month_rank = 8 THEN mp.total_points ELSE 0 END) AS Unit_8
+FROM 
+    RankedMonths rm
+CROSS JOIN
+    UserDetails ud
+LEFT JOIN
+    MonthlyPoints mp ON mp.year = rm.year AND mp.month = rm.month AND mp.recipient_id = ud.user_id
+GROUP BY
+    ud.user_id,
+    ud.username,
+    ud.email
+ORDER BY 
+    ud.username;
