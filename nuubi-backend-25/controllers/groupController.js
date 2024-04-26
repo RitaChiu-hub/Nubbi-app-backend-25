@@ -1,5 +1,36 @@
 const pool = require("../db");
 const { jwtVerify } = require("./jwt/jwtAuth");
+const cloudinary = require("cloudinary").v2;
+
+const pdfPublicId = "image/upload/jsyo8yxcr5vpwrcobqui";
+
+// Configure Cloudinary with your credentials
+cloudinary.config({
+  cloud_name: "dvvdc9evd",
+  api_key: "971765162862783",
+  api_secret: "QeLPD1CnHJU05WGP8j0GtIryHEw",
+});
+
+// Function to get metadata from public id
+function getPdfMetadata(publicId) {
+  return new Promise((resolve, reject) => {
+    cloudinary.api.resource(publicId, { pages: true }, (error, result) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result.pages);
+      }
+    });
+  });
+}
+
+getPdfMetadata(pdfPublicId)
+  .then((pages) => {
+    console.log(`The PDF has ${pages} pages.`);
+  })
+  .catch((error) => {
+    console.error("Error:", error);
+  });
 
 const Sequelize = require("sequelize");
 
