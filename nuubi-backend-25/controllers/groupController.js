@@ -2,36 +2,6 @@ const pool = require("../db");
 const { jwtVerify } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 
-const pdfPublicId = "image/upload/jsyo8yxcr5vpwrcobqui";
-
-// Configure Cloudinary with your credentials
-cloudinary.config({
-  cloud_name: "dvvdc9evd",
-  api_key: "971765162862783",
-  api_secret: "QeLPD1CnHJU05WGP8j0GtIryHEw",
-});
-
-// Function to get metadata from public id
-function getPdfMetadata(publicId) {
-  return new Promise((resolve, reject) => {
-    cloudinary.api.resource(publicId, { pages: true }, (error, result) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(result.pages);
-      }
-    });
-  });
-}
-
-getPdfMetadata(pdfPublicId)
-  .then((pages) => {
-    console.log(`The PDF has ${pages} pages.`);
-  })
-  .catch((error) => {
-    console.error("Error:", error);
-  });
-
 const Sequelize = require("sequelize");
 
 var config = {
@@ -674,7 +644,50 @@ module.exports.handleGetPostInfo = async (req, res) => {
     "SELECT title post_title, body_text, username post_author, image_url, file_url, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
     [req.body.currentPost]
   );
-  res.send(getPostInfoQuery.rows[0]);
+
+  if (getPostInfoQuery.rows[0].file_url != null) {
+    const parts = getPostInfoQuery.rows[0].file_url.split("upload/");
+    const jpgPart2 = parts[2].split(".pdf");
+    const publicId = "image/upload/" + jpgPart2[0];
+
+    // Configure Cloudinary with your credentials
+    cloudinary.config({
+      cloud_name: "dvvdc9evd",
+      api_key: "971765162862783",
+      api_secret: "QeLPD1CnHJU05WGP8j0GtIryHEw",
+    });
+
+    // Function to get metadata from public id
+    function getPdfMetadata(publicId) {
+      return new Promise((resolve, reject) => {
+        cloudinary.api.resource(publicId, { pages: true }, (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result.pages);
+          }
+        });
+      });
+    }
+    //const pdfPublicId = "image/upload/jsyo8yxcr5vpwrcobqui";
+
+    getPdfMetadata(publicId)
+      .then((pages) => {
+        //   console.log(`The PDF has ${pages} pages.`);
+        let filePages = pages;
+        res.send({ ...getPostInfoQuery.rows[0], filePages: filePages });
+      })
+      .catch((error) => {
+        //   console.error("Error:", error);
+        res.send({
+          ...getPostInfoQuery.rows[0],
+          filePages: null,
+          error: error,
+        });
+      });
+  } else {
+    res.send({ ...getPostInfoQuery.rows[0], filePages: null });
+  }
 };
 
 module.exports.handleGetGroupInfo = async (req, res) => {
