@@ -39,6 +39,7 @@ const corsOptions = {
       callback(new Error("Access denied, cors error")); // Change error message, for development only
     }
   },
+  credentials: true,
 };
 
 app.use(cors(corsOptions, { credential: true }));
