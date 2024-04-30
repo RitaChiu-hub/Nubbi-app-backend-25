@@ -13,37 +13,37 @@ const cors = require("cors");
 app.use(express.json());
 app.use(helmet());
 
-//Allowed Origins
-const allowedOrigins = [
-  // "http://localhost:19006",
-  // "https://www.nuubi.app",
-  // Regex for localhost with port numbers
-  /^http?:\/\/localhost:\d+$/,
-  // Regex for any subdomain under nuubi.app
-  /^https?:\/\/([a-zA-Z0-9-]+\.)?nuubi\.app$/,
-  // Regex for any .com domain
-  // /^https?:\/\/[a-zA-Z0-9-]+\.(com)$/
-];
+// //Allowed Origins
+// const allowedOrigins = [
+//   // "http://localhost:19006",
+//   // "https://www.nuubi.app",
+//   // Regex for localhost with port numbers
+//   /^http?:\/\/localhost:\d+$/,
+//   // Regex for any subdomain under nuubi.app
+//   /^https?:\/\/([a-zA-Z0-9-]+\.)?nuubi\.app$/,
+//   // Regex for any .com domain
+//   // /^https?:\/\/[a-zA-Z0-9-]+\.(com)$/
+// ];
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (
-      allowedOrigins.some((regexp) => {
-        return regexp.test(origin);
-      })
-    ) {
-      // or use this for a limited number of domain, if all the https:// [regex].nuubi.app is not purchased yet
-      // if (allowedOrigins.includes(origin))
-      callback(null, true);
-    } else {
-      callback(new Error("Access denied, cors error")); // Change error message, for development only
-    }
-  },
-  credentials: true,
-};
+// const corsOptions = {
+//   origin: function (origin, callback) {
+//     if (
+//       allowedOrigins.some((regexp) => {
+//         return regexp.test(origin);
+//       })
+//     ) {
+//       // or use this for a limited number of domain, if all the https:// [regex].nuubi.app is not purchased yet
+//       // if (allowedOrigins.includes(origin))
+//       callback(null, true);
+//     } else {
+//       callback(new Error("Access denied, cors error")); // Change error message, for development only
+//     }
+//   },
+//   credentials: true,
+// };
 
-app.use(cors(corsOptions, { credential: true }));
-// app.use(cors({ origin: true, credentials: true })); //changed this for cors
+// app.use(cors(corsOptions, { credential: true }));
+ app.use(cors({ origin: true, credentials: true })); //changed this for cors
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
