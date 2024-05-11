@@ -112,18 +112,14 @@ module.exports.handleDeleteAccount = async (req, res) => {
 
             const deleteUserQuery = await users.destroy({
               where: {
-                //  username: req.body.username,
                 id: userID,
               },
             });
-
-            // res.json({ loggedIn: false, status: "User successfully deleted" });
-            res.json({ token: null, status: "User successfully deleted" });
+            res.json({ token: null, status: "Success" });
           } else {
             res.json({ ...req.body, status: "Wrong password!" });
           }
         } else {
-          //  res.json({ loggedIn: false, status: "User does not exist" });
           res.json({ token: null, status: "User does not exist" });
         }
       } catch (error) {
