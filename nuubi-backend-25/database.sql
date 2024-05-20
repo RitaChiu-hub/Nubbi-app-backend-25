@@ -142,3 +142,55 @@ ALTER TABLE participants
     ALTER COLUMN user_id TYPE VARCHAR;
 
 ALTER TABLE posts ADD COLUMN file_url VARCHAR;
+
+
+--------------- new may 2024
+
+
+CREATE TABLE badges(
+    id SERIAL PRIMARY KEY,
+    title VARCHAR NOT NULL,
+    description VARCHAR NOT NULL,
+    criteria VARCHAR NOT NULL,
+    point_value INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_badges(
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR REFERENCES users(id),
+    badge_id INTEGER REFERENCES badges(id),
+    group_id INTEGER REFERENCES groups(id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE tasks(
+    id SERIAL PRIMARY KEY,
+    title VARCHAR NOT NULL,
+    description VARCHAR NOT NULL,
+    criteria VARCHAR NOT NULL,
+    point_value INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_tasks(
+    id SERIAL PRIMARY KEY,
+      user_id VARCHAR REFERENCES users(id),
+    task_id INTEGER REFERENCES tasks(id),
+    group_id INTEGER REFERENCES groups(id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE notifications(
+    id SERIAL PRIMARY KEY,
+    message VARCHAR NOT NULL,
+    user_id VARCHAR REFERENCES users(id),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
