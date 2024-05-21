@@ -181,6 +181,12 @@ var _post_comments = require("./models/post_comments");
 var _posts = require("./models/posts");
 var _users = require("./models/users");
 
+var _badges = require("./models/badges");
+var _user_badges = require("./models/user_badges");
+var _tasks = require("./models/tasks");
+var _user_tasks = require("./models/user_tasks");
+var _notifications = require("./models/notifications");
+
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
   var messages = _messages(sequelize, DataTypes);
@@ -189,6 +195,11 @@ function initModels(sequelize) {
   var post_comments = _post_comments(sequelize, DataTypes);
   var posts = _posts(sequelize, DataTypes);
   var users = _users(sequelize, DataTypes);
+  var badges = _badges(sequelize, DataTypes);
+  var user_badges = _user_badges(sequelize, DataTypes);
+  var tasks = _tasks(sequelize, DataTypes);
+  var user_tasks = _user_tasks(sequelize, DataTypes);
+  var notifications = _notifications(sequelize, DataTypes);
 
   messages.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(messages, { as: "messages", foreignKey: "group_id" });
@@ -222,6 +233,36 @@ function initModels(sequelize) {
   posts.belongsTo(users, { as: "sender", foreignKey: "sender_id" });
   users.hasMany(posts, { as: "posts", foreignKey: "sender_id" });
 
+
+  // Badge and User
+  badges.belongsToMany(users, { through: user_badges, foreignKey: "badge_id" });
+  users.belongsToMany(badges, { through: user_badges, foreignKey: "user_id" });
+
+  // UserBadge
+  user_badges.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(user_badges, { foreignKey: "user_id" });
+  user_badges.belongsTo(badges, { foreignKey: "badge_id" });
+  badges.hasMany(user_badges, { foreignKey: "badge_id" });
+  user_badges.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(user_badges, { foreignKey: "group_id" });
+
+  // Task and User
+  tasks.belongsToMany(users, { through: user_tasks, foreignKey: "task_id" });
+  users.belongsToMany(tasks, { through: user_tasks, foreignKey: "user_id" });
+
+  // UserTask
+  user_tasks.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(user_tasks, { foreignKey: "user_id" });
+  user_tasks.belongsTo(tasks, { foreignKey: "task_id" });
+  tasks.hasMany(user_tasks, { foreignKey: "task_id" });
+  user_tasks.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(user_tasks, { foreignKey: "group_id" });
+
+  // Notification and User
+  notifications.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(notifications, { foreignKey: "user_id" });
+
+
   return {
     groups,
     messages,
@@ -230,6 +271,11 @@ function initModels(sequelize) {
     post_comments,
     posts,
     users,
+    badges,
+    user_badges,
+    tasks,
+    user_tasks,
+    notifications,
   };
 }
 
@@ -242,6 +288,15 @@ var Group = require("./models/groups.js")(sequelize, DataTypes);
 var Message = require("./models/messages")(sequelize, DataTypes);
 var Points = require("./models/points")(sequelize, DataTypes);
 var Post = require("./models/posts")(sequelize, DataTypes);
+var PostComment = require("./models/post_comments")(sequelize, DataTypes);
+var Badge = require("./models/badges")(sequelize, DataTypes);
+var UserBadge = require("./models/user_badges")(sequelize, DataTypes);
+var Task = require("./models/tasks")(sequelize, DataTypes);
+var UserTask = require("./models/user_tasks")(sequelize, DataTypes);
+var Notification = require("./models/notifications")(sequelize, DataTypes);
+
+
+
 // Find all users
 
 // Create an object to hold both exports
@@ -253,6 +308,12 @@ const exportsObject = {
   Message: Message,
   Points: Points,
   Post: Post,
+  PostComment: PostComment,
+  Badge: Badge,
+  UserBadge: UserBadge,
+  Task: Task,
+  UserTask: UserTask,
+  Notification: Notification,
 };
 
 // Export the object containing both sequelize and User
