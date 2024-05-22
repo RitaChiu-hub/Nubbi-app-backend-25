@@ -34,7 +34,7 @@ const sequelize = new Sequelize({
 
 const DataTypes = require("sequelize").DataTypes;
 
-const { participants, groups, messages, points, post_comments, posts, users } =
+const { participants, groups, messages, points, post_comments, posts, users, badges, user_badges, tasks, user_tasks, notifications } =
   require("../models/init-models")(sequelize, DataTypes);
 
 const { Op } = require("sequelize");

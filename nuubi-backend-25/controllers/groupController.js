@@ -29,8 +29,20 @@ const sequelize = new Sequelize({
 
 const DataTypes = require("sequelize").DataTypes;
 
-const { participants, groups, messages, points, post_comments, posts, users } =
-  require("../models/init-models")(sequelize, DataTypes);
+const {
+  participants,
+  groups,
+  messages,
+  points,
+  post_comments,
+  posts,
+  users,
+  badges,
+  user_badges,
+  tasks,
+  user_tasks,
+  notifications,
+} = require("../models/init-models")(sequelize, DataTypes);
 
 const bcrypt = require("bcrypt");
 const currentDate = new Date();
@@ -540,7 +552,16 @@ module.exports.handleCreatePost = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
+      const groupID = req.params.group_id;
       try {
+        // Check if the user has already posted in this group
+        const existingPosts = await posts.findOne({
+          where: {
+            sender_id: userID,
+            group_id: groupID,
+          },
+        });
+
         const newPost = await posts.create({
           title: req.body.title,
           body_text: req.body.body_text,
@@ -551,6 +572,23 @@ module.exports.handleCreatePost = async (req, res) => {
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
+
+        // If it's the user's first post in this group, award the "Composer Badge"
+        if (!existingPosts) {
+          const composerBadge = await badges.findOne({
+            where: { title: "Composer" },
+          });
+
+          if (composerBadge) {
+            await user_badges.create({
+              user_id: userID,
+              badge_id: composerBadge.id,
+              group_id: groupID,
+              created_at: currentDate,
+              updated_at: currentDate,
+            });
+          }
+        }
 
         res.json({
           ...req.body,
