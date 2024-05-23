@@ -164,7 +164,6 @@ module.exports.getWonBadges = async (req, res) => {
         ],
         order: [["created_at", "DESC"]],
       });
-      console.log(userBadges);
       res.send(userBadges);
     } catch (error) {
       console.error("Error fetching won badges: ", error);

@@ -32,6 +32,7 @@ const {
   getPostLiked,
   getLeaderboard,
   getNotifications,
+  getWonBadges,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -77,5 +78,6 @@ router.post("/getcommentlikes", getCommentLikes);
 router.post("/addcommentpoint", handleAddCommentPoint);
 router.post("/getpostliked", getPostLiked);
 router.post("/getnotifications", getNotifications);
+router.post("/getwonbadges", getWonBadges)
 
 module.exports = router;
