@@ -588,6 +588,20 @@ module.exports.handleCreatePost = async (req, res) => {
               updated_at: currentDate,
             });
           }
+
+           // Fetch the group details to get the group name
+           const group = await groups.findOne({
+            where: { id: groupID },
+          });
+
+          // Create a notification for the user
+          await Notification.create({
+            message: `Congratulations! You've been awarded the Composer Badge in the group "${group.name}" for creating your first post in that group.`,
+            user_id: userID,
+            is_read: false,
+            created_at: currentDate,
+            updated_at: currentDate,
+          });
         }
 
         res.json({
