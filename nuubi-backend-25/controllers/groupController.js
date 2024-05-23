@@ -96,6 +96,53 @@ module.exports.getAllGroups = async (req, res) => {
   res.send(getAllGroups);
 };
 
+// module.exports.getNotifications = async (req, res) => {
+//   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+//     const userID = decoded.id;
+
+//     try {
+//       const getNotifications = await notifications.findAll({
+//         where: { user_id: userID },
+//         order: [["created_at", "DESC"]],
+//       });
+
+//       // Convert created_at to ISO 8601 format
+//       const formattedNotifications = getNotifications.map((notification) => {
+//         return {
+//           ...notification.dataValues,
+//           createdAt: notification.createdAt.toISOString(),
+//           updatedAt: notification.updatedAt.toISOString(),
+//         };
+//       });
+
+//       res.send(formattedNotifications);
+//     } catch (error) {
+//       console.error("Error fetching notifications: ", error);
+//       res.status(500).json({ error: "Internal server error" });
+//     }
+//   }).catch((error) => {
+//     console.error("Error verifying token: ", error);
+//     res.status(401).json({ error: 'Invalid token' });
+//   });
+// };
+
+module.exports.getNotifications = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    const userID = decoded.id;
+
+    try {
+      const getNotifications = await notifications.findAll({
+        where: { user_id: userID },
+        order: [["created_at", "DESC"]],
+      });
+      res.send(getNotifications);
+    } catch (error) {
+      console.error("Error fetching notifications: ", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+};
+
 module.exports.getAllPublicGroups = async (req, res) => {
   const allPubGroups = await groups.findAll({
     where: { is_public: true },
@@ -584,23 +631,25 @@ module.exports.handleCreatePost = async (req, res) => {
               user_id: userID,
               badge_id: composerBadge.id,
               group_id: groupID,
-              created_at: currentDate,
-              updated_at: currentDate,
+              created_at: currentDate.getTime(),
+              updated_at: currentDate.getTime(),
             });
           }
 
-           // Fetch the group details to get the group name
-           const group = await groups.findOne({
+          // Fetch the group details to get the group name
+          const group = await groups.findOne({
             where: { id: groupID },
           });
 
           // Create a notification for the user
-          await Notification.create({
+          await notifications.create({
             message: `Congratulations! You've been awarded the Composer Badge in the group "${group.name}" for creating your first post in that group.`,
             user_id: userID,
             is_read: false,
-            created_at: currentDate,
-            updated_at: currentDate,
+            created_at: currentDate.getTime(),
+            updated_at: currentDate.getTime(),
+            // created_at: currentDate,
+            // updated_at: currentDate,
           });
         }
 
