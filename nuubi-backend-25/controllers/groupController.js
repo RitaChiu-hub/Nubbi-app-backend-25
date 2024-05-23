@@ -143,6 +143,36 @@ module.exports.getNotifications = async (req, res) => {
   });
 };
 
+module.exports.getWonBadges = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    const userID = decoded.id;
+
+    try {
+      const userBadges = await user_badges.findAll({
+        where: { user_id: userID },
+        include: [
+          {
+            model: badges,
+            attributes: [
+              "id",
+              "title",
+              "description",
+              "criteria",
+              "point_value",
+            ],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+      });
+      console.log(userBadges);
+      res.send(userBadges);
+    } catch (error) {
+      console.error("Error fetching won badges: ", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+};
+
 module.exports.getAllPublicGroups = async (req, res) => {
   const allPubGroups = await groups.findAll({
     where: { is_public: true },
