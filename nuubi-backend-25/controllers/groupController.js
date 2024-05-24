@@ -696,6 +696,50 @@ module.exports.handleCreatePost = async (req, res) => {
     });
 };
 
+module.exports.getNotificationsUnread = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    const userID = decoded.id;
+    try {
+      // Query unread notifications for the user
+      const unreadNotifications = await notifications.findAll({
+        where: {
+          user_id: userID,
+          is_read: false,
+        },
+      });
+
+      // Check if there are unread notifications
+      const hasUnreadNotifications = unreadNotifications.length > 0;
+      // console.log(hasUnreadNotifications);
+      res.json({ hasUnreadNotifications });
+    } catch (error) {
+      console.error("Error checking unread notifications:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+};
+
+module.exports.getNotificationsRead = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    const userID = decoded.id;
+    try {
+      // Update notifications to mark them as read
+      await notifications.update(
+        { is_read: true },
+        { where: { user_id: userID } }
+      );
+
+      res.json({
+        success: true,
+        message: "Notifications marked as read successfully",
+      });
+    } catch (error) {
+      console.error("Error marking notifications as read:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+};
+
 module.exports.handleEditPost = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {

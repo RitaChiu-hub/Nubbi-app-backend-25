@@ -33,6 +33,8 @@ const {
   getLeaderboard,
   getNotifications,
   getWonBadges,
+  getNotificationsUnread,
+  getNotificationsRead
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -78,6 +80,8 @@ router.post("/getcommentlikes", getCommentLikes);
 router.post("/addcommentpoint", handleAddCommentPoint);
 router.post("/getpostliked", getPostLiked);
 router.post("/getnotifications", getNotifications);
-router.post("/getwonbadges", getWonBadges)
+router.post("/getwonbadges", getWonBadges);
+router.post("/getnotificationsunread", getNotificationsUnread);
+router.post("/getnotificationsread", getNotificationsRead);
 
 module.exports = router;
