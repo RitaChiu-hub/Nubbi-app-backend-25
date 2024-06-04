@@ -205,3 +205,8 @@ ALTER TABLE notifications
     ALTER COLUMN updated_at 
     TYPE TIMESTAMP WITH TIME ZONE
         USING updated_at AT TIME ZONE 'UTC'
+
+
+
+ALTER TABLE user_tasks
+    ADD COLUMN "completed?" BOOLEAN DEFAULT FALSE;
