@@ -36,6 +36,7 @@ const {
   getNotificationsUnread,
   getNotificationsRead,
   handleCreateTask,
+  handleGetMyGroupTasks,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -85,5 +86,6 @@ router.post("/getwonbadges", getWonBadges);
 router.post("/getnotificationsunread", getNotificationsUnread);
 router.post("/getnotificationsread", getNotificationsRead);
 router.post("/createtask", handleCreateTask);
+router.post("/mygrouptasks", handleGetMyGroupTasks);
 
 module.exports = router;

@@ -132,42 +132,39 @@ module.exports.handleCreateTask = async (req, res) => {
   });
 };
 
+module.exports.handleGetMyGroupTasks = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    const { currentGroup } = req.body;
+    const userId = decoded.id;
+
+    try {
+      const myTasks = await user_tasks.findAll({
+        where: { user_id: userId, group_id: currentGroup },
+        attributes: ["is_completed", "is_approved"],
+        include: [
+          {
+            model: tasks,
+            attributes: ["task", "point_value"],
+          },
+        ],
+      });
+
+      res.json(myTasks);
+    } catch (err) {
+      console.error(err);
+      res
+        .status(500)
+        .json({ error: "An error occurred while creating the task" });
+    }
+  });
+};
+
 module.exports.getAllGroups = async (req, res) => {
   const getAllGroups = await groups.findAll({
     attributes: ["name", "description", "id"],
   });
   res.send(getAllGroups);
 };
-
-// module.exports.getNotifications = async (req, res) => {
-//   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-//     const userID = decoded.id;
-
-//     try {
-//       const getNotifications = await notifications.findAll({
-//         where: { user_id: userID },
-//         order: [["created_at", "DESC"]],
-//       });
-
-//       // Convert created_at to ISO 8601 format
-//       const formattedNotifications = getNotifications.map((notification) => {
-//         return {
-//           ...notification.dataValues,
-//           createdAt: notification.createdAt.toISOString(),
-//           updatedAt: notification.updatedAt.toISOString(),
-//         };
-//       });
-
-//       res.send(formattedNotifications);
-//     } catch (error) {
-//       console.error("Error fetching notifications: ", error);
-//       res.status(500).json({ error: "Internal server error" });
-//     }
-//   }).catch((error) => {
-//     console.error("Error verifying token: ", error);
-//     res.status(401).json({ error: 'Invalid token' });
-//   });
-// };
 
 module.exports.getNotifications = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
