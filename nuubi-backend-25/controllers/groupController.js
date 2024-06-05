@@ -89,6 +89,36 @@ module.exports.handleCreateGroup = async (req, res) => {
     });
 };
 
+module.exports.handleCreateTask = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    console.log(req.body);
+    const { action, amount, item, points, currentGroup } = req.body;
+    const userID = decoded.id;
+
+    try {
+      // Insert into the tasks table
+      const result = await pool.query(
+        "INSERT INTO tasks (action, amount, item, points) VALUES ($1, $2, $3, $4) RETURNING id",
+        [action, amount, item, points]
+      );
+      const taskId = result.rows[0].id;
+
+      // Insert into the user_tasks table
+      await pool.query(
+        "INSERT INTO user_tasks (user_id, task_id, group_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
+        [userID, taskId, currentGroup]
+      );
+
+      res.status(201).json({ message: "Task created successfully" });
+    } catch (err) {
+      console.error(err);
+      res
+        .status(500)
+        .json({ error: "An error occurred while creating the task" });
+    }
+  });
+};
+
 module.exports.getAllGroups = async (req, res) => {
   const getAllGroups = await groups.findAll({
     attributes: ["name", "description", "id"],
