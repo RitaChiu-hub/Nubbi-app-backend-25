@@ -21,15 +21,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         field: "updated_at",
       },
-      action: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      amount: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      item: {
+      task: {
         type: DataTypes.STRING,
         allowNull: false,
       },

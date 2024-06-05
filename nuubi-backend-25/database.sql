@@ -226,3 +226,12 @@ ALTER TABLE tasks
 
 ALTER TABLE user_tasks
     RENAME COLUMN "completed?" TO is_completed;
+
+ALTER TABLE user_tasks
+    ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE tasks
+    DROP COLUMN action,
+    DROP COLUMN amount,
+    DROP COLUMN item,
+    ADD COLUMN task VARCHAR;
