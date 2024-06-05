@@ -91,22 +91,16 @@ module.exports.handleCreateGroup = async (req, res) => {
 
 module.exports.handleCreateTask = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-    const { action, amount, item, pointValue, currentGroup } = req.body;
+    const { task, pointValue, currentGroup } = req.body;
     const userID = decoded.id;
 
     try {
       // Insert into the tasks table
       const result = await pool.query(
-        "INSERT INTO tasks (action, amount, item, point_value) VALUES ($1, $2, $3, $4) RETURNING id",
-        [action, amount, item, pointValue]
+        "INSERT INTO tasks (task, point_value) VALUES ($1, $2) RETURNING id",
+        [task, pointValue]
       );
       const taskId = result.rows[0].id;
-
-      // // Insert into the user_tasks table
-      // await pool.query(
-      //   "INSERT INTO user_tasks (user_id, task_id, group_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
-      //   [userID, taskId, currentGroup]
-      // );
 
       // Fetch all participant IDs for the given group
       const participantsResult = await pool.query(
