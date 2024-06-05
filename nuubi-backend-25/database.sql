@@ -210,3 +210,19 @@ ALTER TABLE notifications
 
 ALTER TABLE user_tasks
     ADD COLUMN "completed?" BOOLEAN DEFAULT FALSE;
+
+
+ALTER TABLE tasks
+    DROP COLUMN title,
+    DROP COLUMN description,
+    DROP COLUMN criteria;
+
+
+ALTER TABLE tasks
+    ADD COLUMN action VARCHAR,
+    ADD COLUMN amount INTEGER,
+    ADD COLUMN item VARCHAR;
+
+
+ALTER TABLE user_tasks
+    RENAME COLUMN "completed?" TO is_completed;

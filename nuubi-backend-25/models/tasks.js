@@ -1,22 +1,12 @@
 const Sequelize = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-    const Task = sequelize.define('tasks', {
+  const Task = sequelize.define(
+    "tasks",
+    {
       id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-      },
-      title: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      description: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      criteria: {
-        type: DataTypes.STRING,
-        allowNull: false,
       },
       point_value: {
         type: DataTypes.INTEGER,
@@ -31,6 +21,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         field: "updated_at",
       },
+      action: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      amount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      item: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
     },
     {
       sequelize,
@@ -44,7 +46,7 @@ module.exports = (sequelize, DataTypes) => {
           fields: [{ name: "id" }],
         },
       ],
-    });
-    return Task;
-  };
-  
+    }
+  );
+  return Task;
+};
