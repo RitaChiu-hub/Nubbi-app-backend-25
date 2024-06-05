@@ -149,7 +149,15 @@ module.exports.handleGetMyGroupTasks = async (req, res) => {
         ],
       });
 
-      res.json(myTasks);
+      // Flatten the tasks into a single object
+      const flattenedTasks = myTasks.map((task) => ({
+        is_completed: task.is_completed,
+        is_approved: task.is_approved,
+        task: task.task.task, // Access nested task property
+        point_value: task.task.point_value, // Access nested point_value property
+      }));
+
+      res.json(flattenedTasks);
     } catch (err) {
       console.error(err);
       res
