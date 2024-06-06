@@ -140,7 +140,7 @@ module.exports.handleGetMyGroupTasks = async (req, res) => {
     try {
       const myTasks = await user_tasks.findAll({
         where: { user_id: userId, group_id: currentGroup },
-        attributes: ["is_completed", "is_approved"],
+        attributes: ["is_completed", "is_approved", "id"],
         include: [
           {
             model: tasks,
