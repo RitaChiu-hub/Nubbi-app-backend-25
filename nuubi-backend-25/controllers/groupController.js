@@ -168,6 +168,36 @@ module.exports.handleGetMyGroupTasks = async (req, res) => {
   });
 };
 
+module.exports.handleTaskCompleted = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    const { taskId } = req.body;
+    const userId = decoded.id;
+
+    try {
+      const task = await user_tasks.findOne({
+        where: {
+          user_id: userId,
+          task_id: taskId,
+        },
+      });
+
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      task.is_completed = true;
+      await task.save();
+
+      res.json({ user: req.body, status: "success" });
+    } catch (err) {
+      console.error(err);
+      res
+        .status(500)
+        .json({ error: "An error occurred while creating the task" });
+    }
+  });
+};
+
 module.exports.getAllGroups = async (req, res) => {
   const getAllGroups = await groups.findAll({
     attributes: ["name", "description", "id"],
