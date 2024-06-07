@@ -235,3 +235,7 @@ ALTER TABLE tasks
     DROP COLUMN amount,
     DROP COLUMN item,
     ADD COLUMN task VARCHAR;
+
+
+ALTER TABLE points
+    ADD COLUMN task_id INTEGER;

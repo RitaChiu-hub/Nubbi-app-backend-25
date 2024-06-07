@@ -38,6 +38,8 @@ const {
   handleCreateTask,
   handleGetMyGroupTasks,
   handleTaskCompleted,
+  handleGetAllGroupTasks,
+  handleTaskApproved,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -89,5 +91,7 @@ router.post("/getnotificationsread", getNotificationsRead);
 router.post("/createtask", handleCreateTask);
 router.post("/mygrouptasks", handleGetMyGroupTasks);
 router.post("/taskcompleted", handleTaskCompleted);
+router.post("/allgrouptasks", handleGetAllGroupTasks);
+router.post("/taskapproved", handleTaskApproved);
 
 module.exports = router;

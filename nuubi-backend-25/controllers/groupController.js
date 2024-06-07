@@ -168,6 +168,47 @@ module.exports.handleGetMyGroupTasks = async (req, res) => {
   });
 };
 
+module.exports.handleGetAllGroupTasks = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+    const { currentGroup } = req.body;
+    const userId = decoded.id;
+
+    try {
+      const allTasks = await user_tasks.findAll({
+        where: { group_id: currentGroup },
+        attributes: ["is_completed", "is_approved", "id"],
+        include: [
+          {
+            model: tasks,
+            attributes: ["task", "point_value"],
+          },
+          {
+            model: users,
+            attributes: ["username"],
+          },
+        ],
+      });
+
+      // Flatten the tasks into a single object
+      const flattenedTasks = allTasks.map((task) => ({
+        id: task.id,
+        is_completed: task.is_completed,
+        is_approved: task.is_approved,
+        task: task.task.task, // Access nested task property
+        point_value: task.task.point_value, // Access nested point_value property
+        username: task.user.username, // Access nested username property
+      }));
+
+      res.json(flattenedTasks);
+    } catch (err) {
+      console.error(err);
+      res
+        .status(500)
+        .json({ error: "An error occurred while creating the task" });
+    }
+  });
+};
+
 module.exports.handleTaskCompleted = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
     const { taskId } = req.body;
@@ -177,7 +218,7 @@ module.exports.handleTaskCompleted = async (req, res) => {
       const task = await user_tasks.findOne({
         where: {
           user_id: userId,
-          task_id: taskId,
+          id: taskId,
         },
       });
 
@@ -196,6 +237,48 @@ module.exports.handleTaskCompleted = async (req, res) => {
         .json({ error: "An error occurred while creating the task" });
     }
   });
+};
+
+
+
+module.exports.handleTaskApproved = async (req, res) => {
+  try {
+    // Verify the JWT token
+    const decoded = await jwtVerify(req.body.token, process.env.JWT_SECRET);
+
+    // Extract taskId from the request body
+    const { taskId } = req.body;
+
+    await user_tasks.update({ is_approved: true }, { where: { id: taskId } });
+
+    const task = await user_tasks.findOne({
+      where: {
+        id: taskId,
+      },
+    });
+
+    const taskPoints = await tasks.findOne({
+      where: {
+        id: task.task_id,
+      },
+    });
+
+    // Create a new row in the points table
+    await points.create({
+      user_id: task.user_id,
+      task_id: taskId, // the id of the user_tasks table
+      point_value: taskPoints.point_value,
+      created_at: currentDate.getTime(),
+      updated_at: currentDate.getTime(),
+    });
+
+    res.json({ user: req.body, status: "success" });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while creating the task" });
+  }
 };
 
 module.exports.getAllGroups = async (req, res) => {

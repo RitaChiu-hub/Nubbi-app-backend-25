@@ -78,6 +78,14 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.DATE,
         field: "updated_at",
       },
+      task_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "tasks",
+          key: "id",
+        },
+      },
     },
     {
       sequelize,
