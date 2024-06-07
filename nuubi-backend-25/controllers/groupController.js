@@ -239,8 +239,6 @@ module.exports.handleTaskCompleted = async (req, res) => {
   });
 };
 
-
-
 module.exports.handleTaskApproved = async (req, res) => {
   try {
     // Verify the JWT token
@@ -268,6 +266,20 @@ module.exports.handleTaskApproved = async (req, res) => {
       user_id: task.user_id,
       task_id: taskId, // the id of the user_tasks table
       point_value: taskPoints.point_value,
+      created_at: currentDate.getTime(),
+      updated_at: currentDate.getTime(),
+    });
+
+    // Fetch the group details to get the group name
+    const group = await groups.findOne({
+      where: { id: task.group_id },
+    });
+
+    // Create a notification for the user
+    await notifications.create({
+      message: `Congratulations! Your task has been approved in the group "${group.name}" and you've been awarded "${taskPoints.point_value}" points.`,
+      user_id: task.user_id,
+      is_read: false,
       created_at: currentDate.getTime(),
       updated_at: currentDate.getTime(),
     });
