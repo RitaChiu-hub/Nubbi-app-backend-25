@@ -168,50 +168,58 @@ module.exports.handleGetMyGroupTasks = async (req, res) => {
   });
 };
 
-
 module.exports.handleGetMyTasks = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-    const userId = decoded.id;
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userId = decoded.id;
 
-    try {
-      const myTasks = await user_tasks.findAll({
-        where: { user_id: userId },
-        attributes: ["is_completed", "is_approved", "id"],
-        include: [
-          {
-            model: tasks,
-            attributes: ["task", "point_value"],
-          },
-          {
-            model: groups,
-            attributes: ["name"],
-          },
-        ],
-      });
+      try {
+        const myTasks = await user_tasks.findAll({
+          where: { user_id: userId },
+          attributes: ["is_completed", "is_approved", "id"],
+          include: [
+            {
+              model: tasks,
+              attributes: ["task", "point_value"],
+            },
+            {
+              model: groups,
+              attributes: ["name", "id", "invite_passcode"],
+            },
+          ],
+        });
 
-      // Flatten the tasks into a single object and include group names
-      const flattenedTasks = myTasks.map((task) => ({
-        id: task.id,
-        is_completed: task.is_completed,
-        is_approved: task.is_approved,
-        task: task.task.task, // Access nested task property
-        point_value: task.task.point_value, // Access nested point_value property
-        group_name: task.group.name, // Access nested group name property
-      }));
+        // Flatten the tasks into a single object and include group names
+        const flattenedTasks = myTasks.map((task) => ({
+          id: task.id,
+          is_completed: task.is_completed,
+          is_approved: task.is_approved,
+          task: task.task.task, // Access nested task property
+          point_value: task.task.point_value, // Access nested point_value property
+          group_name: task.group.name, // Access nested group name property
+          group_id: task.group.id, // Access nested group name property
+          invite_passcode: task.group.invite_passcode, // Access nested group name property
+        }));
 
-      res.json(flattenedTasks);
-    } catch (err) {
+        // Sort the tasks so that uncompleted tasks come first
+        const sortedTasks = flattenedTasks.sort(
+          (a, b) => a.is_completed - b.is_completed
+        );
+
+        res.json(sortedTasks);
+
+        // res.json(flattenedTasks);
+      } catch (err) {
+        console.error(err);
+        res
+          .status(500)
+          .json({ error: "An error occurred while retrieving the tasks" });
+      }
+    })
+    .catch((err) => {
       console.error(err);
-      res
-        .status(500)
-        .json({ error: "An error occurred while retrieving the tasks" });
-    }
-  }).catch(err => {
-    console.error(err);
-    res
-      .status(401)
-      .json({ error: "Invalid token" });
-  });
+      res.status(401).json({ error: "Invalid token" });
+    });
 };
 
 module.exports.handleGetAllGroupTasks = async (req, res) => {
