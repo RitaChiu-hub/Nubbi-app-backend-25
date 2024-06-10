@@ -91,7 +91,15 @@ module.exports.handleCreateGroup = async (req, res) => {
 
 module.exports.handleCreateTask = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-    const { task, pointValue, currentGroup } = req.body;
+    //  const { task, pointValue, currentGroup } = req.body;
+    const {
+      task,
+      pointValue,
+      currentGroup,
+      assignToAdmin,
+      assignToParticipants,
+    } = req.body;
+
     const userID = decoded.id;
 
     try {
@@ -102,22 +110,40 @@ module.exports.handleCreateTask = async (req, res) => {
       );
       const taskId = result.rows[0].id;
 
-      // Fetch all participant IDs for the given group
-      const participantsResult = await pool.query(
-        "SELECT user_id FROM participants WHERE group_id = $1",
-        [currentGroup]
-      );
-      const participantIds = participantsResult.rows.map((row) => row.user_id);
-
-      // Insert into the user_tasks table for each participant
-      const userTasksPromises = participantIds.map((userId) => {
-        return pool.query(
+      if (assignToAdmin) {
+        // Insert into the user_tasks table for admin
+        await pool.query(
           "INSERT INTO user_tasks (user_id, task_id, group_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
           [userID, taskId, currentGroup]
         );
-      });
+      }
 
-      await Promise.all(userTasksPromises);
+      // If task should be assigned to participants
+      if (assignToParticipants) {
+        // Fetch all participant IDs for the given group
+        // const participantsResult = await pool.query(
+        //   "SELECT user_id FROM participants WHERE group_id = $1",
+        //   [currentGroup]
+        // );
+        // Fetch all participant IDs for the given group where is_admin is false
+        const participantsResult = await pool.query(
+          "SELECT user_id FROM participants WHERE group_id = $1 AND is_admin = false",
+          [currentGroup]
+        );
+        const participantIds = participantsResult.rows.map(
+          (row) => row.user_id
+        );
+
+        // Insert into the user_tasks table for each participant
+        const userTasksPromises = participantIds.map((userId) => {
+          return pool.query(
+            "INSERT INTO user_tasks (user_id, task_id, group_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
+            [userID, taskId, currentGroup]
+          );
+        });
+
+        await Promise.all(userTasksPromises);
+      }
       res.status(201).json({
         ...req.body,
         status:
