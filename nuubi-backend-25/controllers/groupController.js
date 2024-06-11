@@ -504,16 +504,14 @@ module.exports.getLeaderboard = async (req, res) => {
 };
 
 module.exports.getMyLeaderboards = async (req, res) => {
-  console.log(req.body);
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userId = decoded.id;
-      console.log(userId);
+
       const myLeaderboardQuery = await pool.query(
         "SELECT className,json_agg(json_build_object('name', username, 'placement', placement, 'profilePicture', avatar_url)) AS leaders FROM (SELECT className, username, avatar_url, ROW_NUMBER() OVER (PARTITION BY className ORDER BY COALESCE(total_points, 0) DESC) AS placement FROM (SELECT g.name AS className, u.username, u.avatar_url, SUM(p.point_value) AS total_points FROM participants pa JOIN groups g ON pa.group_id = g.id LEFT JOIN points p ON pa.group_id = p.group_id JOIN users u ON p.recipient_id = u.id WHERE pa.user_id = $1 GROUP BY g.name, u.username, u.avatar_url) AS subquery) AS ranked_leaders WHERE placement <= 3 GROUP BY className;",
         [userId]
       );
-      console.log(myLeaderboardQuery.rows);
       res.send(myLeaderboardQuery.rows);
     })
     .catch(() => {
