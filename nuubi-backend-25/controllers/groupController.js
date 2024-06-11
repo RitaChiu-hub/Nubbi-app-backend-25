@@ -351,7 +351,7 @@ module.exports.handleTaskApproved = async (req, res) => {
       point_value: taskPoints.point_value,
       created_at: currentDate.getTime(),
       updated_at: currentDate.getTime(),
-      group_id: task.group_id
+      group_id: task.group_id,
     });
 
     // Fetch the group details to get the group name
@@ -493,7 +493,6 @@ module.exports.getGroupMembers = async (req, res) => {
   res.send(groupMembersQuery.rows);
 };
 
-
 module.exports.getLeaderboard = async (req, res) => {
   const groupLeaderboardQuery = await pool.query(
     //  "WITH RankedMonths AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)), MonthlyPoints AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, p.recipient_id, SUM(p.point_value) AS group_total_points FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at), p.recipient_id), UserDetails AS (SELECT u.id AS user_id, u.username, u.email FROM users u JOIN participants p ON u.id = p.user_id WHERE p.group_id = $1) SELECT ud.user_id, ud.username, ud.email, MAX(CASE WHEN rm.month_rank = 1 THEN mp.group_total_points ELSE 0 END) AS Unit_1, MAX(CASE WHEN rm.month_rank = 2 THEN mp.group_total_points ELSE 0 END) AS Unit_2, MAX(CASE WHEN rm.month_rank = 3 THEN mp.group_total_points ELSE 0 END) AS Unit_3, MAX(CASE WHEN rm.month_rank = 4 THEN mp.group_total_points ELSE 0 END) AS Unit_4, MAX(CASE WHEN rm.month_rank = 5 THEN mp.group_total_points ELSE 0 END) AS Unit_5, MAX(CASE WHEN rm.month_rank = 6 THEN mp.group_total_points ELSE 0 END) AS Unit_6, MAX(CASE WHEN rm.month_rank = 7 THEN mp.group_total_points ELSE 0 END) AS Unit_7, MAX(CASE WHEN rm.month_rank = 8 THEN mp.group_total_points ELSE 0 END) AS Unit_8, COALESCE(SUM(mp.group_total_points), 0) AS group_total_points FROM RankedMonths rm CROSS JOIN UserDetails ud LEFT JOIN MonthlyPoints mp ON mp.year = rm.year AND mp.month = rm.month AND mp.recipient_id = ud.user_id GROUP BY ud.user_id, ud.username, ud.email ORDER BY ud.username;  ",
@@ -502,6 +501,24 @@ module.exports.getLeaderboard = async (req, res) => {
   );
 
   res.send(groupLeaderboardQuery.rows);
+};
+
+module.exports.getMyLeaderboards = async (req, res) => {
+  console.log(req.body);
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userId = decoded.id;
+      console.log(userId);
+      const myLeaderboardQuery = await pool.query(
+        "SELECT className,json_agg(json_build_object('name', username, 'placement', placement, 'profilePicture', avatar_url)) AS leaders FROM (SELECT className, username, avatar_url, ROW_NUMBER() OVER (PARTITION BY className ORDER BY COALESCE(total_points, 0) DESC) AS placement FROM (SELECT g.name AS className, u.username, u.avatar_url, SUM(p.point_value) AS total_points FROM participants pa JOIN groups g ON pa.group_id = g.id LEFT JOIN points p ON pa.group_id = p.group_id JOIN users u ON p.recipient_id = u.id WHERE pa.user_id = $1 GROUP BY g.name, u.username, u.avatar_url) AS subquery) AS ranked_leaders WHERE placement <= 3 GROUP BY className;",
+        [userId]
+      );
+      console.log(myLeaderboardQuery.rows);
+      res.send(myLeaderboardQuery.rows);
+    })
+    .catch(() => {
+      res.json({ message: "Error" });
+    });
 };
 
 module.exports.handleJoinGroup = async (req, res) => {
