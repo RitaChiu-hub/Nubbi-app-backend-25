@@ -1,7 +1,6 @@
 const pool = require("../db");
 const { jwtVerify } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
-const fetch = require("node-fetch"); // Import node-fetch to send HTTP requests
 
 const Sequelize = require("sequelize");
 
@@ -324,13 +323,17 @@ module.exports.handleTaskCompleted = async (req, res) => {
 };
 
 module.exports.handleTaskApproved = async (req, res) => {
+  console.log(" --------------- hello from the backend ---------------");
   try {
+    const fetch = (await import("node-fetch")).default;
+
     // Verify the JWT token
+
     const decoded = await jwtVerify(req.body.token, process.env.JWT_SECRET);
 
     // Extract taskId from the request body
     const { taskId } = req.body;
-    console.log(req.body.expoPushToken);
+    console.log("expo push token: " + req.body.expoPushToken);
 
     await user_tasks.update({ is_approved: true }, { where: { id: taskId } });
 
