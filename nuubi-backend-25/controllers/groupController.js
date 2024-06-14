@@ -1,6 +1,7 @@
 const pool = require("../db");
 const { jwtVerify } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
+const fetch = require("node-fetch"); // Import node-fetch to send HTTP requests
 
 const Sequelize = require("sequelize");
 
@@ -367,6 +368,32 @@ module.exports.handleTaskApproved = async (req, res) => {
       created_at: currentDate.getTime(),
       updated_at: currentDate.getTime(),
     });
+
+    // Fetch the user's push token from your database (assuming you have a users table with expo_push_token)
+    const user = await users.findOne({
+      where: { id: task.user_id },
+    });
+
+    if (user.expo_push_token) {
+      // Send a push notification
+      const message = {
+        to: user.expo_push_token,
+        sound: "default",
+        title: "Task Approved!",
+        body: `Your task in the group "${group.name}" has been approved. You've been awarded "${taskPoints.point_value}" points.`,
+        data: { someData: "goes here" },
+      };
+
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+    }
 
     res.json({ user: req.body, status: "success" });
   } catch (err) {
