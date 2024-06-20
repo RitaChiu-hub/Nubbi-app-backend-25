@@ -323,7 +323,6 @@ module.exports.handleTaskCompleted = async (req, res) => {
 };
 
 module.exports.handleTaskApproved = async (req, res) => {
-  console.log(" --------------- hello from the backend ---------------");
   try {
     const fetch = (await import("node-fetch")).default;
 
@@ -333,7 +332,6 @@ module.exports.handleTaskApproved = async (req, res) => {
 
     // Extract taskId from the request body
     const { taskId } = req.body;
-    console.log("expo push token: " + req.body.expoPushToken);
 
     await user_tasks.update({ is_approved: true }, { where: { id: taskId } });
 
@@ -378,12 +376,12 @@ module.exports.handleTaskApproved = async (req, res) => {
       where: { id: task.user_id },
     });
 
-    // if (user.expo_push_token) {
-    if (req.body.expoPushToken) {
+    if (user.push_notification_token) {
+      //if (req.body.expoPushToken) {
       // Send a push notification
       const message = {
-        to: req.body.expoPushToken,
-        //   to: user.expo_push_token,
+        // to: req.body.expoPushToken,
+        to: user.push_notification_token,
         sound: "default",
         title: "Task Approved!",
         body: `Your task in the group "${group.name}" has been approved. You've been awarded "${taskPoints.point_value}" points.`,
