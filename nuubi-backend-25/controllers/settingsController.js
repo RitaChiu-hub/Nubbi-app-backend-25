@@ -37,8 +37,20 @@ const sequelize = new Sequelize({
 
 const DataTypes = require("sequelize").DataTypes;
 
-const { participants, groups, messages, points, post_comments, posts, users, badges, user_badges, tasks, user_tasks, notifications } =
-  require("../models/init-models")(sequelize, DataTypes);
+const {
+  participants,
+  groups,
+  messages,
+  points,
+  post_comments,
+  posts,
+  users,
+  badges,
+  user_badges,
+  tasks,
+  user_tasks,
+  notifications,
+} = require("../models/init-models")(sequelize, DataTypes);
 
 const { Op } = require("sequelize");
 
@@ -152,6 +164,30 @@ module.exports.handleUpdateAvatar = async (req, res) => {
     })
     .catch(async () => {
       res.json({ token: null });
+    });
+};
+
+module.exports.savePushToken = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const updatePushTokenQuery = await pool.query(
+          "UPDATE users SET push_notification_token=$2 WHERE id=$1",
+          [userID, req.body.pushToken]
+        );
+        res.json({
+          ...req.body,
+          status: "Push token successfully updated",
+        });
+      } catch (error) {
+        console.error("Error updating push token: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch((err) => {
+      console.error("JWT verification failed: ", err);
+      res.status(401).json({ error: "Unauthorized" });
     });
 };
 

@@ -239,3 +239,6 @@ ALTER TABLE tasks
 
 ALTER TABLE points
     ADD COLUMN task_id INTEGER;
+
+ALTER TABLE users
+    ADD COLUMN push_notification_token VARCHAR(255);

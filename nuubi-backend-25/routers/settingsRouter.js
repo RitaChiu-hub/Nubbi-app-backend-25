@@ -15,6 +15,7 @@ const {
   handleDeleteAvatar,
   handleValidateSignUp,
   handleSendFeedback,
+  savePushToken,
 } = require("../controllers/settingsController");
 const validateChangeUsernameForm = require("../controllers/validation/validateChangeUsernameForm");
 const validateChangePasswordForm = require("../controllers/validation/validateChangePasswordForm");
@@ -23,6 +24,7 @@ const validateForgotPasswordForm = require("../controllers/validation/validateFo
 router.post("/delete", handleDeleteAccount);
 
 router.post("/updateavatar", handleUpdateAvatar);
+router.post("/savepushtoken", savePushToken);
 
 router.post("/getuseravatar", handleGetAvatar);
 

@@ -43,6 +43,10 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.DATE,
         field: "updated_at",
       },
+      push_notification_token: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
     },
     {
       sequelize,
