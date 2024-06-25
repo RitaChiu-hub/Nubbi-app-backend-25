@@ -34,8 +34,20 @@ const sequelize = new Sequelize({
 
 const DataTypes = require("sequelize").DataTypes;
 
-const { participants, groups, messages, points, post_comments, posts, users, badges, user_badges, tasks, user_tasks, notifications } =
-  require("../models/init-models")(sequelize, DataTypes);
+const {
+  participants,
+  groups,
+  messages,
+  points,
+  post_comments,
+  posts,
+  users,
+  badges,
+  user_badges,
+  tasks,
+  user_tasks,
+  notifications,
+} = require("../models/init-models")(sequelize, DataTypes);
 
 const { Op } = require("sequelize");
 
@@ -233,10 +245,10 @@ module.exports.checkEmail = async (req, res) => {
     },
   });
   if (!existingEmail) {
-    res.json({ token: null});
-} else {
-  res.json({ token: null, status: "This email is already in our database." });
-}
+    res.json({ token: null });
+  } else {
+    res.json({ token: null, status: "This email is already in our database." });
+  }
 };
 
 module.exports.getMessage = async (req, res) => {
