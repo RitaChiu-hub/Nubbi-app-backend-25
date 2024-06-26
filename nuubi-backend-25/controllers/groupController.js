@@ -547,7 +547,9 @@ module.exports.getGroupMembers = async (req, res) => {
     if (dateRange.start_date) {
       startDate = dateRange.start_date.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
     } else {
-      startDate = new Date().toISOString().split("T")[0]; // Default to today if no points exist
+      startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 3); // Default to 3 months ago
+      startDate = startDate.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
     }
   }
 
@@ -555,7 +557,7 @@ module.exports.getGroupMembers = async (req, res) => {
     if (dateRange.end_date) {
       endDate = dateRange.end_date.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
     } else {
-      endDate = new Date().toISOString().split("T")[0]; // Default to today if no points exist
+      endDate = new Date().toISOString().split("T")[0]; // Default to today
     }
   }
 
@@ -564,45 +566,65 @@ module.exports.getGroupMembers = async (req, res) => {
     WITH WeeklyIntervals AS (
       SELECT generate_series($2::date, $3::date, '1 week') AS week_start
     ),
-    WeeklyPoints AS (
-      SELECT
-        wi.week_start,
-        p.recipient_id,
-        SUM(p.point_value) AS group_total_points
-      FROM
-        WeeklyIntervals wi
-      LEFT JOIN
-        points p ON p.updated_at >= wi.week_start AND p.updated_at < wi.week_start + interval '1 week' AND p.updated_at <= $3::date AND p.group_id = $1
-      GROUP BY
-        wi.week_start, p.recipient_id
-    ),
     UserDetails AS (
       SELECT
         u.id AS user_id,
         u.username,
-        u.email
+        u.email,
+        COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
+        COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+        COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
       FROM
         users u
       JOIN
-        participants p ON u.id = p.user_id
-      WHERE
-        p.group_id = $1
+        participants p ON u.id = p.user_id AND p.group_id = $1
+      LEFT JOIN
+        posts po ON po.sender_id = u.id AND po.group_id = $1
+      LEFT JOIN LATERAL (
+        SELECT pc.sender_id, pc.id
+        FROM post_comments pc
+        JOIN posts p ON pc.post_id = p.id
+        WHERE p.group_id = $1 AND pc.sender_id = u.id
+      ) pc ON true
+      LEFT JOIN LATERAL (
+        SELECT m.sender_id, m.id
+        FROM messages m
+        WHERE m.group_id = $1 AND m.sender_id = u.id
+      ) m ON true
+      GROUP BY
+        u.id, u.username, u.email
     )
     SELECT
       ud.user_id,
       ud.username,
       ud.email,
-      COALESCE(SUM(CASE WHEN wp.week_start = wi.week_start THEN wp.group_total_points ELSE 0 END), 0) AS group_total_points
+      ud.total_posts,
+      ud.total_comments,
+      ud.total_messages,
+      COALESCE(SUM(wp.group_total_points), 0) AS group_total_points
     FROM
-      WeeklyIntervals wi
-    CROSS JOIN
       UserDetails ud
-    LEFT JOIN
-      WeeklyPoints wp ON wp.week_start = wi.week_start AND wp.recipient_id = ud.user_id
+    CROSS JOIN
+      WeeklyIntervals wi
+    LEFT JOIN LATERAL (
+      SELECT
+        p.recipient_id,
+        SUM(p.point_value) AS group_total_points
+      FROM
+        points p
+      WHERE
+        p.group_id = $1
+        AND p.updated_at >= wi.week_start
+        AND p.updated_at < (wi.week_start + interval '1 week')
+        AND p.recipient_id = ud.user_id
+      GROUP BY
+        p.recipient_id
+    ) wp ON true
     GROUP BY
-      ud.user_id, ud.username, ud.email
+      ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
     ORDER BY
       ud.username;
+    
     `,
     [currentGroup, startDate, endDate]
   );
