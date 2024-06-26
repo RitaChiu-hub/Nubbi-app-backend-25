@@ -514,15 +514,94 @@ module.exports.getMyGroups = async (req, res) => {
     });
 };
 
+// module.exports.getGroupMembers = async (req, res) => {
+//   const groupMembersQuery = await pool.query(
+//     "WITH RankedMonths AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)), MonthlyPoints AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, p.recipient_id, SUM(p.point_value) AS group_total_points FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at), p.recipient_id), UserDetails AS (SELECT u.id AS user_id, u.username, u.email FROM users u JOIN participants p ON u.id = p.user_id WHERE p.group_id = $1) SELECT ud.user_id, ud.username, ud.email, MAX(CASE WHEN rm.month_rank = 1 THEN mp.group_total_points ELSE 0 END) AS Unit_1, MAX(CASE WHEN rm.month_rank = 2 THEN mp.group_total_points ELSE 0 END) AS Unit_2, MAX(CASE WHEN rm.month_rank = 3 THEN mp.group_total_points ELSE 0 END) AS Unit_3, MAX(CASE WHEN rm.month_rank = 4 THEN mp.group_total_points ELSE 0 END) AS Unit_4, MAX(CASE WHEN rm.month_rank = 5 THEN mp.group_total_points ELSE 0 END) AS Unit_5, MAX(CASE WHEN rm.month_rank = 6 THEN mp.group_total_points ELSE 0 END) AS Unit_6, MAX(CASE WHEN rm.month_rank = 7 THEN mp.group_total_points ELSE 0 END) AS Unit_7, MAX(CASE WHEN rm.month_rank = 8 THEN mp.group_total_points ELSE 0 END) AS Unit_8, COALESCE(SUM(mp.group_total_points), 0) AS group_total_points FROM RankedMonths rm CROSS JOIN UserDetails ud LEFT JOIN MonthlyPoints mp ON mp.year = rm.year AND mp.month = rm.month AND mp.recipient_id = ud.user_id GROUP BY ud.user_id, ud.username, ud.email ORDER BY ud.username;  ",
+//     //  "SELECT c.user_id as user_id, username, email, is_admin, coalesce(group_total_points,0) group_total_points FROM (  SELECT users.id user_id, users.username username, users.email email, participants.is_admin is_admin FROM participants INNER JOIN users ON participants.user_id = users.id WHERE participants.group_id = $1) c FULL OUTER JOIN ( SELECT user_id, recipient_id, count as group_total_points FROM (SELECT DISTINCT participants.user_id FROM participants INNER JOIN points ON participants.user_id = points.recipient_id WHERE participants.group_id = $1) a LEFT JOIN (SELECT recipient_id, count(point_value) FROM points WHERE group_id = $1 GROUP BY recipient_id) b ON a.user_id = b.recipient_id) d ON c.user_id = d.user_id ORDER BY group_total_points DESC;",
+//     [req.body.currentGroup]
+//   );
+
+//   res.send(groupMembersQuery.rows);
+// };
+
 module.exports.getGroupMembers = async (req, res) => {
+  const { currentGroup } = req.body;
+  let { startDate, endDate } = req.body;
+
+  // Query to find the earliest and latest dates points were given
+  const dateRangeQuery = await pool.query(
+    `
+    SELECT
+      MIN(updated_at) AS start_date,
+      MAX(updated_at) AS end_date
+    FROM points
+    WHERE group_id = $1
+    `,
+    [currentGroup]
+  );
+
+  const dateRange = dateRangeQuery.rows[0];
+
+  // Default start and end dates if not provided
+  if (!startDate) {
+    startDate = dateRange.start_date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD format
+  }
+
+  if (!endDate) {
+    endDate = dateRange.end_date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD format
+  }
+
   const groupMembersQuery = await pool.query(
-    "WITH RankedMonths AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)), MonthlyPoints AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, p.recipient_id, SUM(p.point_value) AS group_total_points FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at), p.recipient_id), UserDetails AS (SELECT u.id AS user_id, u.username, u.email FROM users u JOIN participants p ON u.id = p.user_id WHERE p.group_id = $1) SELECT ud.user_id, ud.username, ud.email, MAX(CASE WHEN rm.month_rank = 1 THEN mp.group_total_points ELSE 0 END) AS Unit_1, MAX(CASE WHEN rm.month_rank = 2 THEN mp.group_total_points ELSE 0 END) AS Unit_2, MAX(CASE WHEN rm.month_rank = 3 THEN mp.group_total_points ELSE 0 END) AS Unit_3, MAX(CASE WHEN rm.month_rank = 4 THEN mp.group_total_points ELSE 0 END) AS Unit_4, MAX(CASE WHEN rm.month_rank = 5 THEN mp.group_total_points ELSE 0 END) AS Unit_5, MAX(CASE WHEN rm.month_rank = 6 THEN mp.group_total_points ELSE 0 END) AS Unit_6, MAX(CASE WHEN rm.month_rank = 7 THEN mp.group_total_points ELSE 0 END) AS Unit_7, MAX(CASE WHEN rm.month_rank = 8 THEN mp.group_total_points ELSE 0 END) AS Unit_8, COALESCE(SUM(mp.group_total_points), 0) AS group_total_points FROM RankedMonths rm CROSS JOIN UserDetails ud LEFT JOIN MonthlyPoints mp ON mp.year = rm.year AND mp.month = rm.month AND mp.recipient_id = ud.user_id GROUP BY ud.user_id, ud.username, ud.email ORDER BY ud.username;  ",
-    //  "SELECT c.user_id as user_id, username, email, is_admin, coalesce(group_total_points,0) group_total_points FROM (  SELECT users.id user_id, users.username username, users.email email, participants.is_admin is_admin FROM participants INNER JOIN users ON participants.user_id = users.id WHERE participants.group_id = $1) c FULL OUTER JOIN ( SELECT user_id, recipient_id, count as group_total_points FROM (SELECT DISTINCT participants.user_id FROM participants INNER JOIN points ON participants.user_id = points.recipient_id WHERE participants.group_id = $1) a LEFT JOIN (SELECT recipient_id, count(point_value) FROM points WHERE group_id = $1 GROUP BY recipient_id) b ON a.user_id = b.recipient_id) d ON c.user_id = d.user_id ORDER BY group_total_points DESC;",
-    [req.body.currentGroup]
+    `
+    WITH WeeklyIntervals AS (
+      SELECT generate_series($2::date, $3::date, '1 week') AS week_start
+    ),
+    WeeklyPoints AS (
+      SELECT
+        wi.week_start,
+        p.recipient_id,
+        SUM(p.point_value) AS group_total_points
+      FROM
+        WeeklyIntervals wi
+      LEFT JOIN
+        points p ON p.updated_at >= wi.week_start AND p.updated_at < wi.week_start + interval '1 week' AND p.updated_at <= $3::date AND p.group_id = $1
+      GROUP BY
+        wi.week_start, p.recipient_id
+    ),
+    UserDetails AS (
+      SELECT
+        u.id AS user_id,
+        u.username,
+        u.email
+      FROM
+        users u
+      JOIN
+        participants p ON u.id = p.user_id
+      WHERE
+        p.group_id = $1
+    )
+    SELECT
+      ud.user_id,
+      ud.username,
+      ud.email,
+      COALESCE(SUM(CASE WHEN wp.week_start = wi.week_start THEN wp.group_total_points ELSE 0 END), 0) AS group_total_points
+    FROM
+      WeeklyIntervals wi
+    CROSS JOIN
+      UserDetails ud
+    LEFT JOIN
+      WeeklyPoints wp ON wp.week_start = wi.week_start AND wp.recipient_id = ud.user_id
+    GROUP BY
+      ud.user_id, ud.username, ud.email
+    ORDER BY
+      ud.username;
+    `,
+    [currentGroup, startDate, endDate]
   );
 
   res.send(groupMembersQuery.rows);
 };
+
 
 module.exports.getLeaderboard = async (req, res) => {
   const groupLeaderboardQuery = await pool.query(
