@@ -544,11 +544,19 @@ module.exports.getGroupMembers = async (req, res) => {
 
   // Default start and end dates if not provided
   if (!startDate) {
-    startDate = dateRange.start_date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD format
+    if (dateRange.start_date) {
+      startDate = dateRange.start_date.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
+    } else {
+      startDate = new Date().toISOString().split("T")[0]; // Default to today if no points exist
+    }
   }
 
   if (!endDate) {
-    endDate = dateRange.end_date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD format
+    if (dateRange.end_date) {
+      endDate = dateRange.end_date.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
+    } else {
+      endDate = new Date().toISOString().split("T")[0]; // Default to today if no points exist
+    }
   }
 
   const groupMembersQuery = await pool.query(
@@ -601,7 +609,6 @@ module.exports.getGroupMembers = async (req, res) => {
 
   res.send(groupMembersQuery.rows);
 };
-
 
 module.exports.getLeaderboard = async (req, res) => {
   const groupLeaderboardQuery = await pool.query(
