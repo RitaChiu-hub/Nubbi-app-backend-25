@@ -118,13 +118,30 @@ module.exports.handleCreateTask = async (req, res) => {
         );
       }
 
-      // If task should be assigned to participants
+      // // If task should be assigned to participants
+      // if (assignToParticipants) {
+
+      //   // Fetch all participant IDs for the given group where is_admin is false
+      //   const participantsResult = await pool.query(
+      //     "SELECT user_id FROM participants WHERE group_id = $1 AND is_admin = false",
+      //     [currentGroup]
+      //   );
+      //   const participantIds = participantsResult.rows.map(
+      //     (row) => row.user_id
+      //   );
+
+      //   // Insert into the user_tasks table for each participant
+      //   const userTasksPromises = participantIds.map((userId) => {
+      //     return pool.query(
+      //       "INSERT INTO user_tasks (user_id, task_id, group_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
+      //       [userId, taskId, currentGroup]
+      //     );
+      //   });
+
+      //   await Promise.all(userTasksPromises);
+      // }
+
       if (assignToParticipants) {
-        // Fetch all participant IDs for the given group
-        // const participantsResult = await pool.query(
-        //   "SELECT user_id FROM participants WHERE group_id = $1",
-        //   [currentGroup]
-        // );
         // Fetch all participant IDs for the given group where is_admin is false
         const participantsResult = await pool.query(
           "SELECT user_id FROM participants WHERE group_id = $1 AND is_admin = false",
@@ -134,16 +151,21 @@ module.exports.handleCreateTask = async (req, res) => {
           (row) => row.user_id
         );
 
-        // Insert into the user_tasks table for each participant
-        const userTasksPromises = participantIds.map((userId) => {
-          return pool.query(
-            "INSERT INTO user_tasks (user_id, task_id, group_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
-            [userID, taskId, currentGroup]
-          );
-        });
+        if (participantIds.length > 0) {
+          // Insert into the user_tasks table for each participant
+          const userTasksPromises = participantIds.map((userId) => {
+            return pool.query(
+              "INSERT INTO user_tasks (user_id, task_id, group_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
+              [userId, taskId, currentGroup]
+            );
+          });
 
-        await Promise.all(userTasksPromises);
+          await Promise.all(userTasksPromises);
+        } else {
+          console.log("No participants found for the group.");
+        }
       }
+
       res.status(201).json({
         ...req.body,
         status: "Task created and assigned to selected member(s) successfully",
