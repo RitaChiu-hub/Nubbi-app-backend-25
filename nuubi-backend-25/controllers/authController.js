@@ -1,6 +1,11 @@
 const pool = require("../db");
 const bcrypt = require("bcrypt");
-const { jwtSign, jwtVerify, getJwt } = require("./jwt/jwtAuth");
+const {
+  jwtSign,
+  jwtVerify,
+  getJwt,
+  jwtVerifyMiddleware,
+} = require("./jwt/jwtAuth");
 const { adjectives } = require("./adjectives");
 const { nouns } = require("./nouns");
 const currentDate = new Date();
@@ -52,41 +57,99 @@ const {
 const { Op } = require("sequelize");
 
 module.exports.handleLogin = async (req, res) => {
-  const token = getJwt(req);
-
+  console.log("handleLogin");
+  // First, check for the token in cookies (for web)
+  let token = req.cookies.token;
+  console.log("A");
+  // If no token is found in cookies, check the Authorization header (for mobile)
+  if (!token && req.headers.authorization) {
+    token = req.headers.authorization.split(" ")[1]; // Bearer token
+  }
+  console.log("B");
   if (!token) {
-    // res.json({ loggedIn: false });
+    console.log("B.2 No TOKEN");
     res.json({ token: null });
     return;
   }
-
+  console.log("C");
   jwtVerify(token, process.env.JWT_SECRET)
     .then(async (decoded) => {
+      console.log("D");
       const potentialUser = await users.findOne({
         attributes: ["id"],
-        // attributes: ["username", "id"],
-        // where: {
-        //   username: decodedUsername,
-        // },
+        where: {
+          id: decoded.id,
+        },
       });
+      console.log("E");
       if (!potentialUser) {
-        //  res.json({ loggedIn: false, token: null });
+        console.log("F");
         res.json({ token: null });
         return;
       } else {
+        console.log("G")("hello from the else statement about to set cookie");
+        // Set a cookie for web-based authentication
+        if (req.headers.cookie) {
+          res.cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "Strict",
+            maxAge: 24 * 60 * 60 * 1000, // 1 day expiration
+            path: "/",
+          });
+        }
+
+        console.log("req.headers.cookie " + req.headers.cookie);
+
+        // Respond without sending the token back, just the user info
         res.json({
-          // loggedIn: true,
-          token,
-          //  userId: potentialLogin.rows[0].id,
-          //  username: req.body.username,
+          message: "Login successful",
+          //   userId: potentialUser.id,
         });
       }
     })
-    .catch(async () => {
-      //  res.json({ loggedIn: false });
+    .catch((err) => {
+      console.error("JWT verification failed:", err);
       res.json({ token: null });
     });
 };
+
+// module.exports.handleLogin = async (req, res) => {
+//   const token = getJwt(req);
+
+//   if (!token) {
+//     // res.json({ loggedIn: false });
+//     res.json({ token: null });
+//     return;
+//   }
+
+//   jwtVerify(token, process.env.JWT_SECRET)
+//     .then(async (decoded) => {
+//       const potentialUser = await users.findOne({
+//         attributes: ["id"],
+//         // attributes: ["username", "id"],
+//         // where: {
+//         //   username: decodedUsername,
+//         // },
+//       });
+//       if (!potentialUser) {
+//         //  res.json({ loggedIn: false, token: null });
+//         res.json({ token: null });
+//         return;
+//       } else {
+//         res.json({
+//           // loggedIn: true,
+//           token,
+//           //  userId: potentialLogin.rows[0].id,
+//           //  username: req.body.username,
+//         });
+//       }
+//     })
+//     .catch(async () => {
+//       //  res.json({ loggedIn: false });
+//       res.json({ token: null });
+//     });
+// };
 
 module.exports.attemptLogin = async (req, res) => {
   const potentialLogin = await users.findOne({

@@ -17,6 +17,50 @@ const jwtVerify = (token, secret) =>
     });
   });
 
-const getJwt = (req) => req.headers["authorization"].split(" ")[1];
+const getJwt = (req) => {
+  console.log("GetJWT inside jwtAuth");
+  // Check for token in cookies (for web)
+  if (req.cookies && req.cookies.token) {
+    console.log(req.cookies.token);
+    return req.cookies.token;
+  }
 
-module.exports = { jwtSign, jwtVerify, getJwt };
+  // Check for token in Authorization header (for mobile)
+  if (req.headers.authorization) {
+    return req.headers.authorization.split(" ")[1]; // Bearer <token>
+  }
+
+  // Return null if no token is found
+  return null;
+};
+// const getJwt = (req) => req.cookies.token; //req.headers["authorization"].split(" ")[1];
+
+// Middleware to verify JWT from cookies
+const jwtVerifyMiddleware = async (req, res, next) => {
+  console.log("verifying middleware....");
+  try {
+    // Extract token from cookies
+    const token = getJwtFromCookies(req);
+
+    console.log("token from cookies is..." + token);
+
+    if (!token) {
+      console.log("no token found");
+      return res.status(401).json({ error: "Unauthorized: No token provided" });
+    }
+
+    // Verify the token
+    const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+
+    // Attach the decoded token to the request object for further processing
+    req.auth = decoded;
+
+    // Proceed to the next middleware
+    next();
+  } catch (err) {
+    console.log(err);
+    res.status(401).json({ error: "Unauthorized: Invalid token" });
+  }
+};
+
+module.exports = { jwtSign, jwtVerify, getJwt, jwtVerifyMiddleware };

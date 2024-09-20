@@ -285,7 +285,7 @@ const groupchatRouter = require("./routers/groupchatRouter");
 const fileRouter = require("./routers/fileRouter");
 
 ///// auth middleware
-const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
+// const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
 
 app.use("/auth", authRouter);
 
@@ -305,35 +305,35 @@ app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/backend", myRouter);
 
-// Middleware to extract token from cookie
-app.use((req, res, next) => {
-  console.log("is this working?");
-  const token = req.cookies.token; // Access token from cookie
-  console.log("this is the request: " + req.cookies);
-  console.log("req.cookies.token " + req.cookies.token);
-  if (token) {
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(401).send("Unauthorized");
-      req.auth = decoded; // Attach user info to req.auth
-      next();
-    });
-  } else {
-    res.status(401).send("Unauthorized");
-  }
-});
+// // Middleware to extract token from cookie
+// app.use((req, res, next) => {
+//   console.log("is this working?");
+//   const token = req.cookies.token; // Access token from cookie
+//   console.log("this is the request: " + req.cookies);
+//   console.log("req.cookies.token " + req.cookies.token);
+//   if (token) {
+//     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+//       if (err) return res.status(401).send("Unauthorized");
+//       req.auth = decoded; // Attach user info to req.auth
+//       next();
+//     });
+//   } else {
+//     res.status(401).send("Unauthorized");
+//   }
+// });
 
-//// auth middleware
-app.use((err, req, res, next) => {
-  console.log(err);
-  if (err.name === "UnauthorizedError") {
-    res.status(401).json({
-      loggedIn: false,
-      status: "Unauthorized",
-    });
-  } else {
-    next(err);
-  }
-});
+// //// auth middleware
+// app.use((err, req, res, next) => {
+//   console.log(err);
+//   if (err.name === "UnauthorizedError") {
+//     res.status(401).json({
+//       loggedIn: false,
+//       status: "Unauthorized",
+//     });
+//   } else {
+//     next(err);
+//   }
+// });
 
 io.on("connection", (socket) => {
   console.log("a user connected");

@@ -49,9 +49,7 @@ const validateCreatePost = require("../controllers/validation/validateCreatePost
 const validateCreateComment = require("../controllers/validation/validateCreateComment");
 const { UnauthorizedError } = require("express-jwt");
 const { verifyUserID } = require("../controllers/jwt/verifyUserId");
-const {
-  jwtVerifyMiddleware,
-} = require("../controllers/jwt/jwtVerifyMiddleware");
+const { jwtVerifyMiddleware } = require("../controllers/jwt/jwtAuth");
 
 router.post("/creategroup", validateCreateGroup, handleCreateGroup);
 router.get("/getgroups", getAllGroups);
@@ -60,13 +58,13 @@ router.post("/joingroup", handleJoinGroup);
 router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);
 
 // Apply JWT middleware to verify the token and decode it
-router.use(jwtVerifyMiddleware);
+// router.use(jwtVerifyMiddleware);
 
-console.log(" in the group Router ");
-router.use(verifyUserID); /// auth middleware
+// router.use(verifyUserID); /// auth middleware
 
-console.log("Verified??? ");
-router.post("/mygroups", getMyGroups);
+router.post("/mygroups", jwtVerifyMiddleware, verifyUserID, getMyGroups);
+
+// router.post("/mygroups",getMyGroups);
 
 router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
 router.post("/:group_id/posts", handleGetPosts);
