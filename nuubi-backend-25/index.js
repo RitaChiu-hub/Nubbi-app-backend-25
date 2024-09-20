@@ -9,41 +9,13 @@ const { Sequelize } = require("sequelize");
 const { Server } = require("socket.io");
 const pool = require("./db");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 
 app.use(express.json());
 app.use(helmet());
+app.use(cookieParser());
 
-// //Allowed Origins
-// const allowedOrigins = [
-//   // "http://localhost:19006",
-//   // "https://www.nuubi.app",
-//   // Regex for localhost with port numbers
-//   /^http?:\/\/localhost:\d+$/,
-//   // Regex for any subdomain under nuubi.app
-//   /^https?:\/\/([a-zA-Z0-9-]+\.)?nuubi\.app$/,
-//   // Regex for any .com domain
-//   // /^https?:\/\/[a-zA-Z0-9-]+\.(com)$/
-// ];
-
-// const corsOptions = {
-//   origin: function (origin, callback) {
-//     if (
-//       allowedOrigins.some((regexp) => {
-//         return regexp.test(origin);
-//       })
-//     ) {
-//       // or use this for a limited number of domain, if all the https:// [regex].nuubi.app is not purchased yet
-//       // if (allowedOrigins.includes(origin))
-//       callback(null, true);
-//     } else {
-//       callback(new Error("Access denied, cors error")); // Change error message, for development only
-//     }
-//   },
-//   credentials: true,
-// };
-
-// app.use(cors(corsOptions, { credential: true }));
- app.use(cors({ origin: true, credentials: true })); //changed this for cors
+app.use(cors({ origin: true, credentials: true })); 
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
@@ -53,16 +25,6 @@ const io = new Server(server, {
   },
 });
 
-// app.use(cors({ origin: "*", credentials: true }));
-
-// app.use(
-//   cors({
-//     // origin: "http://localhost:19006",
-//     // origin: "https://coral-app-n96bn.ondigitalocean.app",
-//     origin: "*",
-//     credentials: true,
-//   })
-// );
 
 const sequelize = new Sequelize({
   dialect: "postgres",
@@ -233,7 +195,6 @@ function initModels(sequelize) {
   posts.belongsTo(users, { as: "sender", foreignKey: "sender_id" });
   users.hasMany(posts, { as: "posts", foreignKey: "sender_id" });
 
-
   // Badge and User
   badges.belongsToMany(users, { through: user_badges, foreignKey: "badge_id" });
   users.belongsToMany(badges, { through: user_badges, foreignKey: "user_id" });
@@ -261,7 +222,6 @@ function initModels(sequelize) {
   // Notification and User
   notifications.belongsTo(users, { foreignKey: "user_id" });
   users.hasMany(notifications, { foreignKey: "user_id" });
-
 
   return {
     groups,
@@ -295,8 +255,6 @@ var Task = require("./models/tasks")(sequelize, DataTypes);
 var UserTask = require("./models/user_tasks")(sequelize, DataTypes);
 var Notification = require("./models/notifications")(sequelize, DataTypes);
 
-
-
 // Find all users
 
 // Create an object to hold both exports
@@ -326,7 +284,8 @@ const groupRouter = require("./routers/groupRouter");
 const groupchatRouter = require("./routers/groupchatRouter");
 const fileRouter = require("./routers/fileRouter");
 
-// const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
+///// auth middleware
+const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
 
 app.use("/auth", authRouter);
 
@@ -346,17 +305,35 @@ app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/backend", myRouter);
 
-// app.use((err, req, res, next) => {
-//   console.log(err);
-//   if (err.name === "UnauthorizedError") {
-//     res.status(401).json({
-//       loggedIn: false,
-//       status: "Unauthorized",
-//     });
-//   } else {
-//     next(err);
-//   }
-// });
+// Middleware to extract token from cookie
+app.use((req, res, next) => {
+  console.log("is this working?");
+  const token = req.cookies.token; // Access token from cookie
+  console.log("this is the request: " + req.cookies);
+  console.log("req.cookies.token " + req.cookies.token);
+  if (token) {
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      if (err) return res.status(401).send("Unauthorized");
+      req.auth = decoded; // Attach user info to req.auth
+      next();
+    });
+  } else {
+    res.status(401).send("Unauthorized");
+  }
+});
+
+//// auth middleware
+app.use((err, req, res, next) => {
+  console.log(err);
+  if (err.name === "UnauthorizedError") {
+    res.status(401).json({
+      loggedIn: false,
+      status: "Unauthorized",
+    });
+  } else {
+    next(err);
+  }
+});
 
 io.on("connection", (socket) => {
   console.log("a user connected");

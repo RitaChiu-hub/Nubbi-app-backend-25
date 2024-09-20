@@ -42,13 +42,16 @@ const {
   handleTaskApproved,
   handleGetMyTasks,
   getMyLeaderboards,
-  getMyGroupAnalytics
+  getMyGroupAnalytics,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
 const validateCreateComment = require("../controllers/validation/validateCreateComment");
 const { UnauthorizedError } = require("express-jwt");
 const { verifyUserID } = require("../controllers/jwt/verifyUserId");
+const {
+  jwtVerifyMiddleware,
+} = require("../controllers/jwt/jwtVerifyMiddleware");
 
 router.post("/creategroup", validateCreateGroup, handleCreateGroup);
 router.get("/getgroups", getAllGroups);
@@ -56,8 +59,13 @@ router.get("/getpublicgroups", getAllPublicGroups);
 router.post("/joingroup", handleJoinGroup);
 router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);
 
-// router.use(verifyUserID);
+// Apply JWT middleware to verify the token and decode it
+router.use(jwtVerifyMiddleware);
 
+console.log(" in the group Router ");
+router.use(verifyUserID); /// auth middleware
+
+console.log("Verified??? ");
 router.post("/mygroups", getMyGroups);
 
 router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
