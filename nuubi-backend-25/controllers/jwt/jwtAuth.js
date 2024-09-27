@@ -21,12 +21,16 @@ const getJwt = (req) => {
   console.log("GetJWT inside jwtAuth");
   // Check for token in cookies (for web)
   if (req.cookies && req.cookies.token) {
-    console.log(req.cookies.token);
+    console.log("hello from getjwt cookies section" + req.cookies.token);
     return req.cookies.token;
   }
 
   // Check for token in Authorization header (for mobile)
   if (req.headers.authorization) {
+    console.log(
+      "hello from getjwt auth header section" +
+        req.headers.authorization.split(" ")[1]
+    );
     return req.headers.authorization.split(" ")[1]; // Bearer <token>
   }
 
@@ -38,9 +42,11 @@ const getJwt = (req) => {
 // Middleware to verify JWT from cookies
 const jwtVerifyMiddleware = async (req, res, next) => {
   console.log("verifying middleware....");
+  console.log("req in middleware" + JSON.stringify(req.cookies, null, 2));
+  console.log("res in middleware" + JSON.stringify(res.cookies, null, 2));
   try {
     // Extract token from cookies
-    const token = getJwtFromCookies(req);
+    const token = getJwt(req);
 
     console.log("token from cookies is..." + token);
 

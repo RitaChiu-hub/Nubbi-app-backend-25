@@ -15,7 +15,13 @@ app.use(express.json());
 app.use(helmet());
 app.use(cookieParser());
 
-app.use(cors({ origin: true, credentials: true })); 
+app.use(
+  cors({
+    // origin: true,
+    origin: "https://xnlvhxq-kittykat-8081.exp.direct",
+    credentials: true,
+  })
+);
 
 const server = require("http").createServer(app);
 const io = new Server(server, {
@@ -24,7 +30,6 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-
 
 const sequelize = new Sequelize({
   dialect: "postgres",
