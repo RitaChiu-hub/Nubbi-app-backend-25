@@ -17,8 +17,8 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    // origin: true,
-    origin: "https://xnlvhxq-kittykat-8081.exp.direct",
+    origin: true,
+    //  origin: "https://xnlvhxq-kittykat-8081.exp.direct",
     credentials: true,
   })
 );

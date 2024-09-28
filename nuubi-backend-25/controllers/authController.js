@@ -286,7 +286,7 @@ module.exports.attemptLogin = async (req, res) => {
         secure: false,
         // secure: process.env.NODE_ENV === "production",
         sameSite: "Strict",
-        maxAge: 24 * 60 * 60 * 1000, // 1 day expiration
+        maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year expiration
         path: "/",
       });
 
