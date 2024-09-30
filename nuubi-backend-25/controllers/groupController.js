@@ -1,5 +1,5 @@
 const pool = require("../db");
-const { jwtVerify } = require("./jwt/jwtAuth");
+const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 
 const Sequelize = require("sequelize");
@@ -455,33 +455,76 @@ module.exports.getNotifications = async (req, res) => {
 };
 
 module.exports.getWonBadges = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-    const userID = decoded.id;
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
 
-    try {
-      const userBadges = await user_badges.findAll({
-        where: { user_id: userID },
-        include: [
-          {
-            model: badges,
-            attributes: [
-              "id",
-              "title",
-              "description",
-              "criteria",
-              "point_value",
-            ],
-          },
-        ],
-        order: [["created_at", "DESC"]],
-      });
-      res.send(userBadges);
-    } catch (error) {
-      console.error("Error fetching won badges: ", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+
+      try {
+        const userBadges = await user_badges.findAll({
+          where: { user_id: userID },
+          include: [
+            {
+              model: badges,
+              attributes: [
+                "id",
+                "title",
+                "description",
+                "criteria",
+                "point_value",
+              ],
+            },
+          ],
+          order: [["created_at", "DESC"]],
+        });
+        res.send(userBadges);
+      } catch (error) {
+        console.error("Error fetching won badges: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch((err) => {
+      console.error("JWT verification failed:", err);
+      res.status(403).json({ error: "Invalid or expired token" });
+    });
 };
+
+// module.exports.getWonBadges = async (req, res) => {
+//   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
+//     const userID = decoded.id;
+
+//     try {
+//       const userBadges = await user_badges.findAll({
+//         where: { user_id: userID },
+//         include: [
+//           {
+//             model: badges,
+//             attributes: [
+//               "id",
+//               "title",
+//               "description",
+//               "criteria",
+//               "point_value",
+//             ],
+//           },
+//         ],
+//         order: [["created_at", "DESC"]],
+//       });
+//       res.send(userBadges);
+//     } catch (error) {
+//       console.error("Error fetching won badges: ", error);
+//       res.status(500).json({ error: "Internal server error" });
+//     }
+//   });
+// };
 
 module.exports.getAllPublicGroups = async (req, res) => {
   const allPubGroups = await groups.findAll({
@@ -781,7 +824,15 @@ module.exports.getLeaderboard = async (req, res) => {
 };
 
 module.exports.getMyLeaderboards = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userId = decoded.id;
 

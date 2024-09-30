@@ -283,9 +283,10 @@ module.exports.attemptLogin = async (req, res) => {
       // Set the cookie for web-based authentication
       res.cookie("token", token, {
         httpOnly: true,
-        secure: false,
+        secure: true,
         // secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
+        // sameSite: "Strict",
+        sameSite: "None",
         maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year expiration
         path: "/",
       });

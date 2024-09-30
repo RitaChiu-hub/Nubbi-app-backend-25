@@ -19,6 +19,7 @@ const jwtVerify = (token, secret) =>
 
 const getJwt = (req) => {
   console.log("GetJWT inside jwtAuth");
+  console.log("req cookies from getJwt " + req.cookies.token);
   // Check for token in cookies (for web)
   if (req.cookies && req.cookies.token) {
     console.log("hello from getjwt cookies section" + req.cookies.token);
