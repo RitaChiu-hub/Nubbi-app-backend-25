@@ -546,7 +546,16 @@ module.exports.getMemberCount = async (req, res) => {
 };
 
 module.exports.getMyGroups = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1300,26 +1309,36 @@ module.exports.handleCreatePost = async (req, res) => {
 };
 
 module.exports.getNotificationsUnread = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-    const userID = decoded.id;
-    try {
-      // Query unread notifications for the user
-      const unreadNotifications = await notifications.findAll({
-        where: {
-          user_id: userID,
-          is_read: false,
-        },
-      });
+  const token = getJwt(req);
 
-      // Check if there are unread notifications
-      const hasUnreadNotifications = unreadNotifications.length > 0;
-      // console.log(hasUnreadNotifications);
-      res.json({ hasUnreadNotifications });
-    } catch (error) {
-      console.error("Error checking unread notifications:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        // Query unread notifications for the user
+        const unreadNotifications = await notifications.findAll({
+          where: {
+            user_id: userID,
+            is_read: false,
+          },
+        });
+
+        // Check if there are unread notifications
+        const hasUnreadNotifications = unreadNotifications.length > 0;
+        // console.log(hasUnreadNotifications);
+        res.json({ hasUnreadNotifications });
+      } catch (error) {
+        console.error("Error checking unread notifications:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 };
 
 module.exports.getNotificationsRead = async (req, res) => {

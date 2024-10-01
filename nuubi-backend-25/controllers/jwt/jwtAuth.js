@@ -22,10 +22,10 @@ const getJwt = (req) => {
   console.log("req cookies from getJwt " + req.cookies.token);
   // Check for token in cookies (for web)
   if (req.cookies && req.cookies.token) {
-    console.log("hello from getjwt cookies section" + req.cookies.token);
+    console.log("hello from getjwt cookies section " + req.cookies.token);
     return req.cookies.token;
   }
-
+  console.log("hello from getjwt auth header " + req.headers.authorization);
   // Check for token in Authorization header (for mobile)
   if (req.headers.authorization) {
     console.log(

@@ -8,12 +8,15 @@ const jwt = require("jsonwebtoken");
 const {
   handleLogin,
   attemptLogin,
+  attemptMobileLogin,
   attemptRegister,
   getMessage,
   checkEmail
 } = require("../controllers/authController");
 
 router.route("/login").get(handleLogin).post(validateLoginForm, attemptLogin);
+
+router.route("/mobilelogin").get(handleLogin).post(validateLoginForm, attemptMobileLogin);
 
 router.post("/signup", validateSignupForm, attemptRegister);
 

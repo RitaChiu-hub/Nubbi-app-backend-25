@@ -135,6 +135,7 @@ module.exports.handleLogin = async (req, res) => {
         // userId: decoded.id,
       });
     } catch (err) {
+      console.log(" is this the error message? ");
       console.error("Invalid token:", err);
       // Handle invalid token scenario (optional)
     }
@@ -293,7 +294,65 @@ module.exports.attemptLogin = async (req, res) => {
 
       // Respond with success
       return res.json({
-        message: "Login successful",
+        successMessage: "Login successful",
+        //add token or soemthing here? Need to allow login to be read from the views
+      });
+    } else {
+      return res.status(401).json({ message: "Wrong username or password!" });
+    }
+  } else {
+    return res.status(404).json({ message: "User not found!" });
+  }
+};
+
+
+module.exports.attemptMobileLogin = async (req, res) => {
+  console.log("attemptMobileLogin");
+
+  // Perform credential validation (similar to your existing logic)
+  const potentialLogin = await users.findOne({
+    attributes: ["id", "username", "passhash"],
+    where: {
+      [Op.or]: [
+        {
+          username: req.body.username,
+        },
+        sequelize.where(
+          sequelize.fn("LOWER", sequelize.col("email")),
+          sequelize.fn("LOWER", req.body.username)
+        ),
+      ],
+    },
+  });
+
+  if (potentialLogin) {
+    const isSamePass = await bcrypt.compare(
+      req.body.password,
+      potentialLogin.passhash
+    );
+
+    if (isSamePass) {
+      const token = await jwtSign(
+        { id: potentialLogin.id },
+        process.env.JWT_SECRET,
+        { expiresIn: "365d" }
+      );
+
+      // // Set the cookie for web-based authentication
+      // res.cookie("token", token, {
+      //   httpOnly: true,
+      //   secure: true,
+      //   // secure: process.env.NODE_ENV === "production",
+      //   // sameSite: "Strict",
+      //   sameSite: "None",
+      //   maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year expiration
+      //   path: "/",
+      // });
+
+      // Respond with success
+      return res.json({
+        successMessage: "Login successful",
+        token: token
         //add token or soemthing here? Need to allow login to be read from the views
       });
     } else {

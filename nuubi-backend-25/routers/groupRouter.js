@@ -62,7 +62,7 @@ router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);
 
 // router.use(verifyUserID); /// auth middleware
 
-router.post("/mygroups", jwtVerifyMiddleware, verifyUserID, getMyGroups);
+router.post("/mygroups", jwtVerifyMiddleware, getMyGroups);
 
 // router.post("/mygroups",getMyGroups);
 
