@@ -305,6 +305,21 @@ module.exports.attemptLogin = async (req, res) => {
   }
 };
 
+module.exports.checkWebLogin = async (req, res) => {
+  console.log("checking web login");
+  try {
+    // Assuming you have middleware to verify JWT and check the token
+    if (req.cookies.token) {
+      const decoded = jwt.verify(req.cookies.token, process.env.JWT_SECRET);
+      // Optionally: Check if user exists in DB based on decoded.id
+      return res.json({ isLoggedIn: true });
+    }
+    return res.json({ isLoggedIn: false });
+  } catch (error) {
+    console.error("Login check error:", error);
+    return res.status(401).json({ isLoggedIn: false }); // Not logged in
+  }
+};
 
 module.exports.attemptMobileLogin = async (req, res) => {
   console.log("attemptMobileLogin");
@@ -352,7 +367,7 @@ module.exports.attemptMobileLogin = async (req, res) => {
       // Respond with success
       return res.json({
         successMessage: "Login successful",
-        token: token
+        token: token,
         //add token or soemthing here? Need to allow login to be read from the views
       });
     } else {

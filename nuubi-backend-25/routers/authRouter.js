@@ -11,17 +11,22 @@ const {
   attemptMobileLogin,
   attemptRegister,
   getMessage,
-  checkEmail
+  checkEmail,
+  checkWebLogin,
 } = require("../controllers/authController");
 
 router.route("/login").get(handleLogin).post(validateLoginForm, attemptLogin);
 
-router.route("/mobilelogin").get(handleLogin).post(validateLoginForm, attemptMobileLogin);
+router
+  .route("/mobilelogin")
+  .get(handleLogin)
+  .post(validateLoginForm, attemptMobileLogin);
 
 router.post("/signup", validateSignupForm, attemptRegister);
 
 router.post("/checkemail", checkEmail);
 
 router.post("/getmessage", getMessage);
+router.post("/checkweblogin", checkWebLogin);
 
 module.exports = router;
