@@ -2,7 +2,6 @@ const { newPasswordSchema } = require("./schema");
 
 const validateChangePasswordForm = (req, res, next) => {
   const formData = req.body;
-  console.log(formData);
   newPasswordSchema
     .validate(formData)
     .catch(() => {
@@ -10,7 +9,6 @@ const validateChangePasswordForm = (req, res, next) => {
     })
     .then((valid) => {
       if (valid) {
-        console.log("form is good");
         next();
       } else {
         res.status(422).send();

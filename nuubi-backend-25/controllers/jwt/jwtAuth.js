@@ -18,20 +18,12 @@ const jwtVerify = (token, secret) =>
   });
 
 const getJwt = (req) => {
-  console.log("GetJWT inside jwtAuth");
-  console.log("req cookies from getJwt " + req.cookies.token);
   // Check for token in cookies (for web)
   if (req.cookies && req.cookies.token) {
-    console.log("hello from getjwt cookies section " + req.cookies.token);
     return req.cookies.token;
   }
-  console.log("hello from getjwt auth header " + req.headers.authorization);
   // Check for token in Authorization header (for mobile)
   if (req.headers.authorization) {
-    console.log(
-      "hello from getjwt auth header section" +
-        req.headers.authorization.split(" ")[1]
-    );
     return req.headers.authorization.split(" ")[1]; // Bearer <token>
   }
 
@@ -42,17 +34,10 @@ const getJwt = (req) => {
 
 // Middleware to verify JWT from cookies
 const jwtVerifyMiddleware = async (req, res, next) => {
-  console.log("verifying middleware....");
-  console.log("req in middleware" + JSON.stringify(req.cookies, null, 2));
-  console.log("res in middleware" + JSON.stringify(res.cookies, null, 2));
   try {
     // Extract token from cookies
     const token = getJwt(req);
-
-    console.log("token from cookies is..." + token);
-
     if (!token) {
-      console.log("no token found");
       return res.status(401).json({ error: "Unauthorized: No token provided" });
     }
 
@@ -65,7 +50,6 @@ const jwtVerifyMiddleware = async (req, res, next) => {
     // Proceed to the next middleware
     next();
   } catch (err) {
-    console.log(err);
     res.status(401).json({ error: "Unauthorized: Invalid token" });
   }
 };

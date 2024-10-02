@@ -13,6 +13,7 @@ const {
   getMessage,
   checkEmail,
   checkWebLogin,
+  logout,
 } = require("../controllers/authController");
 
 router.route("/login").get(handleLogin).post(validateLoginForm, attemptLogin);
@@ -28,5 +29,7 @@ router.post("/checkemail", checkEmail);
 
 router.post("/getmessage", getMessage);
 router.post("/checkweblogin", checkWebLogin);
+
+router.post("/logout", logout);
 
 module.exports = router;

@@ -215,27 +215,36 @@ module.exports.handleDeleteAvatar = async (req, res) => {
 };
 
 module.exports.handleGetAvatar = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
-    .then(async (decoded) => {
+  // Check for existing JWT token from cookies (web) or Authorization header (mobile)
+  let token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Bearer token
+  if (token) {
+    try {
+      // Verify the token
+      const decoded = await jwtVerify(token, process.env.JWT_SECRET);
       const userID = decoded.id;
       try {
+        // Query the database to get the avatar URL
         const getAvatarQuery = await pool.query(
           "SELECT avatar_url FROM users WHERE id=$1",
           [userID]
         );
+
+        // Return the avatar URL
         res.json({
-          ...req.body,
-          avatar_url: getAvatarQuery.rows[0],
+          avatar_url: getAvatarQuery.rows[0]?.avatar_url || null,
           status: "Avatar successfully sent",
         });
       } catch (error) {
-        console.error("Error deleting avatar: ", error);
+        console.error("Error fetching avatar: ", error);
         res.status(500).json({ error: "Internal server error" });
       }
-    })
-    .catch(async () => {
-      res.json({ token: null });
-    });
+    } catch (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ error: "Invalid or expired token" });
+    }
+  } else {
+    res.status(401).json({ error: "No token provided" });
+  }
 };
 
 module.exports.handleUpdateUsername = async (req, res) => {

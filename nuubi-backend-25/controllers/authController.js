@@ -56,72 +56,7 @@ const {
 
 const { Op } = require("sequelize");
 
-// module.exports.handleLogin = async (req, res) => {
-//   console.log("handleLogin");
-//   // First, check for the token in cookies (for web)
-//   let token = req.cookies.token;
-//   console.log(
-//     "FROM LOGIN PAGE AT BEGINNING what is req cookies token???" +
-//       req.cookies.token
-//   );
-//   console.log("A");
-//   // If no token is found in cookies, check the Authorization header (for mobile)
-//   if (!token && req.headers.authorization) {
-//     token = req.headers.authorization.split(" ")[1]; // Bearer token
-//   }
-//   console.log("B");
-//   if (!token) {
-//     console.log("B.2 No TOKEN");
-//     res.json({ token: null });
-//     return;
-//   }
-//   console.log("C");
-//   jwtVerify(token, process.env.JWT_SECRET)
-//     .then(async (decoded) => {
-//       console.log("D");
-//       const potentialUser = await users.findOne({
-//         attributes: ["id"],
-//         where: {
-//           id: decoded.id,
-//         },
-//       });
-//       console.log("E");
-//       if (!potentialUser) {
-//         console.log("F");
-//         res.json({ token: null });
-//         return;
-//       } else {
-//         console.log("G")("hello from the else statement about to set cookie");
-//         // Set a cookie for web-based authentication
-//         if (req.headers.cookie) {
-//           res.cookie("token", token, {
-//             httpOnly: true,
-//             // secure: true,
-//             secure: false,
-//             sameSite: "Strict",
-//             maxAge: 24 * 60 * 60 * 1000, // 1 day expiration
-//             path: "/",
-//           });
-//         }
-
-//         console.log("LOGIN req.headers.cookie " + req.headers.cookie);
-
-//         // Respond without sending the token back, just the user info
-//         res.json({
-//           message: "Login successful",
-//           //   userId: potentialUser.id,
-//         });
-//       }
-//     })
-//     .catch((err) => {
-//       console.error("JWT verification failed:", err);
-//       res.json({ token: null });
-//     });
-// };
-
 module.exports.handleLogin = async (req, res) => {
-  console.log("handleLogin");
-
   // Check for existing JWT token from cookies (web) or SecureStore (mobile)
   let token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Bearer token
 
@@ -135,7 +70,6 @@ module.exports.handleLogin = async (req, res) => {
         // userId: decoded.id,
       });
     } catch (err) {
-      console.log(" is this the error message? ");
       console.error("Invalid token:", err);
       // Handle invalid token scenario (optional)
     }
@@ -146,111 +80,7 @@ module.exports.handleLogin = async (req, res) => {
   return res.json({ message: "No valid session, please log in" });
 };
 
-// module.exports.handleLogin = async (req, res) => {
-//   const token = getJwt(req);
-
-//   if (!token) {
-//     // res.json({ loggedIn: false });
-//     res.json({ token: null });
-//     return;
-//   }
-
-//   jwtVerify(token, process.env.JWT_SECRET)
-//     .then(async (decoded) => {
-//       const potentialUser = await users.findOne({
-//         attributes: ["id"],
-//         // attributes: ["username", "id"],
-//         // where: {
-//         //   username: decodedUsername,
-//         // },
-//       });
-//       if (!potentialUser) {
-//         //  res.json({ loggedIn: false, token: null });
-//         res.json({ token: null });
-//         return;
-//       } else {
-//         res.json({
-//           // loggedIn: true,
-//           token,
-//           //  userId: potentialLogin.rows[0].id,
-//           //  username: req.body.username,
-//         });
-//       }
-//     })
-//     .catch(async () => {
-//       //  res.json({ loggedIn: false });
-//       res.json({ token: null });
-//     });
-// };
-
-// module.exports.attemptLogin = async (req, res) => {
-//   const potentialLogin = await users.findOne({
-//     attributes: ["id", "username", "passhash"],
-//     where: {
-//       [Op.or]: [
-//         {
-//           username: req.body.username,
-//         },
-//         sequelize.where(
-//           sequelize.fn("LOWER", sequelize.col("email")),
-//           sequelize.fn("LOWER", req.body.username)
-//         ),
-//       ],
-//     },
-//   });
-
-//   if (potentialLogin) {
-//     const isSamePass = await bcrypt.compare(
-//       req.body.password,
-//       potentialLogin.passhash
-//     );
-
-//     if (isSamePass) {
-//       jwtSign(
-//         {
-//           id: potentialLogin.id,
-//         },
-//         process.env.JWT_SECRET,
-//         { expiresIn: "365d" } // Adjust expiration as needed
-//       )
-//         .then((token) => {
-//           // Set the cookie with the token for web-based authentication
-//           res.cookie("token", token, {
-//             httpOnly: true,
-//             secure: false,
-//             //   secure: process.env.NODE_ENV === "production", // Set secure flag only in production (HTTPS)
-//             sameSite: "Strict", // To prevent CSRF attacks
-//             maxAge: 24 * 60 * 60 * 1000, // 1 day expiration
-//             path: "/",
-//           });
-
-//           res.json({
-//             loggedIn: true,
-//             message: "Login successful",
-//           });
-//         })
-//         .catch((err) => {
-//           console.log(err);
-//           res.json({
-//             token: null,
-//             status: "Something went wrong, try again later",
-//           });
-//         });
-//     } else {
-//       res.json({
-//         token: null,
-//         status: "Wrong username, email, or password!",
-//       });
-//       console.log("Wrong password");
-//     }
-//   } else {
-//     console.log("User not found");
-//     res.json({ token: null, status: "Wrong username, email, or password!" });
-//   }
-// };
-
 module.exports.attemptLogin = async (req, res) => {
-  console.log("attemptLogin");
 
   // Perform credential validation (similar to your existing logic)
   const potentialLogin = await users.findOne({
@@ -306,23 +136,50 @@ module.exports.attemptLogin = async (req, res) => {
 };
 
 module.exports.checkWebLogin = async (req, res) => {
-  console.log("checking web login");
-  try {
-    // Assuming you have middleware to verify JWT and check the token
-    if (req.cookies.token) {
-      const decoded = jwt.verify(req.cookies.token, process.env.JWT_SECRET);
-      // Optionally: Check if user exists in DB based on decoded.id
-      return res.json({ isLoggedIn: true });
+  let token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Bearer token
+
+  if (token) {
+    // Verify the token and respond accordingly
+    try {
+      const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+      // Respond with user info or status that they are already logged in
+      return res.json({
+        isLoggedIn: true,
+      });
+    } catch (err) {
+      console.error("Invalid token:", err);
+      // Handle invalid token scenario (optional)
+      return res.json({
+        isLoggedIn: false,
+      });
     }
-    return res.json({ isLoggedIn: false });
-  } catch (error) {
-    console.error("Login check error:", error);
-    return res.status(401).json({ isLoggedIn: false }); // Not logged in
   }
+
+  // If no valid token is found, continue to the login attempt
+  // This could be a redirect or just a simple response to indicate the user needs to log in
+  return res.json({ message: "No valid session, please log in" });
+};
+
+// Logout function to clear the HttpOnly token cookie
+module.exports.logout = async (req, res) => {
+
+  // Clear the HttpOnly cookie by setting it with an empty value and expiry in the past
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    // secure: process.env.NODE_ENV === "production",
+    // sameSite: "Strict",
+    sameSite: "None",
+    path: "/",
+  });
+  return res.json({
+    successMessage: "Logout successful",
+    // token: token,
+    //add token or soemthing here? Need to allow login to be read from the views
+  });
 };
 
 module.exports.attemptMobileLogin = async (req, res) => {
-  console.log("attemptMobileLogin");
 
   // Perform credential validation (similar to your existing logic)
   const potentialLogin = await users.findOne({
@@ -377,69 +234,6 @@ module.exports.attemptMobileLogin = async (req, res) => {
     return res.status(404).json({ message: "User not found!" });
   }
 };
-
-// module.exports.attemptLogin = async (req, res) => {
-//   const potentialLogin = await users.findOne({
-//     attributes: ["id", "username", "passhash"],
-//     where: {
-//       [Op.or]: [
-//         {
-//           username: req.body.username,
-//         },
-//         sequelize.where(
-//           sequelize.fn("LOWER", sequelize.col("email")),
-//           sequelize.fn("LOWER", req.body.username)
-//         ),
-//       ],
-//     },
-//   });
-
-//   if (potentialLogin) {
-//     const isSamePass = await bcrypt.compare(
-//       req.body.password,
-//       potentialLogin.passhash
-//     );
-
-//     if (isSamePass) {
-//       jwtSign(
-//         {
-//           // username: potentialLogin.username,
-//           id: potentialLogin.id,
-//         },
-//         process.env.JWT_SECRET,
-//         { expiresIn: "365d" } //can change to "1min" to test logic when token expires
-//       )
-//         .then((token) => {
-//           res.json({
-//             loggedIn: true,
-//             //  token,
-//             message: "Login successful",
-//             //  userId: potentialLogin.id,
-//             //  username: potentialLogin.username,
-//           });
-//         })
-//         .catch((err) => {
-//           console.log(err);
-//           res.json({
-//             //  loggedIn: false,
-//             token: null,
-//             status: "Something went wrong, try again later",
-//           });
-//         });
-//     } else {
-//       res.json({
-//         //  loggedIn: false,
-//         token: null,
-//         status: "Wrong username, email or password!",
-//       });
-//       console.log("wrong password");
-//     }
-//   } else {
-//     console.log("not good");
-//     //  res.json({ loggedIn: false, status: "Wrong username, email or password!" });
-//     res.json({ token: null, status: "Wrong username, email or password!" });
-//   }
-// };
 
 module.exports.attemptRegister = async (req, res) => {
   const existingEmail = await users.findOne({
@@ -512,12 +306,9 @@ module.exports.attemptRegister = async (req, res) => {
           username: newUsername,
           firstSignIn: true,
         });
-        console.log("new user registered");
       })
       .catch((err) => {
-        console.log(err);
         res.json({
-          //  loggedIn: false,
           token: null,
           status: "Something went wrong, try again later",
         });

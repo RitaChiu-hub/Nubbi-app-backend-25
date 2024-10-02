@@ -20,7 +20,9 @@ const {
 const validateChangeUsernameForm = require("../controllers/validation/validateChangeUsernameForm");
 const validateChangePasswordForm = require("../controllers/validation/validateChangePasswordForm");
 const validateForgotPasswordForm = require("../controllers/validation/validateForgotPasswordForm");
+const { jwtVerifyMiddleware } = require("../controllers/jwt/jwtAuth");
 
+// router.use(jwtVerifyMiddleware);
 router.post("/delete", handleDeleteAccount);
 
 router.post("/updateavatar", handleUpdateAvatar);

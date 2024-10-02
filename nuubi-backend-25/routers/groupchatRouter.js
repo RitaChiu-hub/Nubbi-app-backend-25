@@ -7,9 +7,6 @@ const {
   uploadImage,
   getImage,
 } = require("../controllers/groupChatController");
-const {
-  jwtVerifyMiddleware,
-} = require("../controllers/jwt/jwtVerifyMiddleware");
 const validateAddMessage = require("../controllers/validation/validateMessage");
 const { verifyUserID } = require("../controllers/jwt/verifyUserId");
 

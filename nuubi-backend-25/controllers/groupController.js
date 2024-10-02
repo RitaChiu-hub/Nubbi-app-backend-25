@@ -1332,7 +1332,6 @@ module.exports.getNotificationsUnread = async (req, res) => {
 
         // Check if there are unread notifications
         const hasUnreadNotifications = unreadNotifications.length > 0;
-        // console.log(hasUnreadNotifications);
         res.json({ hasUnreadNotifications });
       } catch (error) {
         console.error("Error checking unread notifications:", error);
@@ -1465,11 +1464,9 @@ module.exports.handleGetPostInfo = async (req, res) => {
         });
       });
     }
-    //const pdfPublicId = "image/upload/jsyo8yxcr5vpwrcobqui";
 
     getPdfMetadata(publicId)
       .then((pages) => {
-        //   console.log(`The PDF has ${pages} pages.`);
         let filePages = pages;
         res.send({ ...getPostInfoQuery.rows[0], filePages: filePages });
       })

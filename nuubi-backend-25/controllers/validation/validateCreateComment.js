@@ -9,7 +9,6 @@ const validateCreateComment = (req, res, next) => {
     })
     .then((valid) => {
       if (valid) {
-        console.log("form is good");
         next();
       } else {
         res.status(422).send();
