@@ -67,14 +67,18 @@ router.post("/mygroups", jwtVerifyMiddleware, getMyGroups);
 // router.post("/mygroups",getMyGroups);
 
 router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
-router.post("/:group_id/posts", handleGetPosts);
+router.post("/:group_id/posts", jwtVerifyMiddleware, handleGetPosts);
 
 router.post(
   "/:group_id/posts/:post_id/createcomment",
   //	validateCreateComment,
   handleCreateComment
 );
-router.post("/:group_id/posts/:post_id/getcomments", handleGetPostComments);
+router.post(
+  "/:group_id/posts/:post_id/getcomments",
+  jwtVerifyMiddleware,
+  handleGetPostComments
+);
 
 router.post("/addpostpoint", handleAddPostPoint);
 router.post("/getpostpoints", handleGetPostPoints);
@@ -83,12 +87,12 @@ router.post("/getmembercount", getMemberCount);
 router.post("/leavegroup", handleLeaveGroup);
 router.post("/isadmin", handleIsAdmin);
 router.post("/deletegroup", handleDeleteGroup);
-router.post("/getmembers", getGroupMembers);
+router.post("/getmembers", jwtVerifyMiddleware, getGroupMembers);
 router.post("/getleaderboard", getLeaderboard);
 router.post("/editpost", handleEditPost);
-router.post("/editgroup", handleEditGroup);
-router.post("/getpostinfo", handleGetPostInfo);
-router.post("/getgroupinfo", handleGetGroupInfo);
+router.post("/editgroup", jwtVerifyMiddleware, handleEditGroup);
+router.post("/getpostinfo", jwtVerifyMiddleware, handleGetPostInfo);
+router.post("/getgroupinfo", jwtVerifyMiddleware, handleGetGroupInfo);
 router.post("/addmessagepoint", handleAddMessagePoint);
 router.post("/getcommentlikes", getCommentLikes);
 router.post("/addcommentpoint", handleAddCommentPoint);

@@ -49,7 +49,17 @@ const currentDate = new Date();
 require("dotenv").config();
 
 module.exports.handleCreateGroup = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -438,20 +448,31 @@ module.exports.getAllGroups = async (req, res) => {
 };
 
 module.exports.getNotifications = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-    const userID = decoded.id;
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
 
-    try {
-      const getNotifications = await notifications.findAll({
-        where: { user_id: userID },
-        order: [["created_at", "DESC"]],
-      });
-      res.send(getNotifications);
-    } catch (error) {
-      console.error("Error fetching notifications: ", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+
+      try {
+        const getNotifications = await notifications.findAll({
+          where: { user_id: userID },
+          order: [["created_at", "DESC"]],
+        });
+        res.send(getNotifications);
+      } catch (error) {
+        console.error("Error fetching notifications: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 };
 
 module.exports.getWonBadges = async (req, res) => {
@@ -707,7 +728,17 @@ module.exports.getGroupMembers = async (req, res) => {
 };
 
 module.exports.getMyGroupAnalytics = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userId = decoded.id;
       const { currentGroup } = req.body;
@@ -858,7 +889,17 @@ module.exports.getMyLeaderboards = async (req, res) => {
 };
 
 module.exports.handleJoinGroup = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -904,7 +945,17 @@ module.exports.handleJoinGroup = async (req, res) => {
 };
 
 module.exports.handleJoinGroupWithPasscode = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -979,7 +1030,17 @@ module.exports.handleJoinGroupWithPasscode = async (req, res) => {
 };
 
 module.exports.handleIsAdmin = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1047,7 +1108,17 @@ module.exports.handleLeaveGroup = async (req, res) => {
 };
 
 module.exports.handleDeleteGroup = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1237,7 +1308,17 @@ module.exports.handleDeleteGroup = async (req, res) => {
 // };
 
 module.exports.handleCreatePost = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       const groupID = req.params.group_id;
@@ -1341,28 +1422,49 @@ module.exports.getNotificationsUnread = async (req, res) => {
 };
 
 module.exports.getNotificationsRead = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
-    const userID = decoded.id;
-    try {
-      // Update notifications to mark them as read
-      await notifications.update(
-        { is_read: true },
-        { where: { user_id: userID } }
-      );
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
 
-      res.json({
-        success: true,
-        message: "Notifications marked as read successfully",
-      });
-    } catch (error) {
-      console.error("Error marking notifications as read:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        // Update notifications to mark them as read
+        await notifications.update(
+          { is_read: true },
+          { where: { user_id: userID } }
+        );
+
+        res.json({
+          success: true,
+          message: "Notifications marked as read successfully",
+        });
+      } catch (error) {
+        console.error("Error marking notifications as read:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 };
 
 module.exports.handleEditPost = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1536,7 +1638,17 @@ module.exports.handleGetPostComments = async (req, res) => {
 };
 
 module.exports.handleAddPostPoint = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1588,7 +1700,17 @@ module.exports.handleAddPostPoint = async (req, res) => {
 };
 
 module.exports.handleAddMessagePoint = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1639,7 +1761,17 @@ module.exports.handleAddMessagePoint = async (req, res) => {
 };
 
 module.exports.handleAddCommentPoint = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1739,7 +1871,17 @@ module.exports.handleGetUserPoints = async (req, res) => {
 };
 
 module.exports.getCommentLikes = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -1759,7 +1901,17 @@ module.exports.getCommentLikes = async (req, res) => {
 };
 
 module.exports.getPostLiked = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
