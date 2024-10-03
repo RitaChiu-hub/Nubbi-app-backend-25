@@ -67,7 +67,6 @@ module.exports.handleLogin = async (req, res) => {
       // Respond with user info or status that they are already logged in
       return res.json({
         message: "User already logged in",
-        // userId: decoded.id,
       });
     } catch (err) {
       console.error("Invalid token:", err);
@@ -81,7 +80,6 @@ module.exports.handleLogin = async (req, res) => {
 };
 
 module.exports.attemptLogin = async (req, res) => {
-
   // Perform credential validation (similar to your existing logic)
   const potentialLogin = await users.findOne({
     attributes: ["id", "username", "passhash"],
@@ -162,7 +160,6 @@ module.exports.checkWebLogin = async (req, res) => {
 
 // Logout function to clear the HttpOnly token cookie
 module.exports.logout = async (req, res) => {
-
   // Clear the HttpOnly cookie by setting it with an empty value and expiry in the past
   res.clearCookie("token", {
     httpOnly: true,
@@ -180,7 +177,6 @@ module.exports.logout = async (req, res) => {
 };
 
 module.exports.attemptMobileLogin = async (req, res) => {
-
   // Perform credential validation (similar to your existing logic)
   const potentialLogin = await users.findOne({
     attributes: ["id", "username", "passhash"],
@@ -210,22 +206,10 @@ module.exports.attemptMobileLogin = async (req, res) => {
         { expiresIn: "365d" }
       );
 
-      // // Set the cookie for web-based authentication
-      // res.cookie("token", token, {
-      //   httpOnly: true,
-      //   secure: true,
-      //   // secure: process.env.NODE_ENV === "production",
-      //   // sameSite: "Strict",
-      //   sameSite: "None",
-      //   maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year expiration
-      //   path: "/",
-      // });
-
       // Respond with success
       return res.json({
         successMessage: "Login successful",
         token: token,
-        //add token or soemthing here? Need to allow login to be read from the views
       });
     } else {
       return res.status(401).json({ message: "Wrong username or password!" });
@@ -292,7 +276,96 @@ module.exports.attemptRegister = async (req, res) => {
     );
     jwtSign(
       {
-        // username: req.body.username,
+        id: newUserQuery.id,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "365d" }
+    )
+      .then((token) => {
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          // secure: process.env.NODE_ENV === "production",
+          // sameSite: "Strict",
+          sameSite: "None",
+          maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year expiration
+          path: "/",
+        });
+
+        res.json({
+          username: newUsername,
+          firstSignIn: true,
+        });
+      })
+      .catch((err) => {
+        res.json({
+          token: null,
+          status: "Something went wrong, try again later",
+        });
+      });
+  } else {
+    //  res.json({ loggedIn: false, status: "Email is already being used" });
+    res.json({ token: null, status: "Email is already being used" });
+  }
+};
+
+module.exports.attemptMobileRegister = async (req, res) => {
+  const existingEmail = await users.findOne({
+    attributes: ["email"],
+    where: {
+      email: req.body.email,
+    },
+  });
+
+  if (!existingEmail) {
+    async function generateUsername() {
+      var a = adjectives;
+      var b = nouns;
+
+      var rA = Math.floor(Math.random() * a.length);
+      var rB = Math.floor(Math.random() * b.length);
+
+      var adj = a[rA];
+      var capAdj = adj.charAt(0).toUpperCase() + adj.slice(1);
+
+      var noun = b[rB];
+      var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
+
+      const usernameAttempt = capAdj + capNoun;
+      const existingUser = await users.findOne({
+        attributes: ["username"],
+        where: {
+          username: usernameAttempt,
+        },
+      });
+      if (!existingUser) {
+        return usernameAttempt;
+      } else {
+        return generateUsername();
+      }
+    }
+
+    const newUsername = await generateUsername();
+
+    const hashedPass = await bcrypt.hash(req.body.password, 10);
+
+    const newUserQuery = await users.create({
+      id: uuidv4(),
+      email: req.body.email,
+      username: newUsername,
+      passhash: hashedPass,
+      created_at: currentDate.getTime(),
+      updated_at: currentDate.getTime(),
+    });
+
+    // 3 for prod with digitalocean db, 7 for localhost db
+    // adding to the default group
+    const joinNuubiGroupQuery = await pool.query(
+      "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
+      [newUserQuery.id]
+    );
+    jwtSign(
+      {
         id: newUserQuery.id,
       },
       process.env.JWT_SECRET,
@@ -300,9 +373,7 @@ module.exports.attemptRegister = async (req, res) => {
     )
       .then((token) => {
         res.json({
-          // loggedIn: true,
           token,
-          //   userId: newUserQuery.id,
           username: newUsername,
           firstSignIn: true,
         });

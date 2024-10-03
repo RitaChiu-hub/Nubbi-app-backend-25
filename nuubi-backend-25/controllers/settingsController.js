@@ -8,7 +8,7 @@ const fs = require("fs");
 const path = require("path");
 
 const currentDate = new Date();
-const { jwtVerify } = require("./jwt/jwtAuth");
+const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
 const Sequelize = require("sequelize");
 
@@ -127,6 +127,16 @@ module.exports.handleDeleteAccount = async (req, res) => {
                 id: userID,
               },
             });
+
+            res.clearCookie("token", {
+              httpOnly: true,
+              secure: true,
+              // secure: process.env.NODE_ENV === "production",
+              // sameSite: "Strict",
+              sameSite: "None",
+              path: "/",
+            });
+
             res.json({ token: null, status: "Success" });
           } else {
             res.json({ ...req.body, status: "Wrong password!" });
@@ -145,7 +155,17 @@ module.exports.handleDeleteAccount = async (req, res) => {
 };
 
 module.exports.handleUpdateAvatar = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {

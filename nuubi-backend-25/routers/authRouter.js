@@ -14,6 +14,7 @@ const {
   checkEmail,
   checkWebLogin,
   logout,
+  attemptMobileRegister,
 } = require("../controllers/authController");
 
 router.route("/login").get(handleLogin).post(validateLoginForm, attemptLogin);
@@ -24,6 +25,7 @@ router
   .post(validateLoginForm, attemptMobileLogin);
 
 router.post("/signup", validateSignupForm, attemptRegister);
+router.post("/mobilesignup", validateSignupForm, attemptMobileRegister);
 
 router.post("/checkemail", checkEmail);
 

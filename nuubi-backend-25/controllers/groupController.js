@@ -1697,7 +1697,17 @@ module.exports.handleGetPostPoints = async (req, res) => {
 };
 
 module.exports.handleGetUserPoints = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
