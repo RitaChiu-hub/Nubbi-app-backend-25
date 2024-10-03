@@ -1,6 +1,6 @@
 const pool = require("../db");
 const currentDate = new Date();
-const { jwtVerify } = require("./jwt/jwtAuth");
+const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
 const Sequelize = require("sequelize");
 
@@ -29,8 +29,20 @@ const sequelize = new Sequelize({
 
 const DataTypes = require("sequelize").DataTypes;
 
-const { participants, groups, messages, points, post_comments, posts, users, badges, user_badges, tasks, user_tasks, notifications } =
-  require("../models/init-models")(sequelize, DataTypes);
+const {
+  participants,
+  groups,
+  messages,
+  points,
+  post_comments,
+  posts,
+  users,
+  badges,
+  user_badges,
+  tasks,
+  user_tasks,
+  notifications,
+} = require("../models/init-models")(sequelize, DataTypes);
 
 module.exports.addMessage = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
@@ -68,7 +80,17 @@ module.exports.getMessages = async (req, res) => {
 };
 
 module.exports.getLikes = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    //  jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {

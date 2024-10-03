@@ -55,7 +55,17 @@ const {
 const { Op } = require("sequelize");
 
 module.exports.handleDeleteAccount = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    //  jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -268,7 +278,17 @@ module.exports.handleGetAvatar = async (req, res) => {
 };
 
 module.exports.handleUpdateUsername = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    //  jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -329,7 +349,17 @@ module.exports.handleUpdateUsername = async (req, res) => {
 };
 
 module.exports.handleUpdatePassword = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    //  jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
@@ -471,7 +501,17 @@ module.exports.handleGeneratePasscode = async (req, res) => {
 };
 
 module.exports.handleSendFeedback = async (req, res) => {
-  jwtVerify(req.body.token, process.env.JWT_SECRET)
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
+
+  // Check if token is available
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // Now verify the token
+  jwtVerify(token, process.env.JWT_SECRET)
+    //  jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
