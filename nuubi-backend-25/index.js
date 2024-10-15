@@ -342,24 +342,34 @@ app.use("/backend", myRouter);
 
 io.on("connection", (socket) => {
   console.log("a user connected");
-  // Retrieve token for web clients from cookies
-  const webToken = getJwt(socket.request); // Here, socket.request holds the request object that includes cookies
+  // console.log("Socket request object:", socket.request); // Log the entire request object
 
+  const getJwt = (request) => {
+    // Check if the cookie header exists and is not empty
+    if (request.headers.cookie) {
+      // Extract the token from the cookie
+      const token = request.headers.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1]; // Extract the token value
+
+      return token || null; // Return the token or null if not found
+    }
+
+    return null; // Return null if cookie header is not present
+  };
+
+  // Use the updated getJwt function
+  const webToken = getJwt(socket.request);
+
+  console.log("Retrieved webToken:", webToken);
   socket.on("insert msg return updated list", (req) => {
-    // Create a mock request object for getJwt
-    const mockReq = {
-      cookies: { token: req.token }, // If req.token is provided, it will be used
-      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
-    };
-
-    // Use getJwt to get the token from either cookies or the Authorization header
-    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+    const token = req.token || webToken;
 
     // Check if token is available
     if (!token) {
-      return res.status(401).json({ error: "JWT token is required" });
+      return socket.emit("error", { error: "JWT token is required" }); // Emit error back to client
     }
-
     // Now verify the token
     jwtVerify(token, process.env.JWT_SECRET)
       // jwtVerify(req.token, process.env.JWT_SECRET)
@@ -390,14 +400,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("insert comment return updated list", (req) => {
-    // Create a mock request object for getJwt
-    const mockReq = {
-      cookies: { token: req.token }, // If req.token is provided, it will be used
-      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
-    };
-
-    // Use getJwt to get the token from either cookies or the Authorization header
-    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+    const token = req.token || webToken;
 
     // Check if token is available
     if (!token) {
@@ -434,15 +437,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("add post point return updated sum", async (req) => {
-    // Create a mock request object for getJwt
-    const mockReq = {
-      cookies: { token: req.token }, // If req.token is provided, it will be used
-      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
-    };
-
-    // Use getJwt to get the token from either cookies or the Authorization header
-    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
-
+    const token = req.token || webToken;
     // Check if token is available
     if (!token) {
       return res.status(401).json({ error: "JWT token is required" });
@@ -505,154 +500,139 @@ io.on("connection", (socket) => {
       });
   });
 
-  socket.on("add comment point return updated sum", async (req) => {
-    // Create a mock request object for getJwt
-    const mockReq = {
-      cookies: { token: req.token }, // If req.token is provided, it will be used
-      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
-    };
+  // socket.on("add comment point return updated sum", async (req) => {
+  //   const token = req.token || webToken;
+  //   // Check if token is available
+  //   if (!token) {
+  //     return res.status(401).json({ error: "JWT token is required" });
+  //   }
 
-    // Use getJwt to get the token from either cookies or the Authorization header
-    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+  //   // Now verify the token
+  //   jwtVerify(token, process.env.JWT_SECRET)
+  //     // jwtVerify(req.token, process.env.JWT_SECRET)
+  //     .then(async (decoded) => {
+  //       const userID = decoded.id;
+  //       try {
+  //         const pointGiven = await pool.query(
+  //           "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
+  //           [userID, req.post_comment_id]
+  //         );
 
-    // Check if token is available
-    if (!token) {
-      return res.status(401).json({ error: "JWT token is required" });
-    }
+  //         if (pointGiven.rows[0].sum == null) {
+  //           const newCommentPoint = await pool.query(
+  //             "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
+  //             [req.sender_id, userID, req.post_comment_id, req.currentGroup]
+  //           );
 
-    // Now verify the token
-    jwtVerify(token, process.env.JWT_SECRET)
-      // jwtVerify(req.token, process.env.JWT_SECRET)
-      .then(async (decoded) => {
-        const userID = decoded.id;
-        try {
-          const pointGiven = await pool.query(
-            "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
-            [userID, req.post_comment_id]
-          );
+  //           pool.query(
+  //             "SELECT SUM(point_value) FROM points WHERE comment_id = $1;",
+  //             [req.post_comment_id],
+  //             (err, res) => {
+  //               if (err) throw err;
+  //               io.emit(
+  //                 "add comment point return updated sum",
+  //                 res.rows[0].sum
+  //               );
+  //             }
+  //           );
+  //         } else {
+  //           const deleteCommentPoint = await pool.query(
+  //             "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
+  //             [userID, req.post_comment_id]
+  //           );
 
-          if (pointGiven.rows[0].sum == null) {
-            const newCommentPoint = await pool.query(
-              "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
-              [req.sender_id, userID, req.post_comment_id, req.currentGroup]
-            );
+  //           pool.query(
+  //             "SELECT COALESCE(SUM(point_value),0) FROM points WHERE comment_id = $1;",
+  //             [req.post_comment_id],
+  //             (err, res) => {
+  //               if (err) throw err;
+  //               io.emit(
+  //                 "add comment point return updated sum",
+  //                 res.rows[0].sum
+  //               );
+  //             }
+  //           );
+  //         }
+  //       } catch (error) {
+  //         console.error("Error adding comment point: ", error);
+  //         res.status(500).json({ error: "Internal server error" });
+  //       }
+  //     })
+  //     .catch(async () => {
+  //       res.json({ token: null });
+  //     });
+  // });
 
-            pool.query(
-              "SELECT SUM(point_value) FROM points WHERE comment_id = $1;",
-              [req.post_comment_id],
-              (err, res) => {
-                if (err) throw err;
-                io.emit(
-                  "add comment point return updated sum",
-                  res.rows[0].sum
-                );
-              }
-            );
-          } else {
-            const deleteCommentPoint = await pool.query(
-              "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
-              [userID, req.post_comment_id]
-            );
+  // socket.on("add message point return updated sum", async (req) => {
+  //   const token = req.token || webToken;
 
-            pool.query(
-              "SELECT COALESCE(SUM(point_value),0) FROM points WHERE comment_id = $1;",
-              [req.post_comment_id],
-              (err, res) => {
-                if (err) throw err;
-                io.emit(
-                  "add comment point return updated sum",
-                  res.rows[0].sum
-                );
-              }
-            );
-          }
-        } catch (error) {
-          console.error("Error adding comment point: ", error);
-          res.status(500).json({ error: "Internal server error" });
-        }
-      })
-      .catch(async () => {
-        res.json({ token: null });
-      });
-  });
+  //   // Check if token is available
+  //   if (!token) {
+  //     return res.status(401).json({ error: "JWT token is required" });
+  //   }
 
-  socket.on("add message point return updated sum", async (req) => {
-    // Create a mock request object for getJwt
-    const mockReq = {
-      cookies: { token: req.token }, // If req.token is provided, it will be used
-      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
-    };
+  //   // Now verify the token
+  //   jwtVerify(token, process.env.JWT_SECRET)
+  //     // jwtVerify(req.token, process.env.JWT_SECRET)
+  //     .then(async (decoded) => {
+  //       const userID = decoded.id;
+  //       try {
+  //         const pointGiven = await pool.query(
+  //           "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and messages_id = $2",
+  //           [userID, req.message_id]
+  //         );
 
-    // Use getJwt to get the token from either cookies or the Authorization header
-    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+  //         const getRecipientId = await pool.query(
+  //           "SELECT sender_id FROM messages WHERE id = $1;",
+  //           [req.message_id]
+  //         );
 
-    // Check if token is available
-    if (!token) {
-      return res.status(401).json({ error: "JWT token is required" });
-    }
+  //         const recipient_id = getRecipientId.rows[0].sender_id;
 
-    // Now verify the token
-    jwtVerify(token, process.env.JWT_SECRET)
-      // jwtVerify(req.token, process.env.JWT_SECRET)
-      .then(async (decoded) => {
-        const userID = decoded.id;
-        try {
-          const pointGiven = await pool.query(
-            "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and messages_id = $2",
-            [userID, req.message_id]
-          );
+  //         if (pointGiven.rows[0].sum == null) {
+  //           const newMessagePoint = await pool.query(
+  //             "INSERT INTO points(recipient_id, giver_id, messages_id, group_id) values($1,$2,$3,$4);",
+  //             [recipient_id, userID, req.message_id, req.currentGroup]
+  //           );
 
-          const getRecipientId = await pool.query(
-            "SELECT sender_id FROM messages WHERE id = $1;",
-            [req.message_id]
-          );
+  //           pool.query(
+  //             "SELECT SUM(point_value) FROM points WHERE messages_id = $1;",
+  //             [req.message_id],
+  //             (err, res) => {
+  //               if (err) throw err;
+  //               io.emit(
+  //                 "add message point return updated sum",
+  //                 res.rows[0].sum
+  //               );
+  //             }
+  //           );
+  //         } else {
+  //           const deleteMessagePoint = await pool.query(
+  //             "DELETE FROM points WHERE giver_id = $1 AND messages_id = $2;",
+  //             [userID, req.message_id]
+  //           );
 
-          const recipient_id = getRecipientId.rows[0].sender_id;
-
-          if (pointGiven.rows[0].sum == null) {
-            const newMessagePoint = await pool.query(
-              "INSERT INTO points(recipient_id, giver_id, messages_id, group_id) values($1,$2,$3,$4);",
-              [recipient_id, userID, req.message_id, req.currentGroup]
-            );
-
-            pool.query(
-              "SELECT SUM(point_value) FROM points WHERE messages_id = $1;",
-              [req.message_id],
-              (err, res) => {
-                if (err) throw err;
-                io.emit(
-                  "add message point return updated sum",
-                  res.rows[0].sum
-                );
-              }
-            );
-          } else {
-            const deleteMessagePoint = await pool.query(
-              "DELETE FROM points WHERE giver_id = $1 AND messages_id = $2;",
-              [userID, req.message_id]
-            );
-
-            pool.query(
-              "SELECT COALESCE(SUM(point_value),0) FROM points WHERE messages_id = $1;",
-              [req.message_id],
-              (err, res) => {
-                if (err) throw err;
-                io.emit(
-                  "add message point return updated sum",
-                  res.rows[0].sum
-                );
-              }
-            );
-          }
-        } catch (error) {
-          console.error("Error adding message point: ", error);
-          res.status(500).json({ error: "Internal server error" });
-        }
-      })
-      .catch(async () => {
-        res.json({ token: null });
-      });
-  });
+  //           pool.query(
+  //             "SELECT COALESCE(SUM(point_value),0) FROM points WHERE messages_id = $1;",
+  //             [req.message_id],
+  //             (err, res) => {
+  //               if (err) throw err;
+  //               io.emit(
+  //                 "add message point return updated sum",
+  //                 res.rows[0].sum
+  //               );
+  //             }
+  //           );
+  //         }
+  //       } catch (error) {
+  //         console.error("Error adding message point: ", error);
+  //         res.status(500).json({ error: "Internal server error" });
+  //       }
+  //     })
+  //     .catch(async () => {
+  //       res.json({ token: null });
+  //     });
+  // });
 
   socket.on("disconnect", () => {
     console.log("user disconnected");
