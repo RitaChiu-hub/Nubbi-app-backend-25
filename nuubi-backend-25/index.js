@@ -342,9 +342,27 @@ app.use("/backend", myRouter);
 
 io.on("connection", (socket) => {
   console.log("a user connected");
+  // Retrieve token for web clients from cookies
+  const webToken = getJwt(socket.request); // Here, socket.request holds the request object that includes cookies
 
   socket.on("insert msg return updated list", (req) => {
-    jwtVerify(req.token, process.env.JWT_SECRET)
+    // Create a mock request object for getJwt
+    const mockReq = {
+      cookies: { token: req.token }, // If req.token is provided, it will be used
+      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
+    };
+
+    // Use getJwt to get the token from either cookies or the Authorization header
+    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+
+    // Check if token is available
+    if (!token) {
+      return res.status(401).json({ error: "JWT token is required" });
+    }
+
+    // Now verify the token
+    jwtVerify(token, process.env.JWT_SECRET)
+      // jwtVerify(req.token, process.env.JWT_SECRET)
       .then(async (decoded) => {
         const userID = decoded.id;
         try {
@@ -372,7 +390,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("insert comment return updated list", (req) => {
-    jwtVerify(req.token, process.env.JWT_SECRET)
+    // Create a mock request object for getJwt
+    const mockReq = {
+      cookies: { token: req.token }, // If req.token is provided, it will be used
+      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
+    };
+
+    // Use getJwt to get the token from either cookies or the Authorization header
+    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+
+    // Check if token is available
+    if (!token) {
+      return res.status(401).json({ error: "JWT token is required" });
+    }
+
+    // Now verify the token
+    jwtVerify(token, process.env.JWT_SECRET)
+      // jwtVerify(req.token, process.env.JWT_SECRET)
       .then(async (decoded) => {
         const userID = decoded.id;
         try {
@@ -400,7 +434,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("add post point return updated sum", async (req) => {
-    jwtVerify(req.token, process.env.JWT_SECRET)
+    // Create a mock request object for getJwt
+    const mockReq = {
+      cookies: { token: req.token }, // If req.token is provided, it will be used
+      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
+    };
+
+    // Use getJwt to get the token from either cookies or the Authorization header
+    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+
+    // Check if token is available
+    if (!token) {
+      return res.status(401).json({ error: "JWT token is required" });
+    }
+
+    // Now verify the token
+    jwtVerify(token, process.env.JWT_SECRET)
+      // jwtVerify(req.token, process.env.JWT_SECRET)
       .then(async (decoded) => {
         const userID = decoded.id;
         try {
@@ -456,7 +506,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("add comment point return updated sum", async (req) => {
-    jwtVerify(req.token, process.env.JWT_SECRET)
+    // Create a mock request object for getJwt
+    const mockReq = {
+      cookies: { token: req.token }, // If req.token is provided, it will be used
+      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
+    };
+
+    // Use getJwt to get the token from either cookies or the Authorization header
+    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+
+    // Check if token is available
+    if (!token) {
+      return res.status(401).json({ error: "JWT token is required" });
+    }
+
+    // Now verify the token
+    jwtVerify(token, process.env.JWT_SECRET)
+      // jwtVerify(req.token, process.env.JWT_SECRET)
       .then(async (decoded) => {
         const userID = decoded.id;
         try {
@@ -511,7 +577,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("add message point return updated sum", async (req) => {
-    jwtVerify(req.token, process.env.JWT_SECRET)
+    // Create a mock request object for getJwt
+    const mockReq = {
+      cookies: { token: req.token }, // If req.token is provided, it will be used
+      headers: { authorization: req.token ? `Bearer ${req.token}` : null }, // Create an Authorization header if req.token is present
+    };
+
+    // Use getJwt to get the token from either cookies or the Authorization header
+    const token = getJwt(mockReq) || webToken; // Use the mock request to get the token
+
+    // Check if token is available
+    if (!token) {
+      return res.status(401).json({ error: "JWT token is required" });
+    }
+
+    // Now verify the token
+    jwtVerify(token, process.env.JWT_SECRET)
+      // jwtVerify(req.token, process.env.JWT_SECRET)
       .then(async (decoded) => {
         const userID = decoded.id;
         try {
