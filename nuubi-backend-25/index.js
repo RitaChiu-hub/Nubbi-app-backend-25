@@ -362,7 +362,6 @@ io.on("connection", (socket) => {
   // Use the updated getJwt function
   const webToken = getJwt(socket.request);
 
-  console.log("Retrieved webToken:", webToken);
   socket.on("insert msg return updated list", (req) => {
     const token = req.token || webToken;
 
