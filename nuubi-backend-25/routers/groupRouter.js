@@ -69,18 +69,8 @@ router.post("/mygroups", jwtVerifyMiddleware, getMyGroups);
 router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
 router.post("/:group_id/posts", jwtVerifyMiddleware, handleGetPosts);
 
-router.post(
-  "/posts/createcomment",
-  // "/:group_id/posts/:post_id/createcomment",
-  //	validateCreateComment,
-  handleCreateComment
-);
-router.post(
-  // "/:group_id/posts/:post_id/getcomments",
-  "/posts/getcomments",
-  jwtVerifyMiddleware,
-  handleGetPostComments
-);
+router.post("/posts/createcomment", handleCreateComment);
+router.post("getpostcomments", jwtVerifyMiddleware, handleGetPostComments);
 
 router.post("/addpostpoint", handleAddPostPoint);
 router.post("/getpostpoints", handleGetPostPoints);
