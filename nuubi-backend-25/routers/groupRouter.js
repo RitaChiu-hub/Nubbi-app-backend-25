@@ -70,12 +70,14 @@ router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
 router.post("/:group_id/posts", jwtVerifyMiddleware, handleGetPosts);
 
 router.post(
-  "/:group_id/posts/:post_id/createcomment",
+  "/posts/createcomment",
+  // "/:group_id/posts/:post_id/createcomment",
   //	validateCreateComment,
   handleCreateComment
 );
 router.post(
-  "/:group_id/posts/:post_id/getcomments",
+  // "/:group_id/posts/:post_id/getcomments",
+  "/posts/getcomments",
   jwtVerifyMiddleware,
   handleGetPostComments
 );
