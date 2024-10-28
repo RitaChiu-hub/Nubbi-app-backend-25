@@ -1539,11 +1539,19 @@ module.exports.handleEditGroup = async (req, res) => {
 
 module.exports.handleGetPosts = async (req, res) => {
   const getPostsQuery = await pool.query(
-    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, coalesce(point_total,0) point_total, coalesce(number_comments,0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (select post_id, count(id) number_comments from post_comments group by post_id) d on c.post_id = d.post_id;",
+    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
     [req.body.currentGroup]
   );
   res.send(getPostsQuery.rows);
 };
+
+// module.exports.handleGetPosts = async (req, res) => {
+//   const getPostsQuery = await pool.query(
+//     "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, coalesce(point_total,0) point_total, coalesce(number_comments,0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (select post_id, count(id) number_comments from post_comments group by post_id) d on c.post_id = d.post_id;",
+//     [req.body.currentGroup]
+//   );
+//   res.send(getPostsQuery.rows);
+// };
 
 module.exports.handleGetPostInfo = async (req, res) => {
   const getPostInfoQuery = await pool.query(
