@@ -70,7 +70,7 @@ router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
 router.post("/:group_id/posts", jwtVerifyMiddleware, handleGetPosts);
 
 router.post("/posts/createcomment", handleCreateComment);
-router.post("getpostcomments", jwtVerifyMiddleware, handleGetPostComments);
+router.post("/getpostcomments", jwtVerifyMiddleware, handleGetPostComments);
 
 router.post("/addpostpoint", handleAddPostPoint);
 router.post("/getpostpoints", handleGetPostPoints);
