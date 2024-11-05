@@ -631,7 +631,7 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
       ),
       UserDetails AS (
         SELECT
-          u.id,  -- Keep id from users table
+          u.id,
           u.username,
           u.email,
           COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
@@ -654,12 +654,21 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
         SELECT
           p.recipient_id AS user_id,
           wi.week_index + 1 AS week_number,
-          SUM(p.point_value) AS weekly_points
+          SUM(p.point_value) AS weekly_points,
+          COUNT(DISTINCT po.id) AS weekly_posts,
+          COUNT(DISTINCT pc.id) AS weekly_comments,
+          COUNT(DISTINCT m.id) AS weekly_messages
         FROM
           points p
         JOIN
           WeeklyIntervals wi ON p.updated_at >= wi.week_start 
                             AND p.updated_at < (wi.week_start + interval '1 week')
+        LEFT JOIN
+          posts po ON po.sender_id = p.recipient_id AND p.group_id = $1 AND p.updated_at >= wi.week_start AND p.updated_at < (wi.week_start + interval '1 week')
+        LEFT JOIN
+          post_comments pc ON pc.sender_id = p.recipient_id AND pc.updated_at >= wi.week_start AND pc.updated_at < (wi.week_start + interval '1 week')
+        LEFT JOIN
+          messages m ON m.sender_id = p.recipient_id AND m.group_id = $1 AND m.updated_at >= wi.week_start AND m.updated_at < (wi.week_start + interval '1 week')
         WHERE
           p.group_id = $1
         GROUP BY
@@ -669,37 +678,206 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
         ud.id AS user_id, 
         ud.username,
         ud.email,
-        COALESCE(SUM(pb.weekly_points), 0) AS group_total_points,
-        ud.total_posts,
-        ud.total_comments,
-        ud.total_messages,
-        COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS unit_1,
-        COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS unit_2,
-        COALESCE(MAX(CASE WHEN pb.week_number = 3 THEN pb.weekly_points END), 0) AS unit_3,
-        COALESCE(MAX(CASE WHEN pb.week_number = 4 THEN pb.weekly_points END), 0) AS unit_4,
-        COALESCE(MAX(CASE WHEN pb.week_number = 5 THEN pb.weekly_points END), 0) AS unit_5,
-        COALESCE(MAX(CASE WHEN pb.week_number = 6 THEN pb.weekly_points END), 0) AS unit_6,
-        COALESCE(MAX(CASE WHEN pb.week_number = 7 THEN pb.weekly_points END), 0) AS unit_7,
-        COALESCE(MAX(CASE WHEN pb.week_number = 8 THEN pb.weekly_points END), 0) AS unit_8
+        COALESCE(SUM(pb.weekly_points), 0) AS total_points,
+        ud.total_posts AS total_posts,
+        ud.total_comments AS total_comments,
+        ud.total_messages AS total_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS week_1_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_posts END), 0) AS week_1_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_comments END), 0) AS week_1_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_messages END), 0) AS week_1_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS week_2_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_posts END), 0) AS week_2_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_comments END), 0) AS week_2_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_messages END), 0) AS week_2_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 3 THEN pb.weekly_points END), 0) AS week_3_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 3 THEN pb.weekly_posts END), 0) AS week_3_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 3 THEN pb.weekly_comments END), 0) AS week_3_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 3 THEN pb.weekly_messages END), 0) AS week_3_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 4 THEN pb.weekly_points END), 0) AS week_4_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 4 THEN pb.weekly_posts END), 0) AS week_4_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 4 THEN pb.weekly_comments END), 0) AS week_4_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 4 THEN pb.weekly_messages END), 0) AS week_4_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 5 THEN pb.weekly_points END), 0) AS week_5_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 5 THEN pb.weekly_posts END), 0) AS week_5_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 5 THEN pb.weekly_comments END), 0) AS week_5_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 5 THEN pb.weekly_messages END), 0) AS week_5_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 6 THEN pb.weekly_points END), 0) AS week_6_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 6 THEN pb.weekly_posts END), 0) AS week_6_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 6 THEN pb.weekly_comments END), 0) AS week_6_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 6 THEN pb.weekly_messages END), 0) AS week_6_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 7 THEN pb.weekly_points END), 0) AS week_7_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 7 THEN pb.weekly_posts END), 0) AS week_7_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 7 THEN pb.weekly_comments END), 0) AS week_7_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 7 THEN pb.weekly_messages END), 0) AS week_7_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 8 THEN pb.weekly_points END), 0) AS week_8_points,
+        COALESCE(MAX(CASE WHEN pb.week_number = 8 THEN pb.weekly_posts END), 0) AS week_8_posts,
+        COALESCE(MAX(CASE WHEN pb.week_number = 8 THEN pb.weekly_comments END), 0) AS week_8_comments,
+        COALESCE(MAX(CASE WHEN pb.week_number = 8 THEN pb.weekly_messages END), 0) AS week_8_messages
       FROM
         UserDetails ud
       LEFT JOIN
-        PointsByWeek pb ON pb.user_id = ud.id  -- Match pb.user_id to ud.id
+        PointsByWeek pb ON pb.user_id = ud.id
       GROUP BY
-        ud.id,  -- Use id directly in the group by clause
-        ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+        ud.id, ud.username, ud.email, 
+        ud.total_posts, ud.total_comments, ud.total_messages
       ORDER BY
         ud.username;
       `,
       [currentGroup, startDate]
     );
-    // console.log("groupMembersQuery.rows " + groupMembersQuery.rows);
-    res.send(groupMembersQuery.rows);
+
+    const formattedData = formatUserData(groupMembersQuery.rows);
+    res.send(formattedData);
   } catch (err) {
     console.error("Error fetching weekly group info:", err.message);
     res.status(500).send("Server error");
   }
 };
+
+const formatUserData = (rows) => {
+  return rows.map((user) => ({
+    user_id: user.user_id,
+    username: user.username,
+    email: user.email,
+    total: {
+      points: user.total_points,
+      posts: user.total_posts,
+      comments: user.total_comments,
+      messages: user.total_messages,
+    },
+    week_1: {
+      points: user.week_1_points,
+      posts: user.week_1_posts,
+      comments: user.week_1_comments,
+      messages: user.week_1_messages,
+    },
+    week_2: {
+      points: user.week_2_points,
+      posts: user.week_2_posts,
+      comments: user.week_2_comments,
+      messages: user.week_2_messages,
+    },
+    week_3: {
+      points: user.week_3_points,
+      posts: user.week_3_posts,
+      comments: user.week_3_comments,
+      messages: user.week_3_messages,
+    },
+    week_4: {
+      points: user.week_4_points,
+      posts: user.week_4_posts,
+      comments: user.week_4_comments,
+      messages: user.week_4_messages,
+    },
+    week_5: {
+      points: user.week_5_points,
+      posts: user.week_5_posts,
+      comments: user.week_5_comments,
+      messages: user.week_5_messages,
+    },
+    week_6: {
+      points: user.week_6_points,
+      posts: user.week_6_posts,
+      comments: user.week_6_comments,
+      messages: user.week_6_messages,
+    },
+    week_7: {
+      points: user.week_7_points,
+      posts: user.week_7_posts,
+      comments: user.week_7_comments,
+      messages: user.week_7_messages,
+    },
+    week_8: {
+      points: user.week_8_points,
+      posts: user.week_8_posts,
+      comments: user.week_8_comments,
+      messages: user.week_8_messages,
+    },
+  }));
+};
+
+// module.exports.getWeeklyGroupInfo = async (req, res) => {
+//   const { currentGroup, startDate } = req.body;
+
+//   try {
+//     const groupMembersQuery = await pool.query(
+//       `
+//       WITH WeeklyIntervals AS (
+//         SELECT generate_series(0, 7) AS week_index,
+//                ($2::date + (generate_series(0, 7) * interval '1 week')) AS week_start
+//       ),
+//       UserDetails AS (
+//         SELECT
+//           u.id,  -- Keep id from users table
+//           u.username,
+//           u.email,
+//           COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
+//           COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+//           COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
+//         FROM
+//           users u
+//         JOIN
+//           participants p ON u.id = p.user_id AND p.group_id = $1
+//         LEFT JOIN
+//           posts po ON po.sender_id = u.id AND po.group_id = $1
+//         LEFT JOIN
+//           post_comments pc ON pc.sender_id = u.id
+//         LEFT JOIN
+//           messages m ON m.sender_id = u.id AND m.group_id = $1
+//         GROUP BY
+//           u.id, u.username, u.email
+//       ),
+//       PointsByWeek AS (
+//         SELECT
+//           p.recipient_id AS user_id,
+//           wi.week_index + 1 AS week_number,
+//           SUM(p.point_value) AS weekly_points
+//         FROM
+//           points p
+//         JOIN
+//           WeeklyIntervals wi ON p.updated_at >= wi.week_start
+//                             AND p.updated_at < (wi.week_start + interval '1 week')
+//         WHERE
+//           p.group_id = $1
+//         GROUP BY
+//           p.recipient_id, wi.week_index
+//       )
+//       SELECT
+//         ud.id AS user_id,
+//         ud.username,
+//         ud.email,
+//         COALESCE(SUM(pb.weekly_points), 0) AS group_total_points,
+//         ud.total_posts,
+//         ud.total_comments,
+//         ud.total_messages,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS unit_1,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS unit_2,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 3 THEN pb.weekly_points END), 0) AS unit_3,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 4 THEN pb.weekly_points END), 0) AS unit_4,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 5 THEN pb.weekly_points END), 0) AS unit_5,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 6 THEN pb.weekly_points END), 0) AS unit_6,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 7 THEN pb.weekly_points END), 0) AS unit_7,
+//         COALESCE(MAX(CASE WHEN pb.week_number = 8 THEN pb.weekly_points END), 0) AS unit_8
+//       FROM
+//         UserDetails ud
+//       LEFT JOIN
+//         PointsByWeek pb ON pb.user_id = ud.id  -- Match pb.user_id to ud.id
+//       GROUP BY
+//         ud.id,  -- Use id directly in the group by clause
+//         ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+//       ORDER BY
+//         ud.username;
+//       `,
+//       [currentGroup, startDate]
+//     );
+//     // console.log("groupMembersQuery.rows " + groupMembersQuery.rows);
+//     res.send(groupMembersQuery.rows);
+//   } catch (err) {
+//     console.error("Error fetching weekly group info:", err.message);
+//     res.status(500).send("Server error");
+//   }
+// };
 
 //////// MOST RECENT GET MEMBERS
 module.exports.getGroupMembers = async (req, res) => {
