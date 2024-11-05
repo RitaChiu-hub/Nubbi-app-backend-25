@@ -626,20 +626,12 @@ module.exports.handleValidateSignUp = async (req, res) => {
     req.body.userInputCode,
     req.body.hashedOTP
   );
-
   // If they are validated to be the same, reply with an appropriate message.
   if (isSameOTP) {
-    if (req.body.token !== null && req.body.token !== "undefined") {
-      res.status(200).json({
-        ...req.body,
-        status: "OTP is valid!",
-      });
-    } else {
-      res.status(200).json({
-        token: null,
-        status: "OTP is valid!",
-      });
-    }
+    res.status(200).json({
+      ...req.body,
+      status: "OTP is valid!",
+    });
   } else {
     res.status(401).json({ ...req.body, status: "OTP Passcode is incorrect." });
   }

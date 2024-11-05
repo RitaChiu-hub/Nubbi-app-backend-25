@@ -316,7 +316,6 @@ module.exports.attemptMobileRegister = async (req, res) => {
       email: req.body.email,
     },
   });
-
   if (!existingEmail) {
     async function generateUsername() {
       var a = adjectives;
@@ -364,26 +363,34 @@ module.exports.attemptMobileRegister = async (req, res) => {
       "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
       [newUserQuery.id]
     );
-    jwtSign(
-      {
-        id: newUserQuery.id,
-      },
+
+    const token = await jwtSign(
+      { id: newUserQuery.id },
       process.env.JWT_SECRET,
       { expiresIn: "365d" }
-    )
-      .then((token) => {
-        res.json({
-          token,
-          username: newUsername,
-          firstSignIn: true,
-        });
-      })
-      .catch((err) => {
-        res.json({
-          token: null,
-          status: "Something went wrong, try again later",
-        });
-      });
+    );
+
+    return res.json({
+      successMessage: "Signup successful",
+      token: token,
+      username: newUsername,
+      firstSignIn: true,
+    });
+
+    // .then((token) => {
+    //   res.json({
+    //     token,
+    //     username: newUsername,
+    //     firstSignIn: true,
+    //   });
+    // })
+
+    // .catch((err) => {
+    //   res.json({
+    //     token: null,
+    //     status: "Something went wrong, try again later",
+    //   });
+    // });
   } else {
     //  res.json({ loggedIn: false, status: "Email is already being used" });
     res.json({ token: null, status: "Email is already being used" });
