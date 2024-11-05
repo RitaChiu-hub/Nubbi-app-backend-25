@@ -43,6 +43,7 @@ const {
   handleGetMyTasks,
   getMyLeaderboards,
   getMyGroupAnalytics,
+  getWeeklyGroupInfo,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -101,5 +102,6 @@ router.post("/taskapproved", handleTaskApproved);
 router.post("/mytasks", handleGetMyTasks);
 router.post("/myleaderboards", getMyLeaderboards);
 router.post("/mygroupanalytics", getMyGroupAnalytics);
+router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
 
 module.exports = router;

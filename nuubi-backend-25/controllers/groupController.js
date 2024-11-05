@@ -619,6 +619,89 @@ module.exports.getMyGroups = async (req, res) => {
 //   res.send(groupMembersQuery.rows);
 // };
 
+module.exports.getWeeklyGroupInfo = async (req, res) => {
+  const { currentGroup, startDate } = req.body;
+
+  try {
+    const groupMembersQuery = await pool.query(
+      `
+      WITH WeeklyIntervals AS (
+        SELECT generate_series(0, 7) AS week_index,
+               ($2::date + (generate_series(0, 7) * interval '1 week')) AS week_start
+      ),
+      UserDetails AS (
+        SELECT
+          u.id,  -- Keep id from users table
+          u.username,
+          u.email,
+          COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
+          COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+          COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
+        FROM
+          users u
+        JOIN
+          participants p ON u.id = p.user_id AND p.group_id = $1
+        LEFT JOIN
+          posts po ON po.sender_id = u.id AND po.group_id = $1
+        LEFT JOIN
+          post_comments pc ON pc.sender_id = u.id
+        LEFT JOIN
+          messages m ON m.sender_id = u.id AND m.group_id = $1
+        GROUP BY
+          u.id, u.username, u.email
+      ),
+      PointsByWeek AS (
+        SELECT
+          p.recipient_id AS user_id,
+          wi.week_index + 1 AS week_number,
+          SUM(p.point_value) AS weekly_points
+        FROM
+          points p
+        JOIN
+          WeeklyIntervals wi ON p.updated_at >= wi.week_start 
+                            AND p.updated_at < (wi.week_start + interval '1 week')
+        WHERE
+          p.group_id = $1
+        GROUP BY
+          p.recipient_id, wi.week_index
+      )
+      SELECT
+        ud.id AS user_id, 
+        ud.username,
+        ud.email,
+        COALESCE(SUM(pb.weekly_points), 0) AS group_total_points,
+        ud.total_posts,
+        ud.total_comments,
+        ud.total_messages,
+        COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS unit_1,
+        COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS unit_2,
+        COALESCE(MAX(CASE WHEN pb.week_number = 3 THEN pb.weekly_points END), 0) AS unit_3,
+        COALESCE(MAX(CASE WHEN pb.week_number = 4 THEN pb.weekly_points END), 0) AS unit_4,
+        COALESCE(MAX(CASE WHEN pb.week_number = 5 THEN pb.weekly_points END), 0) AS unit_5,
+        COALESCE(MAX(CASE WHEN pb.week_number = 6 THEN pb.weekly_points END), 0) AS unit_6,
+        COALESCE(MAX(CASE WHEN pb.week_number = 7 THEN pb.weekly_points END), 0) AS unit_7,
+        COALESCE(MAX(CASE WHEN pb.week_number = 8 THEN pb.weekly_points END), 0) AS unit_8
+      FROM
+        UserDetails ud
+      LEFT JOIN
+        PointsByWeek pb ON pb.user_id = ud.id  -- Match pb.user_id to ud.id
+      GROUP BY
+        ud.id,  -- Use id directly in the group by clause
+        ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+      ORDER BY
+        ud.username;
+      `,
+      [currentGroup, startDate]
+    );
+    // console.log("groupMembersQuery.rows " + groupMembersQuery.rows);
+    res.send(groupMembersQuery.rows);
+  } catch (err) {
+    console.error("Error fetching weekly group info:", err.message);
+    res.status(500).send("Server error");
+  }
+};
+
+//////// MOST RECENT GET MEMBERS
 module.exports.getGroupMembers = async (req, res) => {
   const { currentGroup } = req.body;
   let { startDate, endDate } = req.body;
@@ -719,7 +802,7 @@ module.exports.getGroupMembers = async (req, res) => {
       ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
     ORDER BY
       ud.username;
-    
+
     `,
     [currentGroup, startDate, endDate]
   );
