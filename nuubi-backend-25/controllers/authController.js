@@ -122,6 +122,7 @@ module.exports.attemptLogin = async (req, res) => {
       // Respond with success
       return res.json({
         successMessage: "Login successful",
+        token: token,
         //add token or soemthing here? Need to allow login to be read from the views
       });
     } else {
