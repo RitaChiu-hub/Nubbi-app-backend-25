@@ -113,7 +113,7 @@ module.exports.attemptLogin = async (req, res) => {
       res.cookie("token", token, {
         httpOnly: true,
         secure: true,
-        sameSite: "Lax",
+        sameSite: "None",
         // sameSite: "None",
         maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year expiration
         path: "/",
@@ -135,7 +135,7 @@ module.exports.attemptLogin = async (req, res) => {
 
 module.exports.checkWebLogin = async (req, res) => {
   let token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Bearer token
-
+  console.log(token);
   if (token) {
     // Verify the token and respond accordingly
     try {
