@@ -99,6 +99,31 @@ module.exports.handleCreateGroup = async (req, res) => {
     });
 };
 
+module.exports.handleInviteLink = async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    // Query the database to find the group by the invite token
+    const group = await db.query(
+      "SELECT * FROM groups WHERE invite_token = $1",
+      [token]
+    );
+
+    // If the group doesn't exist, return a 404 error
+    if (group.rows.length === 0) {
+      return res.status(404).json({ error: "Invalid or expired invite link." });
+    }
+
+    // Extract the group ID and send it back in the response
+    const groupId = group.rows[0].id;
+    res.json({ groupId });
+  } catch (error) {
+    // Handle unexpected errors
+    console.error("Error processing invite link:", error);
+    res.status(500).json({ error: "Server error processing invite link." });
+  }
+};
+
 module.exports.handleCreateTask = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET).then(async (decoded) => {
     //  const { task, pointValue, currentGroup } = req.body;

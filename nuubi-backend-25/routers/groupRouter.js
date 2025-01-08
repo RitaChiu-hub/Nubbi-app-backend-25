@@ -44,6 +44,7 @@ const {
   getMyLeaderboards,
   getMyGroupAnalytics,
   getWeeklyGroupInfo,
+  handleInviteLink,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -103,5 +104,6 @@ router.post("/mytasks", handleGetMyTasks);
 router.post("/myleaderboards", getMyLeaderboards);
 router.post("/mygroupanalytics", getMyGroupAnalytics);
 router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
+router.get("/:token", handleInviteLink);
 
 module.exports = router;
