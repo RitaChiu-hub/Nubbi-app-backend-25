@@ -100,28 +100,88 @@ module.exports.handleCreateGroup = async (req, res) => {
 };
 
 module.exports.handleInviteLink = async (req, res) => {
-  const { token } = req.params;
+  let token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Bearer token
+  console.log(token);
 
-  try {
-    // Query the database to find the group by the invite token
-    const group = await db.query(
-      "SELECT * FROM groups WHERE invite_token = $1",
-      [token]
-    );
+  jwtVerify(token, process.env.JWT_SECRET).then(async (decoded) => {
+    const userID = decoded.id;
+    console.log(userID);
+    try {
+      const { token } = req.params;
+      console.log(token);
 
-    // If the group doesn't exist, return a 404 error
-    if (group.rows.length === 0) {
-      return res.status(404).json({ error: "Invalid or expired invite link." });
+      const groupQuery = await pool.query(
+        "SELECT id, name, invite_passcode FROM groups WHERE invite_token = $1",
+        [token]
+      );
+      const {
+        id: groupId,
+        name,
+        invite_passcode: invitePasscode,
+      } = groupQuery.rows[0];
+
+      if (groupQuery.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ error: "Invalid or expired invite token." });
+      }
+
+      console.log("group id " + groupId);
+
+      // Check if the user is already a participant in the group
+      const participantCheckQuery = await pool.query(
+        "SELECT id FROM participants WHERE user_id = $1 AND group_id = $2",
+        [userID, groupId]
+      );
+
+      if (participantCheckQuery.rows.length > 0) {
+        // User is already a participant
+        return res.json({
+          success: true,
+          groupId,
+          groupName: name,
+          invitePasscode,
+          message: "User is already a participant in the group.",
+        });
+      }
+
+      // Add the user to the group
+      const joinGroupQuery = await pool.query(
+        "INSERT INTO participants (user_id, group_id, is_admin) VALUES ($1, $2, false) RETURNING id, user_id, group_id",
+        [userID, groupId]
+      );
+
+      return res.json({
+        success: true,
+        groupId,
+        message: "User successfully added to the group.",
+      });
+
+      // const joinNuubiGroupQuery = await pool.query(
+      //   "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
+      //   [newUserQuery.id]
+      // );
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "An error occurred during group invite" });
     }
+  });
+  // try {
+  //   const group = await db.query(
+  //     "SELECT * FROM groups WHERE invite_token = $1",
+  //     [token]
+  //   );
 
-    // Extract the group ID and send it back in the response
-    const groupId = group.rows[0].id;
-    res.json({ groupId });
-  } catch (error) {
-    // Handle unexpected errors
-    console.error("Error processing invite link:", error);
-    res.status(500).json({ error: "Server error processing invite link." });
-  }
+  //   if (group.rows.length === 0) {
+  //     return res.status(404).json({ error: "Invalid or expired invite link." });
+  //   }
+
+  //   const groupId = group.rows[0].id;
+  //   res.json({ groupId, isAuthenticated });
+  // } catch (error) {
+  //   console.error("Error processing invite link:", error);
+  //   res.status(500).json({ error: "Server error processing invite link." });
+  // }
 };
 
 module.exports.handleCreateTask = async (req, res) => {

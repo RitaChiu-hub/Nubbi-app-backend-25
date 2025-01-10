@@ -104,6 +104,6 @@ router.post("/mytasks", handleGetMyTasks);
 router.post("/myleaderboards", getMyLeaderboards);
 router.post("/mygroupanalytics", getMyGroupAnalytics);
 router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
-router.get("/:token", handleInviteLink);
+router.post("/invite/:token", handleInviteLink);
 
 module.exports = router;
