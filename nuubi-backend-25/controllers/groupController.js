@@ -101,14 +101,11 @@ module.exports.handleCreateGroup = async (req, res) => {
 
 module.exports.handleInviteLink = async (req, res) => {
   let token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Bearer token
-  console.log(token);
 
   jwtVerify(token, process.env.JWT_SECRET).then(async (decoded) => {
     const userID = decoded.id;
-    console.log(userID);
     try {
       const { token } = req.params;
-      console.log(token);
 
       const groupQuery = await pool.query(
         "SELECT id, name, invite_passcode FROM groups WHERE invite_token = $1",
@@ -125,9 +122,6 @@ module.exports.handleInviteLink = async (req, res) => {
           .status(404)
           .json({ error: "Invalid or expired invite token." });
       }
-
-      console.log("group id " + groupId);
-
       // Check if the user is already a participant in the group
       const participantCheckQuery = await pool.query(
         "SELECT id FROM participants WHERE user_id = $1 AND group_id = $2",
