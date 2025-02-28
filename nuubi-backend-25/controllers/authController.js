@@ -11,6 +11,8 @@ const { nouns } = require("./nouns");
 const currentDate = new Date();
 // const { uuid } = require("uuidv4");
 const { v4: uuidv4 } = require("uuid");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const nodemailer = require("nodemailer");
 
 const Sequelize = require("sequelize");
 
@@ -174,6 +176,65 @@ module.exports.logout = async (req, res) => {
     // token: token,
     //add token or soemthing here? Need to allow login to be read from the views
   });
+};
+
+module.exports.freebieSignup = async (req, res) => {
+  const { name, email } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ error: "Name and email are required" });
+  }
+
+  try {
+    // ✅ 1. Check if customer already exists in Stripe
+    const customers = await stripe.customers.list({ email });
+    let customer;
+
+    if (customers.data.length > 0) {
+      customer = customers.data[0]; // Use existing customer
+    } else {
+      // ✅ 2. Create a Free Customer in Stripe with Marketing Tag
+      customer = await stripe.customers.create({
+        email,
+        name,
+        description: "Freebie Study Guide Customer",
+        metadata: { freebie: "Study Guide", marketing_emails: "yes" },
+      });
+    }
+
+    // ✅ 3. Send Email with Freebie (Using Nodemailer)
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `"Nuubi Team" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Your Free Study Guide & AI-Powered Study Plan",
+      text: `Hi ${name},\n\nThank you for signing up! Your free study guide is attached.\n\nJoin our community here: https://nuubi.app/community\n\nBest,\nThe Nuubi Team`,
+      attachments: [
+        {
+          filename: "DataSciencePortfolio.pdf",
+          path: "./files/DataSciencePortfolio.pdf",
+          contentType: "application/pdf",
+        },
+      ],
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({
+      message: "Success! Check your email for your freebie!",
+      stripe_customer_id: customer.id,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 module.exports.attemptMobileLogin = async (req, res) => {

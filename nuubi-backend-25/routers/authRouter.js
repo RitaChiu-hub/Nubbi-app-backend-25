@@ -14,6 +14,7 @@ const {
   checkEmail,
   checkWebLogin,
   logout,
+  freebieSignup,
   attemptMobileRegister,
 } = require("../controllers/authController");
 
@@ -33,5 +34,7 @@ router.post("/getmessage", getMessage);
 router.post("/checkweblogin", checkWebLogin);
 
 router.post("/logout", logout);
+
+router.post("/freebiesignup", freebieSignup);
 
 module.exports = router;
