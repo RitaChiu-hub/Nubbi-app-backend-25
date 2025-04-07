@@ -1,0 +1,26 @@
+{
+  "title": "Nuubi",
+  "description": "Q&A forums and group chat tool with mobile access and soft skills certificates.",
+  "scopes": [
+    "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
+    "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
+    "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly"
+  ],
+  "extensions": [
+    {
+      "platform": "canvas.instructure.com",
+      "settings": {
+        "platform": "canvas.instructure.com",
+        "placements": ["course_navigation"],
+        "text": "Open Nuubi",
+        "icon_url": "https://www.nuubi.app/icon.png",
+        "target_link_uri": "https://www.nuubi.app/lti/launch"
+      }
+    }
+  ],
+  "public_jwk_url": "https://www.nuubi.app/.well-known/jwks.json",
+  "initiate_login_uri": "https://www.nuubi.app/lti/login",
+  "redirect_uris": ["https://www.nuubi.app/lti/launch"],
+  "target_link_uri": "https://www.nuubi.app/lti/launch",
+  "oidc_initiation_url": "https://www.nuubi.app/lti/login"
+}

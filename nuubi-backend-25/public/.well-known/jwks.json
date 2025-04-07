@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "e": "AQAB",
+      "use": "sig",
+      "kid": "nuubi-key",
+      "alg": "RS256",
+      "n": "r4zj6_e1A55XOfPCT5kqMUNvO3UpwU3Q5I+xI1+eytCgUcQ+..."
+    }
+  ]
+}

@@ -2,6 +2,7 @@ require("dotenv").config();
 const { jwtSign, jwtVerify, getJwt } = require("./controllers/jwt/jwtAuth");
 const express = require("express");
 const app = express();
+app.use(express.static("public"));
 
 const helmet = require("helmet");
 const { Sequelize } = require("sequelize");
@@ -14,6 +15,12 @@ const cookieParser = require("cookie-parser");
 app.use(express.json());
 app.use(helmet());
 app.use(cookieParser());
+
+// Load the private key from .env
+const privateKey = process.env.NUUBI_PRIVATE_KEY.replace(/\\n/g, "\n");
+
+// Store it in app.locals or export it for use elsewhere
+app.locals.privateKey = privateKey;
 
 app.use(
   cors({
@@ -281,6 +288,9 @@ const exportsObject = {
 
 // Export the object containing both sequelize and User
 module.exports = exportsObject;
+
+const ltiRoutes = require("./routes/lti");
+app.use("/lti", ltiRoutes);
 
 const myRouter = require("./routers.js");
 const authRouter = require("./routers/authRouter");
