@@ -23,20 +23,25 @@ router.get("/lti/login", (req, res) => {
   res.redirect(redirect);
 });
 
-// 🔹 2. LTI Launch Handler
-router.post("/lti/launch", express.urlencoded({ extended: false }), (req, res) => {
-  const idToken = req.body.id_token;
-  const decoded = jwt.decode(idToken, { complete: true });
-
-  const { sub, name, email } = decoded.payload;
-  const context =
-    decoded.payload["https://purl.imsglobal.org/spec/lti/claim/context"];
-
-  // Redirect to Nuubi's frontend for session setup
-  res.redirect(
-    `https://www.nuubi.app/lti-login?user=${sub}&course=${context.id}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`
-  );
+router.post("/lti/launch", (req, res) => {
+  console.log("LTI Launch hit!");
+  res.send("<h2>Nuubi LTI Launch received. Setup in progress.</h2>");
 });
+
+// // 🔹 2. LTI Launch Handler
+// router.post("/lti/launch", express.urlencoded({ extended: false }), (req, res) => {
+//   const idToken = req.body.id_token;
+//   const decoded = jwt.decode(idToken, { complete: true });
+
+//   const { sub, name, email } = decoded.payload;
+//   const context =
+//     decoded.payload["https://purl.imsglobal.org/spec/lti/claim/context"];
+
+//   // Redirect to Nuubi's frontend for session setup
+//   res.redirect(
+//     `https://www.nuubi.app/lti-login?user=${sub}&course=${context.id}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`
+//   );
+// });
 
 // 🔹 3. Session Creator for React Native Web
 router.post("/api/lti/session", express.json(), async (req, res) => {
@@ -49,7 +54,7 @@ router.post("/api/lti/session", express.json(), async (req, res) => {
   try {
     // Find or create the user
     let user = await pool.query("SELECT * FROM users WHERE lti_user_id = $1", [
-      userId
+      userId,
     ]);
 
     if (user.rows.length === 0) {
@@ -65,7 +70,7 @@ router.post("/api/lti/session", express.json(), async (req, res) => {
       {
         id: user.rows[0].id,
         lti_user_id: userId,
-        course_id: courseId
+        course_id: courseId,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
@@ -75,7 +80,7 @@ router.post("/api/lti/session", express.json(), async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
-      sameSite: "lax"
+      sameSite: "lax",
     });
 
     return res.json({ success: true, token });
