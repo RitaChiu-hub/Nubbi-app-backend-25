@@ -1,6 +1,6 @@
 {
   "title": "Nuubi",
-  "description": "Q&A forums and group chat tool with mobile access and soft skills certificates.",
+  "description": "Q&A forums and group chat plugin with mobile access and soft skills certificates.",
   "scopes": [
     "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
     "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
@@ -10,7 +10,6 @@
     {
       "platform": "canvas.instructure.com",
       "settings": {
-        "platform": "canvas.instructure.com",
         "placements": ["course_navigation"],
         "text": "Open Nuubi",
         "icon_url": "https://www.nuubi.app/icon.png",
