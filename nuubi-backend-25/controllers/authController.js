@@ -114,6 +114,7 @@ module.exports.attemptLogin = async (req, res) => {
       // Set the cookie for web-based authentication
       res.cookie("token", token, {
         httpOnly: true,
+        // secure: false,
         secure: true,
         sameSite: "None",
         // sameSite: "None",
@@ -346,6 +347,7 @@ module.exports.attemptRegister = async (req, res) => {
         res.cookie("token", token, {
           httpOnly: true,
           secure: true,
+
           // secure: process.env.NODE_ENV === "production",
           // sameSite: "Strict",
           sameSite: "None",

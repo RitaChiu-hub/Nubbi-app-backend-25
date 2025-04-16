@@ -688,280 +688,427 @@ module.exports.getMyGroups = async (req, res) => {
     });
 };
 
-// module.exports.getGroupMembers = async (req, res) => {
-//   const groupMembersQuery = await pool.query(
-//     "WITH RankedMonths AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)), MonthlyPoints AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, p.recipient_id, SUM(p.point_value) AS group_total_points FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at), p.recipient_id), UserDetails AS (SELECT u.id AS user_id, u.username, u.email FROM users u JOIN participants p ON u.id = p.user_id WHERE p.group_id = $1) SELECT ud.user_id, ud.username, ud.email, MAX(CASE WHEN rm.month_rank = 1 THEN mp.group_total_points ELSE 0 END) AS Unit_1, MAX(CASE WHEN rm.month_rank = 2 THEN mp.group_total_points ELSE 0 END) AS Unit_2, MAX(CASE WHEN rm.month_rank = 3 THEN mp.group_total_points ELSE 0 END) AS Unit_3, MAX(CASE WHEN rm.month_rank = 4 THEN mp.group_total_points ELSE 0 END) AS Unit_4, MAX(CASE WHEN rm.month_rank = 5 THEN mp.group_total_points ELSE 0 END) AS Unit_5, MAX(CASE WHEN rm.month_rank = 6 THEN mp.group_total_points ELSE 0 END) AS Unit_6, MAX(CASE WHEN rm.month_rank = 7 THEN mp.group_total_points ELSE 0 END) AS Unit_7, MAX(CASE WHEN rm.month_rank = 8 THEN mp.group_total_points ELSE 0 END) AS Unit_8, COALESCE(SUM(mp.group_total_points), 0) AS group_total_points FROM RankedMonths rm CROSS JOIN UserDetails ud LEFT JOIN MonthlyPoints mp ON mp.year = rm.year AND mp.month = rm.month AND mp.recipient_id = ud.user_id GROUP BY ud.user_id, ud.username, ud.email ORDER BY ud.username;  ",
-//     //  "SELECT c.user_id as user_id, username, email, is_admin, coalesce(group_total_points,0) group_total_points FROM (  SELECT users.id user_id, users.username username, users.email email, participants.is_admin is_admin FROM participants INNER JOIN users ON participants.user_id = users.id WHERE participants.group_id = $1) c FULL OUTER JOIN ( SELECT user_id, recipient_id, count as group_total_points FROM (SELECT DISTINCT participants.user_id FROM participants INNER JOIN points ON participants.user_id = points.recipient_id WHERE participants.group_id = $1) a LEFT JOIN (SELECT recipient_id, count(point_value) FROM points WHERE group_id = $1 GROUP BY recipient_id) b ON a.user_id = b.recipient_id) d ON c.user_id = d.user_id ORDER BY group_total_points DESC;",
-//     [req.body.currentGroup]
-//   );
+module.exports.getGroupMembers = async (req, res) => {
+  const groupMembersQuery = await pool.query(
+    "WITH RankedMonths AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)), MonthlyPoints AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, p.recipient_id, SUM(p.point_value) AS group_total_points FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at), p.recipient_id), UserDetails AS (SELECT u.id AS user_id, u.username, u.email FROM users u JOIN participants p ON u.id = p.user_id WHERE p.group_id = $1) SELECT ud.user_id, ud.username, ud.email, MAX(CASE WHEN rm.month_rank = 1 THEN mp.group_total_points ELSE 0 END) AS Unit_1, MAX(CASE WHEN rm.month_rank = 2 THEN mp.group_total_points ELSE 0 END) AS Unit_2, MAX(CASE WHEN rm.month_rank = 3 THEN mp.group_total_points ELSE 0 END) AS Unit_3, MAX(CASE WHEN rm.month_rank = 4 THEN mp.group_total_points ELSE 0 END) AS Unit_4, MAX(CASE WHEN rm.month_rank = 5 THEN mp.group_total_points ELSE 0 END) AS Unit_5, MAX(CASE WHEN rm.month_rank = 6 THEN mp.group_total_points ELSE 0 END) AS Unit_6, MAX(CASE WHEN rm.month_rank = 7 THEN mp.group_total_points ELSE 0 END) AS Unit_7, MAX(CASE WHEN rm.month_rank = 8 THEN mp.group_total_points ELSE 0 END) AS Unit_8, COALESCE(SUM(mp.group_total_points), 0) AS group_total_points FROM RankedMonths rm CROSS JOIN UserDetails ud LEFT JOIN MonthlyPoints mp ON mp.year = rm.year AND mp.month = rm.month AND mp.recipient_id = ud.user_id GROUP BY ud.user_id, ud.username, ud.email ORDER BY ud.username;  ",
+    //  "SELECT c.user_id as user_id, username, email, is_admin, coalesce(group_total_points,0) group_total_points FROM (  SELECT users.id user_id, users.username username, users.email email, participants.is_admin is_admin FROM participants INNER JOIN users ON participants.user_id = users.id WHERE participants.group_id = $1) c FULL OUTER JOIN ( SELECT user_id, recipient_id, count as group_total_points FROM (SELECT DISTINCT participants.user_id FROM participants INNER JOIN points ON participants.user_id = points.recipient_id WHERE participants.group_id = $1) a LEFT JOIN (SELECT recipient_id, count(point_value) FROM points WHERE group_id = $1 GROUP BY recipient_id) b ON a.user_id = b.recipient_id) d ON c.user_id = d.user_id ORDER BY group_total_points DESC;",
+    [req.body.currentGroup]
+  );
 
-//   res.send(groupMembersQuery.rows);
+  res.send(groupMembersQuery.rows);
+};
+
+// latest before texting new group amnalytics
+
+// module.exports.getWeeklyGroupInfo = async (req, res) => {
+//   const { currentGroup, startDate } = req.body; // userId will be derived from the JWT
+
+//   // Use getJwt to get the token from either cookies or the Authorization header
+//   const token = getJwt(req);
+
+//   // Check if token is available
+//   if (!token) {
+//     return res.status(401).json({ error: "JWT token is required" });
+//   }
+
+//   const formatUserData = (rows) => {
+//     // Ensure that rows is always an array and return an empty array if no data
+//     if (!Array.isArray(rows)) {
+//       return [];
+//     }
+
+//     return rows.map((user) => ({
+//       user_id: user.user_id,
+//       username: user.username,
+//       email: user.email,
+//       total: {
+//         points: user.total?.points || "0",
+//         posts: user.total?.posts || "0",
+//         comments: user.total?.comments || "0",
+//         messages: user.total?.messages || "0",
+//       },
+//       week_1: {
+//         points: user.week_1?.points || "0",
+//         posts: user.week_1?.posts || "0",
+//         comments: user.week_1?.comments || "0",
+//         messages: user.week_1?.messages || "0",
+//       },
+//       week_2: {
+//         points: user.week_2?.points || "0",
+//         posts: user.week_2?.posts || "0",
+//         comments: user.week_2?.comments || "0",
+//         messages: user.week_2?.messages || "0",
+//       },
+//       week_3: {
+//         points: user.week_3?.points || "0",
+//         posts: user.week_3?.posts || "0",
+//         comments: user.week_3?.comments || "0",
+//         messages: user.week_3?.messages || "0",
+//       },
+//       week_4: {
+//         points: user.week_4?.points || "0",
+//         posts: user.week_4?.posts || "0",
+//         comments: user.week_4?.comments || "0",
+//         messages: user.week_4?.messages || "0",
+//       },
+//       week_5: {
+//         points: user.week_5?.points || "0",
+//         posts: user.week_5?.posts || "0",
+//         comments: user.week_5?.comments || "0",
+//         messages: user.week_5?.messages || "0",
+//       },
+//       week_6: {
+//         points: user.week_6?.points || "0",
+//         posts: user.week_6?.posts || "0",
+//         comments: user.week_6?.comments || "0",
+//         messages: user.week_6?.messages || "0",
+//       },
+//       week_7: {
+//         points: user.week_7?.points || "0",
+//         posts: user.week_7?.posts || "0",
+//         comments: user.week_7?.comments || "0",
+//         messages: user.week_7?.messages || "0",
+//       },
+//       week_8: {
+//         points: user.week_8?.points || "0",
+//         posts: user.week_8?.posts || "0",
+//         comments: user.week_8?.comments || "0",
+//         messages: user.week_8?.messages || "0",
+//       },
+//     }));
+//   };
+
+//   try {
+//     // Verify the token and extract the userId
+//     const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+//     const userId = decoded.id;
+
+//     // Check if the user is an admin of the group
+//     const isAdminQuery = await pool.query(
+//       `SELECT is_admin FROM participants WHERE user_id = $1 AND group_id = $2`,
+//       [userId, currentGroup]
+//     );
+
+//     const isAdmin = isAdminQuery.rows[0]?.is_admin;
+
+//     let groupMembersQuery;
+
+//     if (isAdmin) {
+//       // If the user is an admin, return all group members' data
+//       groupMembersQuery = await pool.query(
+//         `
+//         WITH WeeklyIntervals AS (
+//           SELECT generate_series(0, 7) AS week_index,
+//                  ($2::date + (generate_series(0, 7) * interval '1 week')) AS week_start
+//         ),
+//         UserDetails AS (
+//           SELECT
+//             u.id AS user_id,
+//             u.username,
+//             u.email,
+//             COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
+//             COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+//             COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
+//           FROM
+//             users u
+//           JOIN
+//             participants p ON u.id = p.user_id AND p.group_id = $1
+//           LEFT JOIN
+//             posts po ON po.sender_id = u.id AND po.group_id = $1
+//           LEFT JOIN
+//             post_comments pc ON pc.sender_id = u.id
+//           LEFT JOIN
+//             messages m ON m.sender_id = u.id AND m.group_id = $1
+//           GROUP BY
+//             u.id, u.username, u.email
+//         ),
+//         PointsByWeek AS (
+//           SELECT
+//             p.recipient_id AS user_id,
+//             wi.week_index + 1 AS week_number,
+//             SUM(p.point_value) AS weekly_points,
+//             COUNT(DISTINCT po.id) AS weekly_posts,
+//             COUNT(DISTINCT pc.id) AS weekly_comments,
+//             COUNT(DISTINCT m.id) AS weekly_messages
+//           FROM
+//             points p
+//           JOIN
+//             WeeklyIntervals wi ON p.updated_at >= wi.week_start
+//                               AND p.updated_at < (wi.week_start + interval '1 week')
+//           LEFT JOIN
+//             posts po ON po.sender_id = p.recipient_id AND p.group_id = $1 AND p.updated_at >= wi.week_start AND p.updated_at < (wi.week_start + interval '1 week')
+//           LEFT JOIN
+//             post_comments pc ON pc.sender_id = p.recipient_id AND pc.updated_at >= wi.week_start AND pc.updated_at < (wi.week_start + interval '1 week')
+//           LEFT JOIN
+//             messages m ON m.sender_id = p.recipient_id AND m.group_id = $1 AND m.updated_at >= wi.week_start AND m.updated_at < (wi.week_start + interval '1 week')
+//           WHERE
+//             p.group_id = $1
+//           GROUP BY
+//             p.recipient_id, wi.week_index
+//         )
+//         SELECT
+//           ud.user_id,
+//           ud.username,
+//           ud.email,
+//           COALESCE(SUM(pb.weekly_points), 0) AS total_points,
+//           ud.total_posts AS total_posts,
+//           ud.total_comments AS total_comments,
+//           ud.total_messages AS total_messages,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS week_1_points,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_posts END), 0) AS week_1_posts,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_comments END), 0) AS week_1_comments,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_messages END), 0) AS week_1_messages,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS week_2_points,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_posts END), 0) AS week_2_posts,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_comments END), 0) AS week_2_comments,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_messages END), 0) AS week_2_messages
+//         FROM
+//           UserDetails ud
+//         LEFT JOIN
+//           PointsByWeek pb ON pb.user_id = ud.user_id
+//         GROUP BY
+//           ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+//         ORDER BY
+//           ud.username;
+//         `,
+//         [currentGroup, startDate]
+//       );
+//     } else {
+//       // If the user is not an admin, return analytics for only that user
+//       groupMembersQuery = await pool.query(
+//         `
+//         WITH WeeklyIntervals AS (
+//           SELECT generate_series(0, 7) AS week_index,
+//                  ($2::date + (generate_series(0, 7) * interval '1 week')) AS week_start
+//         ),
+//         UserDetails AS (
+//           SELECT
+//             u.id AS user_id,
+//             u.username,
+//             u.email,
+//             COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
+//             COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+//             COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
+//           FROM
+//             users u
+//           JOIN
+//             participants p ON u.id = p.user_id AND p.group_id = $1
+//           LEFT JOIN
+//             posts po ON po.sender_id = u.id AND po.group_id = $1
+//           LEFT JOIN
+//             post_comments pc ON pc.sender_id = u.id
+//           LEFT JOIN
+//             messages m ON m.sender_id = u.id AND m.group_id = $1
+//           WHERE
+//             u.id = $3
+//           GROUP BY
+//             u.id, u.username, u.email
+//         ),
+//         PointsByWeek AS (
+//           SELECT
+//             p.recipient_id AS user_id,
+//             wi.week_index + 1 AS week_number,
+//             SUM(p.point_value) AS weekly_points,
+//             COUNT(DISTINCT po.id) AS weekly_posts,
+//             COUNT(DISTINCT pc.id) AS weekly_comments,
+//             COUNT(DISTINCT m.id) AS weekly_messages
+//           FROM
+//             points p
+//           JOIN
+//             WeeklyIntervals wi ON p.updated_at >= wi.week_start
+//                               AND p.updated_at < (wi.week_start + interval '1 week')
+//           LEFT JOIN
+//             posts po ON po.sender_id = p.recipient_id AND p.group_id = $1 AND p.updated_at >= wi.week_start AND p.updated_at < (wi.week_start + interval '1 week')
+//           LEFT JOIN
+//             post_comments pc ON pc.sender_id = p.recipient_id AND pc.updated_at >= wi.week_start AND pc.updated_at < (wi.week_start + interval '1 week')
+//           LEFT JOIN
+//             messages m ON m.sender_id = p.recipient_id AND m.group_id = $1 AND m.updated_at >= wi.week_start AND m.updated_at < (wi.week_start + interval '1 week')
+//           WHERE
+//             p.group_id = $1 AND p.recipient_id = $3
+//           GROUP BY
+//             p.recipient_id, wi.week_index
+//         )
+//         SELECT
+//           ud.user_id,
+//           ud.username,
+//           ud.email,
+//           COALESCE(SUM(pb.weekly_points), 0) AS total_points,
+//           ud.total_posts AS total_posts,
+//           ud.total_comments AS total_comments,
+//           ud.total_messages AS total_messages,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS week_1_points,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_posts END), 0) AS week_1_posts,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_comments END), 0) AS week_1_comments,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_messages END), 0) AS week_1_messages,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS week_2_points,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_posts END), 0) AS week_2_posts,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_comments END), 0) AS week_2_comments,
+//           COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_messages END), 0) AS week_2_messages
+//         FROM
+//           UserDetails ud
+//         LEFT JOIN
+//           PointsByWeek pb ON pb.user_id = ud.user_id
+//         WHERE
+//           ud.user_id = $3
+//         GROUP BY
+//           ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+//         ORDER BY
+//           ud.username;
+//         `,
+//         [currentGroup, startDate, userId]
+//       );
+//     }
+
+//     const formattedData = formatUserData(groupMembersQuery.rows);
+//     res.send(formattedData);
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ error: "Internal Server Error" });
+//   }
 // };
 
 module.exports.getWeeklyGroupInfo = async (req, res) => {
-  const { currentGroup, startDate } = req.body; // userId will be derived from the JWT
+  console.log(" hello from the backend !!!");
+  console.log("Authorization header:", req.headers.authorization);
+  console.log("Cookies:", req.cookies);
+  console.log("Token from getJwt:", getJwt(req));
 
-  // Use getJwt to get the token from either cookies or the Authorization header
+  
+  const { currentGroup, startDate, endDate } = req.body;
   const token = getJwt(req);
 
-  // Check if token is available
+  console.log("my token is: " + token);
   if (!token) {
     return res.status(401).json({ error: "JWT token is required" });
   }
 
-  const formatUserData = (rows) => {
-    // Ensure that rows is always an array and return an empty array if no data
-    if (!Array.isArray(rows)) {
-      return [];
-    }
-
-    return rows.map((user) => ({
-      user_id: user.user_id,
-      username: user.username,
-      email: user.email,
-      total: {
-        points: user.total?.points || "0",
-        posts: user.total?.posts || "0",
-        comments: user.total?.comments || "0",
-        messages: user.total?.messages || "0",
-      },
-      week_1: {
-        points: user.week_1?.points || "0",
-        posts: user.week_1?.posts || "0",
-        comments: user.week_1?.comments || "0",
-        messages: user.week_1?.messages || "0",
-      },
-      week_2: {
-        points: user.week_2?.points || "0",
-        posts: user.week_2?.posts || "0",
-        comments: user.week_2?.comments || "0",
-        messages: user.week_2?.messages || "0",
-      },
-      week_3: {
-        points: user.week_3?.points || "0",
-        posts: user.week_3?.posts || "0",
-        comments: user.week_3?.comments || "0",
-        messages: user.week_3?.messages || "0",
-      },
-      week_4: {
-        points: user.week_4?.points || "0",
-        posts: user.week_4?.posts || "0",
-        comments: user.week_4?.comments || "0",
-        messages: user.week_4?.messages || "0",
-      },
-      week_5: {
-        points: user.week_5?.points || "0",
-        posts: user.week_5?.posts || "0",
-        comments: user.week_5?.comments || "0",
-        messages: user.week_5?.messages || "0",
-      },
-      week_6: {
-        points: user.week_6?.points || "0",
-        posts: user.week_6?.posts || "0",
-        comments: user.week_6?.comments || "0",
-        messages: user.week_6?.messages || "0",
-      },
-      week_7: {
-        points: user.week_7?.points || "0",
-        posts: user.week_7?.posts || "0",
-        comments: user.week_7?.comments || "0",
-        messages: user.week_7?.messages || "0",
-      },
-      week_8: {
-        points: user.week_8?.points || "0",
-        posts: user.week_8?.posts || "0",
-        comments: user.week_8?.comments || "0",
-        messages: user.week_8?.messages || "0",
-      },
-    }));
-  };
-
   try {
-    // Verify the token and extract the userId
     const decoded = await jwtVerify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
-    // Check if the user is an admin of the group
     const isAdminQuery = await pool.query(
       `SELECT is_admin FROM participants WHERE user_id = $1 AND group_id = $2`,
       [userId, currentGroup]
     );
-
     const isAdmin = isAdminQuery.rows[0]?.is_admin;
 
-    let groupMembersQuery;
+    console.log("my admin is is: " + isAdmin);
 
-    if (isAdmin) {
-      // If the user is an admin, return all group members' data
-      groupMembersQuery = await pool.query(
-        `
-        WITH WeeklyIntervals AS (
-          SELECT generate_series(0, 7) AS week_index,
-                 ($2::date + (generate_series(0, 7) * interval '1 week')) AS week_start
-        ),
-        UserDetails AS (
-          SELECT
-            u.id AS user_id,
-            u.username,
-            u.email,
-            COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
-            COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
-            COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
-          FROM
-            users u
-          JOIN
-            participants p ON u.id = p.user_id AND p.group_id = $1
-          LEFT JOIN
-            posts po ON po.sender_id = u.id AND po.group_id = $1
-          LEFT JOIN
-            post_comments pc ON pc.sender_id = u.id
-          LEFT JOIN
-            messages m ON m.sender_id = u.id AND m.group_id = $1
-          GROUP BY
-            u.id, u.username, u.email
-        ),
-        PointsByWeek AS (
-          SELECT
-            p.recipient_id AS user_id,
-            wi.week_index + 1 AS week_number,
-            SUM(p.point_value) AS weekly_points,
-            COUNT(DISTINCT po.id) AS weekly_posts,
-            COUNT(DISTINCT pc.id) AS weekly_comments,
-            COUNT(DISTINCT m.id) AS weekly_messages
-          FROM
-            points p
-          JOIN
-            WeeklyIntervals wi ON p.updated_at >= wi.week_start 
-                              AND p.updated_at < (wi.week_start + interval '1 week')
-          LEFT JOIN
-            posts po ON po.sender_id = p.recipient_id AND p.group_id = $1 AND p.updated_at >= wi.week_start AND p.updated_at < (wi.week_start + interval '1 week')
-          LEFT JOIN
-            post_comments pc ON pc.sender_id = p.recipient_id AND pc.updated_at >= wi.week_start AND pc.updated_at < (wi.week_start + interval '1 week')
-          LEFT JOIN
-            messages m ON m.sender_id = p.recipient_id AND m.group_id = $1 AND m.updated_at >= wi.week_start AND m.updated_at < (wi.week_start + interval '1 week')
-          WHERE
-            p.group_id = $1
-          GROUP BY
-            p.recipient_id, wi.week_index
-        )
+    const dateDiff = await pool.query(
+      `SELECT FLOOR(DATE_PART('day', $2::timestamp - $1::timestamp) / 7) + 1 AS weeks`,
+      [startDate, endDate]
+    );
+    const numberOfWeeks = dateDiff.rows[0]?.weeks || 1;
+
+    console.log("my number of weeks is: " + numberOfWeeks);
+
+    const generateSelectColumns = () => {
+      const cols = [];
+      for (let i = 1; i <= numberOfWeeks; i++) {
+        cols.push(`
+          COALESCE(MAX(CASE WHEN pb.week_number = ${i} THEN pb.weekly_points END), 0) AS week_${i}_points,
+          COALESCE(MAX(CASE WHEN pb.week_number = ${i} THEN pb.weekly_posts END), 0) AS week_${i}_posts,
+          COALESCE(MAX(CASE WHEN pb.week_number = ${i} THEN pb.weekly_comments END), 0) AS week_${i}_comments,
+          COALESCE(MAX(CASE WHEN pb.week_number = ${i} THEN pb.weekly_messages END), 0) AS week_${i}_messages
+        `);
+      }
+      return cols.join(",\n");
+    };
+
+    const baseQuery = `
+      WITH WeeklyIntervals AS (
+        SELECT generate_series(0, ${numberOfWeeks - 1}) AS week_index,
+               ($1::date + (generate_series(0, ${
+                 numberOfWeeks - 1
+               }) * interval '1 week')) AS week_start
+      ),
+      UserDetails AS (
         SELECT
-          ud.user_id, 
-          ud.username,
-          ud.email,
-          COALESCE(SUM(pb.weekly_points), 0) AS total_points,
-          ud.total_posts AS total_posts,
-          ud.total_comments AS total_comments,
-          ud.total_messages AS total_messages,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS week_1_points,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_posts END), 0) AS week_1_posts,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_comments END), 0) AS week_1_comments,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_messages END), 0) AS week_1_messages,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS week_2_points,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_posts END), 0) AS week_2_posts,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_comments END), 0) AS week_2_comments,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_messages END), 0) AS week_2_messages
-        FROM
-          UserDetails ud
-        LEFT JOIN
-          PointsByWeek pb ON pb.user_id = ud.user_id
-        GROUP BY
-          ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
-        ORDER BY
-          ud.username;
-        `,
-        [currentGroup, startDate]
-      );
-    } else {
-      // If the user is not an admin, return analytics for only that user
-      groupMembersQuery = await pool.query(
-        `
-        WITH WeeklyIntervals AS (
-          SELECT generate_series(0, 7) AS week_index,
-                 ($2::date + (generate_series(0, 7) * interval '1 week')) AS week_start
-        ),
-        UserDetails AS (
-          SELECT
-            u.id AS user_id,
-            u.username,
-            u.email,
-            COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
-            COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
-            COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
-          FROM
-            users u
-          JOIN
-            participants p ON u.id = p.user_id AND p.group_id = $1
-          LEFT JOIN
-            posts po ON po.sender_id = u.id AND po.group_id = $1
-          LEFT JOIN
-            post_comments pc ON pc.sender_id = u.id
-          LEFT JOIN
-            messages m ON m.sender_id = u.id AND m.group_id = $1
-          WHERE
-            u.id = $3
-          GROUP BY
-            u.id, u.username, u.email
-        ),
-        PointsByWeek AS (
-          SELECT
-            p.recipient_id AS user_id,
-            wi.week_index + 1 AS week_number,
-            SUM(p.point_value) AS weekly_points,
-            COUNT(DISTINCT po.id) AS weekly_posts,
-            COUNT(DISTINCT pc.id) AS weekly_comments,
-            COUNT(DISTINCT m.id) AS weekly_messages
-          FROM
-            points p
-          JOIN
-            WeeklyIntervals wi ON p.updated_at >= wi.week_start 
-                              AND p.updated_at < (wi.week_start + interval '1 week')
-          LEFT JOIN
-            posts po ON po.sender_id = p.recipient_id AND p.group_id = $1 AND p.updated_at >= wi.week_start AND p.updated_at < (wi.week_start + interval '1 week')
-          LEFT JOIN
-            post_comments pc ON pc.sender_id = p.recipient_id AND pc.updated_at >= wi.week_start AND pc.updated_at < (wi.week_start + interval '1 week')
-          LEFT JOIN
-            messages m ON m.sender_id = p.recipient_id AND m.group_id = $1 AND m.updated_at >= wi.week_start AND m.updated_at < (wi.week_start + interval '1 week')
-          WHERE
-            p.group_id = $1 AND p.recipient_id = $3
-          GROUP BY
-            p.recipient_id, wi.week_index
-        )
+          u.id AS user_id,
+          u.username,
+          u.email,
+          COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
+          COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+          COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
+        FROM users u
+        JOIN participants p ON u.id = p.user_id AND p.group_id = $2
+        LEFT JOIN posts po ON po.sender_id = u.id AND po.group_id = $2
+        LEFT JOIN post_comments pc ON pc.sender_id = u.id
+        LEFT JOIN messages m ON m.sender_id = u.id AND m.group_id = $2
+        ${!isAdmin ? `WHERE u.id = $3` : ""}
+        GROUP BY u.id, u.username, u.email
+      ),
+      PointsByWeek AS (
         SELECT
-          ud.user_id, 
-          ud.username,
-          ud.email,
-          COALESCE(SUM(pb.weekly_points), 0) AS total_points,
-          ud.total_posts AS total_posts,
-          ud.total_comments AS total_comments,
-          ud.total_messages AS total_messages,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_points END), 0) AS week_1_points,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_posts END), 0) AS week_1_posts,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_comments END), 0) AS week_1_comments,
-          COALESCE(MAX(CASE WHEN pb.week_number = 1 THEN pb.weekly_messages END), 0) AS week_1_messages,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_points END), 0) AS week_2_points,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_posts END), 0) AS week_2_posts,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_comments END), 0) AS week_2_comments,
-          COALESCE(MAX(CASE WHEN pb.week_number = 2 THEN pb.weekly_messages END), 0) AS week_2_messages
-        FROM
-          UserDetails ud
-        LEFT JOIN
-          PointsByWeek pb ON pb.user_id = ud.user_id
-        WHERE
-          ud.user_id = $3
-        GROUP BY
-          ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
-        ORDER BY
-          ud.username;
-        `,
-        [currentGroup, startDate, userId]
-      );
-    }
+          p.recipient_id AS user_id,
+          wi.week_index + 1 AS week_number,
+          SUM(p.point_value) AS weekly_points,
+          COUNT(DISTINCT po.id) AS weekly_posts,
+          COUNT(DISTINCT pc.id) AS weekly_comments,
+          COUNT(DISTINCT m.id) AS weekly_messages
+        FROM points p
+        JOIN WeeklyIntervals wi ON p.updated_at >= wi.week_start AND p.updated_at < (wi.week_start + interval '1 week')
+        LEFT JOIN posts po ON po.sender_id = p.recipient_id AND po.group_id = $2 AND po.updated_at >= wi.week_start AND po.updated_at < (wi.week_start + interval '1 week')
+        LEFT JOIN post_comments pc ON pc.sender_id = p.recipient_id AND pc.updated_at >= wi.week_start AND pc.updated_at < (wi.week_start + interval '1 week')
+        LEFT JOIN messages m ON m.sender_id = p.recipient_id AND m.group_id = $2 AND m.updated_at >= wi.week_start AND m.updated_at < (wi.week_start + interval '1 week')
+        WHERE p.group_id = $2
+        ${!isAdmin ? `AND p.recipient_id = $3` : ""}
+        GROUP BY p.recipient_id, wi.week_index
+      )
+      SELECT
+        ud.user_id,
+        ud.username,
+        ud.email,
+        COALESCE(SUM(pb.weekly_points), 0) AS total_points,
+        ud.total_posts,
+        ud.total_comments,
+        ud.total_messages,
+        ${generateSelectColumns()}
+      FROM UserDetails ud
+      LEFT JOIN PointsByWeek pb ON pb.user_id = ud.user_id
+      GROUP BY ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+      ORDER BY ud.username;
+    `;
+
+    const params = isAdmin
+      ? [startDate, currentGroup]
+      : [startDate, currentGroup, userId];
+
+    const groupMembersQuery = await pool.query(baseQuery, params);
+
+    const formatUserData = (rows) => {
+      return rows.map((user) => {
+        const formatted = {
+          user_id: user.user_id,
+          username: user.username,
+          email: user.email,
+          total: {
+            points: user.total_points || "0",
+            posts: user.total_posts || "0",
+            comments: user.total_comments || "0",
+            messages: user.total_messages || "0",
+          },
+        };
+        for (let i = 1; i <= numberOfWeeks; i++) {
+          formatted[`week_${i}`] = {
+            points: user[`week_${i}_points`] || "0",
+            posts: user[`week_${i}_posts`] || "0",
+            comments: user[`week_${i}_comments`] || "0",
+            messages: user[`week_${i}_messages`] || "0",
+          };
+        }
+        return formatted;
+      });
+    };
 
     const formattedData = formatUserData(groupMembersQuery.rows);
+
+    console.log("my formatted data is: " + formattedData);
+
     res.send(formattedData);
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    console.error("getWeeklyGroupInfo error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
