@@ -1091,6 +1091,7 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
     };
 
     const formattedData = formatUserData(groupMembersQuery.rows);
+    console.log("formatted data: " + JSON.stringify(formattedData, null, 2));
 
     res.send(formattedData);
   } catch (error) {
