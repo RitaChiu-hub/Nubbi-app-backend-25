@@ -968,15 +968,9 @@ module.exports.getGroupMembers = async (req, res) => {
 // };
 
 module.exports.getWeeklyGroupInfo = async (req, res) => {
-  console.log(" hello from the backend !!!");
-  console.log("Authorization header:", req.headers.authorization);
-  console.log("Cookies:", req.cookies);
-  console.log("Token from getJwt:", getJwt(req));
-
   const { currentGroup, startDate, endDate } = req.body;
   const token = getJwt(req);
 
-  console.log("my token is: " + token);
   if (!token) {
     return res.status(401).json({ error: "JWT token is required" });
   }
@@ -991,15 +985,11 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
     );
     const isAdmin = isAdminQuery.rows[0]?.is_admin;
 
-    console.log("my admin is is: " + isAdmin);
-
     const dateDiff = await pool.query(
       `SELECT FLOOR(DATE_PART('day', $2::timestamp - $1::timestamp) / 7) + 1 AS weeks`,
       [startDate, endDate]
     );
     const numberOfWeeks = dateDiff.rows[0]?.weeks || 1;
-
-    console.log("my number of weeks is: " + numberOfWeeks);
 
     const generateSelectColumns = () => {
       const cols = [];
@@ -1101,9 +1091,6 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
     };
 
     const formattedData = formatUserData(groupMembersQuery.rows);
-
-    // console.log("my formatted data is: " + formattedData);
-    console.log("Formatted user data:", JSON.stringify(formattedData, null, 2));
 
     res.send(formattedData);
   } catch (error) {
