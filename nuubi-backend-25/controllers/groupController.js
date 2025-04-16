@@ -973,7 +973,6 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
   console.log("Cookies:", req.cookies);
   console.log("Token from getJwt:", getJwt(req));
 
-  
   const { currentGroup, startDate, endDate } = req.body;
   const token = getJwt(req);
 
@@ -1103,7 +1102,8 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
 
     const formattedData = formatUserData(groupMembersQuery.rows);
 
-    console.log("my formatted data is: " + formattedData);
+    // console.log("my formatted data is: " + formattedData);
+    console.log("Formatted user data:", JSON.stringify(formattedData, null, 2));
 
     res.send(formattedData);
   } catch (error) {
