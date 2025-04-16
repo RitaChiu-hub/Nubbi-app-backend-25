@@ -1017,13 +1017,13 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
           u.username,
           u.email,
           COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
-          COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+          COALESCE(COUNT(DISTINCT CASE WHEN parent_post.group_id = $2 THEN pc.id END), 0) AS total_comments,
           COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
         FROM users u
         JOIN participants p ON u.id = p.user_id AND p.group_id = $2
         LEFT JOIN posts po ON po.sender_id = u.id AND po.group_id = $2
         LEFT JOIN post_comments pc ON pc.sender_id = u.id
-        LEFT JOIN posts parent_post ON pc.post_id = parent_post.id AND parent_post.group_id = $2
+        LEFT JOIN posts parent_post ON pc.post_id = parent_post.id
         LEFT JOIN messages m ON m.sender_id = u.id AND m.group_id = $2
         ${!isAdmin ? `WHERE u.id = $3` : ""}
         GROUP BY u.id, u.username, u.email
