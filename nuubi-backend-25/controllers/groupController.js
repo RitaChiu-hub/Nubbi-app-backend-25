@@ -1032,7 +1032,7 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
         FROM users u
         JOIN participants p ON u.id = p.user_id AND p.group_id = $2
         LEFT JOIN posts po ON po.sender_id = u.id AND po.group_id = $2
-        LEFT JOIN post_comments pc ON pc.sender_id = u.id
+        LEFT JOIN post_comments pc ON pc.sender_id = u.id AND pc.group_id = $2
         LEFT JOIN messages m ON m.sender_id = u.id AND m.group_id = $2
         ${!isAdmin ? `WHERE u.id = $3` : ""}
         GROUP BY u.id, u.username, u.email
