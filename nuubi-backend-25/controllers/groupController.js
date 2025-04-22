@@ -1438,6 +1438,77 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
         }
       }
 
+      // const userAnalyticsQuery = await pool.query(
+      //   `
+      //   WITH WeeklyIntervals AS (
+      //     SELECT generate_series($2::date, $3::date, '1 week') AS week_start
+      //   ),
+      //   UserDetails AS (
+      //     SELECT
+      //       u.id AS user_id,
+      //       u.username,
+      //       u.email,
+      //       COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
+      //       COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
+      //       COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
+      //     FROM
+      //       users u
+      //     JOIN
+      //       participants p ON u.id = p.user_id AND p.group_id = $1
+      //     LEFT JOIN
+      //       posts po ON po.sender_id = u.id AND po.group_id = $1
+      //     LEFT JOIN LATERAL (
+      //       SELECT pc.sender_id, pc.id
+      //       FROM post_comments pc
+      //       JOIN posts p ON pc.post_id = p.id
+      //       WHERE p.group_id = $1 AND pc.sender_id = u.id
+      //     ) pc ON true
+      //     LEFT JOIN LATERAL (
+      //       SELECT m.id
+      //       FROM messages m
+      //       WHERE m.group_id = $1
+      //         AND m.sender_id = u.id
+      //         AND m.updated_at >= $2
+      //         AND m.updated_at < $3::date + interval '1 day'
+      //     ) m ON true
+      //     WHERE u.id = $4
+      //     GROUP BY
+      //       u.id, u.username, u.email
+      //   )
+      //   SELECT
+      //     ud.user_id,
+      //     ud.username,
+      //     ud.email,
+      //     ud.total_posts,
+      //     ud.total_comments,
+      //     ud.total_messages,
+      //     COALESCE(SUM(wp.group_total_points), 0) AS group_total_points
+      //   FROM
+      //     UserDetails ud
+      //   CROSS JOIN
+      //     WeeklyIntervals wi
+      //   LEFT JOIN LATERAL (
+      //     SELECT
+      //       p.recipient_id,
+      //       SUM(p.point_value) AS group_total_points
+      //     FROM
+      //       points p
+      //     WHERE
+      //       p.group_id = $1
+      //       AND p.updated_at >= wi.week_start
+      //       AND p.updated_at < (wi.week_start + interval '1 week')
+      //       AND p.recipient_id = ud.user_id
+      //     GROUP BY
+      //       p.recipient_id
+      //   ) wp ON true
+      //   WHERE ud.user_id = $4
+      //   GROUP BY
+      //     ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+      //   ORDER BY
+      //     ud.username;
+      //   `,
+      //   [currentGroup, startDate, endDate, userId]
+      // );
       const userAnalyticsQuery = await pool.query(
         `
         WITH WeeklyIntervals AS (
@@ -1450,7 +1521,7 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
             u.email,
             COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
             COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
-            COALESCE(COUNT(DISTINCT m.id), 0) AS total_messages
+            0 AS total_messages -- placeholder, will use wm later
           FROM
             users u
           JOIN
@@ -1463,14 +1534,6 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
             JOIN posts p ON pc.post_id = p.id
             WHERE p.group_id = $1 AND pc.sender_id = u.id
           ) pc ON true
-          LEFT JOIN LATERAL (
-            SELECT m.id
-            FROM messages m
-            WHERE m.group_id = $1
-              AND m.sender_id = u.id
-              AND m.updated_at >= $2
-              AND m.updated_at < $3::date + interval '1 day'
-          ) m ON true
           WHERE u.id = $4
           GROUP BY
             u.id, u.username, u.email
@@ -1481,7 +1544,7 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
           ud.email,
           ud.total_posts,
           ud.total_comments,
-          ud.total_messages,
+          COALESCE(SUM(wm.weekly_message_count), 0) AS total_messages,
           COALESCE(SUM(wp.group_total_points), 0) AS group_total_points
         FROM
           UserDetails ud
@@ -1489,7 +1552,17 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
           WeeklyIntervals wi
         LEFT JOIN LATERAL (
           SELECT
-            p.recipient_id,
+            COUNT(*) AS weekly_message_count
+          FROM
+            messages m
+          WHERE
+            m.group_id = $1
+            AND m.sender_id = ud.user_id
+            AND m.updated_at >= wi.week_start
+            AND m.updated_at < (wi.week_start + interval '1 week')
+        ) wm ON true
+        LEFT JOIN LATERAL (
+          SELECT
             SUM(p.point_value) AS group_total_points
           FROM
             points p
@@ -1498,12 +1571,10 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
             AND p.updated_at >= wi.week_start
             AND p.updated_at < (wi.week_start + interval '1 week')
             AND p.recipient_id = ud.user_id
-          GROUP BY
-            p.recipient_id
         ) wp ON true
         WHERE ud.user_id = $4
         GROUP BY
-          ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments, ud.total_messages
+          ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments
         ORDER BY
           ud.username;
         `,
