@@ -1515,65 +1515,62 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
           SELECT generate_series($2::date, $3::date, interval '1 week') AS week_start
         ),
         UserDetails AS (
-          SELECT
-            u.id AS user_id,
-            u.username,
-            u.email,
-            COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
-            COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments
-          FROM
-            users u
-          JOIN
-            participants p ON u.id = p.user_id AND p.group_id = $1
-          LEFT JOIN
-            posts po ON po.sender_id = u.id AND po.group_id = $1
-          LEFT JOIN LATERAL (
-            SELECT pc.sender_id, pc.id
-            FROM post_comments pc
-            JOIN posts p ON pc.post_id = p.id
-            WHERE p.group_id = $1 AND pc.sender_id = u.id
-          ) pc ON true
+          SELECT u.id AS user_id, u.username, u.email
+          FROM users u
+          JOIN participants p ON u.id = p.user_id AND p.group_id = $1
           WHERE u.id = $4
-          GROUP BY
-            u.id, u.username, u.email
-        ),
-        WeeklyPoints AS (
-          SELECT
-            p.recipient_id,
-            SUM(p.point_value) AS group_total_points
-          FROM
-            points p
-          JOIN WeeklyIntervals wi
-            ON p.updated_at >= wi.week_start
-            AND p.updated_at < (wi.week_start + interval '1 week')
-          WHERE p.group_id = $1
-          GROUP BY p.recipient_id
-        ),
-        WeeklyMessages AS (
-          SELECT
-            m.sender_id,
-            COUNT(*) AS total_messages
-          FROM messages m
-          JOIN WeeklyIntervals wi
-            ON m.updated_at >= wi.week_start
-            AND m.updated_at < (wi.week_start + interval '1 week')
-          WHERE m.group_id = $1
-          GROUP BY m.sender_id
         )
         SELECT
-          ud.user_id,
-          ud.username,
-          ud.email,
-          ud.total_posts,
-          ud.total_comments,
-          COALESCE(wm.total_messages, 0) AS total_messages,
-          COALESCE(wp.group_total_points, 0) AS group_total_points
+          u.user_id,
+          u.username,
+          u.email,
+      
+          ARRAY(
+            SELECT COUNT(*)
+            FROM posts po
+            WHERE po.group_id = $1
+              AND po.sender_id = u.user_id
+              AND po.updated_at >= wi.week_start
+              AND po.updated_at < wi.week_start + interval '1 week'
+            ORDER BY wi.week_start
+          ) AS weekly_posts,
+      
+          ARRAY(
+            SELECT COUNT(*)
+            FROM post_comments pc
+            JOIN posts p ON pc.post_id = p.id
+            WHERE p.group_id = $1
+              AND pc.sender_id = u.user_id
+              AND pc.updated_at >= wi.week_start
+              AND pc.updated_at < wi.week_start + interval '1 week'
+            ORDER BY wi.week_start
+          ) AS weekly_comments,
+      
+          ARRAY(
+            SELECT COUNT(*)
+            FROM messages m
+            WHERE m.group_id = $1
+              AND m.sender_id = u.user_id
+              AND m.updated_at >= wi.week_start
+              AND m.updated_at < wi.week_start + interval '1 week'
+            ORDER BY wi.week_start
+          ) AS weekly_messages,
+      
+          ARRAY(
+            SELECT COALESCE(SUM(p.point_value), 0)
+            FROM points p
+            WHERE p.group_id = $1
+              AND p.recipient_id = u.user_id
+              AND p.updated_at >= wi.week_start
+              AND p.updated_at < wi.week_start + interval '1 week'
+            ORDER BY wi.week_start
+          ) AS weekly_points
+      
         FROM
-          UserDetails ud
-        LEFT JOIN WeeklyPoints wp ON wp.recipient_id = ud.user_id
-        LEFT JOIN WeeklyMessages wm ON wm.sender_id = ud.user_id
-        ORDER BY
-          ud.username;
+          UserDetails u,
+          WeeklyIntervals wi
+        GROUP BY
+          u.user_id, u.username, u.email;
         `,
         [currentGroup, startDate, endDate, userId]
       );
