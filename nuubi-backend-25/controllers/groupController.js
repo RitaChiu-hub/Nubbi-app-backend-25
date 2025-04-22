@@ -1464,9 +1464,12 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
             WHERE p.group_id = $1 AND pc.sender_id = u.id
           ) pc ON true
           LEFT JOIN LATERAL (
-            SELECT m.sender_id, m.id
+            SELECT m.id
             FROM messages m
-            WHERE m.group_id = $1 AND m.sender_id = u.id
+            WHERE m.group_id = $1
+              AND m.sender_id = u.id
+              AND m.updated_at >= $2
+              AND m.updated_at < $3::date + interval '1 day'
           ) m ON true
           WHERE u.id = $4
           GROUP BY
