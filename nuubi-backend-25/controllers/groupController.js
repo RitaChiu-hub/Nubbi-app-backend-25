@@ -1536,6 +1536,29 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
           WHERE u.id = $4
           GROUP BY
             u.id, u.username, u.email
+        ),
+        WeeklyPoints AS (
+          SELECT
+            p.recipient_id,
+            SUM(p.point_value) AS group_total_points
+          FROM
+            points p
+          JOIN WeeklyIntervals wi
+            ON p.updated_at >= wi.week_start
+            AND p.updated_at < (wi.week_start + interval '1 week')
+          WHERE p.group_id = $1
+          GROUP BY p.recipient_id
+        ),
+        WeeklyMessages AS (
+          SELECT
+            m.sender_id,
+            COUNT(*) AS total_messages
+          FROM messages m
+          JOIN WeeklyIntervals wi
+            ON m.updated_at >= wi.week_start
+            AND m.updated_at < (wi.week_start + interval '1 week')
+          WHERE m.group_id = $1
+          GROUP BY m.sender_id
         )
         SELECT
           ud.user_id,
@@ -1543,30 +1566,12 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
           ud.email,
           ud.total_posts,
           ud.total_comments,
-          COALESCE(SUM(wm.weekly_message_count), 0) AS total_messages,
-          COALESCE(SUM(wp.group_total_points), 0) AS group_total_points
+          COALESCE(wm.total_messages, 0) AS total_messages,
+          COALESCE(wp.group_total_points, 0) AS group_total_points
         FROM
           UserDetails ud
-        CROSS JOIN WeeklyIntervals wi
-        LEFT JOIN LATERAL (
-          SELECT COUNT(*) AS weekly_message_count
-          FROM messages m
-          WHERE m.group_id = $1
-            AND m.sender_id = ud.user_id
-            AND m.updated_at >= wi.week_start
-            AND m.updated_at < (wi.week_start + interval '1 week')
-        ) wm ON true
-        LEFT JOIN LATERAL (
-          SELECT SUM(p.point_value) AS group_total_points
-          FROM points p
-          WHERE p.group_id = $1
-            AND p.recipient_id = ud.user_id
-            AND p.updated_at >= wi.week_start
-            AND p.updated_at < (wi.week_start + interval '1 week')
-        ) wp ON true
-        WHERE ud.user_id = $4
-        GROUP BY
-          ud.user_id, ud.username, ud.email, ud.total_posts, ud.total_comments
+        LEFT JOIN WeeklyPoints wp ON wp.recipient_id = ud.user_id
+        LEFT JOIN WeeklyMessages wm ON wm.sender_id = ud.user_id
         ORDER BY
           ud.username;
         `,
