@@ -1512,7 +1512,7 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
       const userAnalyticsQuery = await pool.query(
         `
         WITH WeeklyIntervals AS (
-          SELECT generate_series($2::date, $3::date, '1 week') AS week_start
+          SELECT generate_series($2::date, $3::date, interval '1 week') AS week_start
         ),
         UserDetails AS (
           SELECT
@@ -1520,8 +1520,7 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
             u.username,
             u.email,
             COALESCE(COUNT(DISTINCT po.id), 0) AS total_posts,
-            COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments,
-            0 AS total_messages -- placeholder, will use wm later
+            COALESCE(COUNT(DISTINCT pc.id), 0) AS total_comments
           FROM
             users u
           JOIN
@@ -1548,29 +1547,22 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
           COALESCE(SUM(wp.group_total_points), 0) AS group_total_points
         FROM
           UserDetails ud
-        CROSS JOIN
-          WeeklyIntervals wi
+        CROSS JOIN WeeklyIntervals wi
         LEFT JOIN LATERAL (
-          SELECT
-            COUNT(*) AS weekly_message_count
-          FROM
-            messages m
-          WHERE
-            m.group_id = $1
+          SELECT COUNT(*) AS weekly_message_count
+          FROM messages m
+          WHERE m.group_id = $1
             AND m.sender_id = ud.user_id
             AND m.updated_at >= wi.week_start
             AND m.updated_at < (wi.week_start + interval '1 week')
         ) wm ON true
         LEFT JOIN LATERAL (
-          SELECT
-            SUM(p.point_value) AS group_total_points
-          FROM
-            points p
-          WHERE
-            p.group_id = $1
+          SELECT SUM(p.point_value) AS group_total_points
+          FROM points p
+          WHERE p.group_id = $1
+            AND p.recipient_id = ud.user_id
             AND p.updated_at >= wi.week_start
             AND p.updated_at < (wi.week_start + interval '1 week')
-            AND p.recipient_id = ud.user_id
         ) wp ON true
         WHERE ud.user_id = $4
         GROUP BY
