@@ -6,7 +6,7 @@ const router = express.Router();
 // 🔹 1. LTI Login Initiation
 router.all("/lti/login", (req, res) => {
   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
-    req.query;
+    req.method === "POST" ? req.body : req.query;
 
   const redirect =
     `${iss}/auth/login?` +
@@ -20,6 +20,7 @@ router.all("/lti/login", (req, res) => {
     `state=state123&` +
     `nonce=nonce123`;
 
+  console.log("Redirecting to Canvas OIDC:", redirect);
   res.redirect(redirect);
 });
 
