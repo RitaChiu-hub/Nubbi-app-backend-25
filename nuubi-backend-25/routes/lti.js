@@ -4,7 +4,7 @@ const pool = require("../db"); // Adjust based on your project structure
 const router = express.Router();
 
 // 🔹 1. LTI Login Initiation
-router.get("/lti/login", (req, res) => {
+router.all("/lti/login", (req, res) => {
   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
     req.query;
 
