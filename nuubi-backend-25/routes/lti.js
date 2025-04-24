@@ -30,6 +30,7 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
     `state=state123&` +
     `nonce=nonce123`;
 
+  console.log("Redirecting to:", redirect);
   res.redirect(redirect);
 });
 
