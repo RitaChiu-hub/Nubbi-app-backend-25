@@ -4,11 +4,19 @@ const pool = require("../db"); // Adjust based on your project structure
 const router = express.Router();
 
 // 🔹 1. LTI Login Initiation
-router.all("/login", (req, res) => {
-  const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
-    req.method === "POST" ? req.body : req.query;
 
-  const redirect =
+
+router.all("/login", (req, res) => {
+    const params = req.method === "POST" ? req.body : req.query;
+    console.log("Received LTI login params:", params);
+  
+    const { iss, login_hint, target_link_uri, lti_message_hint, client_id } = params;
+  
+    if (!iss || !login_hint || !client_id || !target_link_uri) {
+      return res.status(400).send("Missing required LTI login parameters.");
+    }
+  
+    const redirect =
     `${iss}/auth/login?` +
     `client_id=${client_id}&` +
     `login_hint=${login_hint}&` +
@@ -19,10 +27,31 @@ router.all("/login", (req, res) => {
     `scope=openid&` +
     `state=state123&` +
     `nonce=nonce123`;
+  
+    res.redirect(redirect);
+  });
 
-  console.log("Redirecting to Canvas OIDC:", redirect);
-  res.redirect(redirect);
-});
+
+
+// router.all("/login", (req, res) => {
+//   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
+//     req.method === "POST" ? req.body : req.query;
+
+//   const redirect =
+//     `${iss}/auth/login?` +
+//     `client_id=${client_id}&` +
+//     `login_hint=${login_hint}&` +
+//     `lti_message_hint=${lti_message_hint}&` +
+//     `redirect_uri=${encodeURIComponent(target_link_uri)}&` +
+//     `response_type=id_token&` +
+//     `response_mode=form_post&` +
+//     `scope=openid&` +
+//     `state=state123&` +
+//     `nonce=nonce123`;
+
+//   console.log("Redirecting to Canvas OIDC:", redirect);
+//   res.redirect(redirect);
+// });
 
 // router.post("/lti/launch", (req, res) => {
 //   console.log("LTI Launch hit!");
