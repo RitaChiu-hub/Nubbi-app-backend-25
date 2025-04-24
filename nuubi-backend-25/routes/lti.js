@@ -4,7 +4,6 @@ const pool = require("../db"); // Adjust based on your project structure
 const router = express.Router();
 
 // 🔹 1. LTI Login Initiation
-
 router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
   console.log("Headers:", req.headers);
   console.log("Query Params:", req.query);
