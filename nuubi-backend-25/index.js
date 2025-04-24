@@ -14,25 +14,25 @@ const cookieParser = require("cookie-parser");
 
 app.use(cookieParser());
 
-
-
 app.use(
   helmet({
     frameguard: false,
   })
 );
 
-// CSP header (placed AFTER helmet, BEFORE routes)
 app.use((req, res, next) => {
-  if (req.path.startsWith("/lti") || req.path === "/" || req.headers.accept?.includes("text/html")) {
+  if (
+    req.path.startsWith("/lti") ||
+    req.path === "/" ||
+    req.headers.accept?.includes("text/html")
+  ) {
     res.setHeader(
       "Content-Security-Policy",
-      "frame-ancestors https://canvas.instructure.com https://canvas.beta.instructure.com"
+      "frame-ancestors 'self' https://canvas.beta.instructure.com https://canvas.instructure.com"
     );
   }
   next();
 });
-
 
 app.use(express.json());
 
