@@ -13,7 +13,20 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 app.use(express.json());
-app.use(helmet());
+// app.use(helmet());
+
+app.use(
+  helmet({
+    frameguard: false, // This disables X-Frame-Options so your app can be embedded in iframes
+  })
+);
+
+// CSP to allow iframe embedding
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
+  next();
+});
+
 app.use(cookieParser());
 
 // Load the private key from .env
