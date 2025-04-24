@@ -5,18 +5,21 @@ const router = express.Router();
 
 // 🔹 1. LTI Login Initiation
 
-
 router.all("/login", (req, res) => {
-    const params = req.method === "POST" ? req.body : req.query;
-    console.log("Received LTI login params:", params);
-  
-    const { iss, login_hint, target_link_uri, lti_message_hint, client_id } = params;
-  
-    if (!iss || !login_hint || !client_id || !target_link_uri) {
-      return res.status(400).send("Missing required LTI login parameters.");
-    }
-  
-    const redirect =
+  console.log("Headers:", req.headers);
+  console.log("Query Params:", req.query);
+  console.log("Body:", req.body);
+  const params = req.method === "POST" ? req.body : req.query;
+  console.log("Received LTI login params:", params);
+
+  const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
+    params;
+
+  if (!iss || !login_hint || !client_id || !target_link_uri) {
+    return res.status(400).send("Missing required LTI login parameters.");
+  }
+
+  const redirect =
     `${iss}/auth/login?` +
     `client_id=${client_id}&` +
     `login_hint=${login_hint}&` +
@@ -27,11 +30,9 @@ router.all("/login", (req, res) => {
     `scope=openid&` +
     `state=state123&` +
     `nonce=nonce123`;
-  
-    res.redirect(redirect);
-  });
 
-
+  res.redirect(redirect);
+});
 
 // router.all("/login", (req, res) => {
 //   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
@@ -58,41 +59,37 @@ router.all("/login", (req, res) => {
 //   res.send("<h2>Nuubi LTI Launch received. Setup in progress.</h2>");
 // });
 
-router.post(
-  "/launch",
-  express.urlencoded({ extended: false }),
-  (req, res) => {
-    const idToken = req.body.id_token;
+router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
+  const idToken = req.body.id_token;
 
-    // Decode the token to see what's inside
-    const decoded = jwt.decode(idToken, { complete: true });
+  // Decode the token to see what's inside
+  const decoded = jwt.decode(idToken, { complete: true });
 
-    console.log("Full decoded LTI token:", JSON.stringify(decoded, null, 2));
+  console.log("Full decoded LTI token:", JSON.stringify(decoded, null, 2));
 
-    const { sub, name, email, roles } = decoded.payload;
+  const { sub, name, email, roles } = decoded.payload;
 
-    const context =
-      decoded.payload["https://purl.imsglobal.org/spec/lti/claim/context"];
-    const courseId = context?.id;
-    const courseTitle = context?.title;
+  const context =
+    decoded.payload["https://purl.imsglobal.org/spec/lti/claim/context"];
+  const courseId = context?.id;
+  const courseTitle = context?.title;
 
-    console.log("User ID (sub):", sub);
-    console.log("Name:", name);
-    console.log("Email:", email);
-    console.log("Roles:", roles); // e.g. Instructor, Learner
-    console.log("Course ID:", courseId);
-    console.log("Course Title:", courseTitle);
+  console.log("User ID (sub):", sub);
+  console.log("Name:", name);
+  console.log("Email:", email);
+  console.log("Roles:", roles); // e.g. Instructor, Learner
+  console.log("Course ID:", courseId);
+  console.log("Course Title:", courseTitle);
 
-    // Optionally, pass this to frontend for LTI login page
-    res.redirect(
-      `https://www.nuubi.app/lti-login?user=${sub}&course=${courseId}&name=${encodeURIComponent(
-        name
-      )}&email=${encodeURIComponent(email)}&roles=${encodeURIComponent(
-        roles.join(",")
-      )}`
-    );
-  }
-);
+  // Optionally, pass this to frontend for LTI login page
+  res.redirect(
+    `https://www.nuubi.app/lti-login?user=${sub}&course=${courseId}&name=${encodeURIComponent(
+      name
+    )}&email=${encodeURIComponent(email)}&roles=${encodeURIComponent(
+      roles.join(",")
+    )}`
+  );
+});
 
 // // 🔹 2. LTI Launch Handler
 // router.post("/lti/launch", express.urlencoded({ extended: false }), (req, res) => {

@@ -29,6 +29,8 @@ app.use((req, res, next) => {
 
 app.use(cookieParser());
 
+app.use(express.urlencoded({ extended: false }));
+
 // Load the private key from .env
 const privateKey = process.env.NUUBI_PRIVATE_KEY.replace(/\\n/g, "\n");
 
