@@ -12,25 +12,29 @@ const pool = require("./db");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
-app.use(
-  helmet({
-    frameguard: false, // This disables X-Frame-Options so your app can be embedded in iframes
-  })
-);
-
-// CSP to allow iframe embedding
-app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "frame-ancestors https://canvas.instructure.com https://canvas.beta.instructure.com"
-  );
-  next();
-});
+app.use(cookieParser());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use(cookieParser());
+app.use(
+  helmet({
+    frameguard: false,
+  })
+);
+
+// CSP header (placed AFTER helmet, BEFORE routes)
+app.use((req, res, next) => {
+  if (req.path.startsWith("/lti") || req.path === "/" || req.headers.accept?.includes("text/html")) {
+    res.setHeader(
+      "Content-Security-Policy",
+      "frame-ancestors https://canvas.instructure.com https://canvas.beta.instructure.com"
+    );
+  }
+  next();
+});
+
+
 
 // Load the private key from .env
 const privateKey = process.env.NUUBI_PRIVATE_KEY.replace(/\\n/g, "\n");
