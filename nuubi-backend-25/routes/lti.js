@@ -4,7 +4,7 @@ const pool = require("../db"); // Adjust based on your project structure
 const router = express.Router();
 
 // 🔹 1. LTI Login Initiation
-router.all("/lti/login", (req, res) => {
+router.all("/login", (req, res) => {
   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
     req.method === "POST" ? req.body : req.query;
 
@@ -30,7 +30,7 @@ router.all("/lti/login", (req, res) => {
 // });
 
 router.post(
-  "/lti/launch",
+  "/launch",
   express.urlencoded({ extended: false }),
   (req, res) => {
     const idToken = req.body.id_token;
@@ -81,7 +81,7 @@ router.post(
 // });
 
 // 🔹 3. Session Creator for React Native Web
-router.post("/api/lti/session", express.json(), async (req, res) => {
+router.post("/session", express.json(), async (req, res) => {
   const { userId, courseId, name, email } = req.body;
 
   if (!userId || !courseId) {
