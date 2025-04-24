@@ -5,7 +5,7 @@ const router = express.Router();
 
 // 🔹 1. LTI Login Initiation
 
-router.all("/login", (req, res) => {
+router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
   console.log("Headers:", req.headers);
   console.log("Query Params:", req.query);
   console.log("Body:", req.body);
