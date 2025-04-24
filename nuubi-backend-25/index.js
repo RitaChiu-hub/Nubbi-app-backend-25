@@ -14,8 +14,7 @@ const cookieParser = require("cookie-parser");
 
 app.use(cookieParser());
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
 
 app.use(
   helmet({
@@ -35,6 +34,7 @@ app.use((req, res, next) => {
 });
 
 
+app.use(express.json());
 
 // Load the private key from .env
 const privateKey = process.env.NUUBI_PRIVATE_KEY.replace(/\\n/g, "\n");
