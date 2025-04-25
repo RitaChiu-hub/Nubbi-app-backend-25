@@ -19,7 +19,7 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
   }
 
   const redirect =
-    `${iss}/auth/login?` +
+    `${iss}/login?` +
     `client_id=${client_id}&` +
     `login_hint=${login_hint}&` +
     `lti_message_hint=${lti_message_hint}&` +
