@@ -21,7 +21,7 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
   const fixedIss = "https://stthomas.beta.instructure.com";
 
   const redirect =
-    `${fixedIss}/login?` +
+    `${fixedIss}/api/lti/authorize_redirect?` +
     `client_id=${client_id}&` +
     `login_hint=${login_hint}&` +
     `lti_message_hint=${lti_message_hint}&` +
@@ -31,6 +31,18 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
     `scope=openid&` +
     `state=state123&` +
     `nonce=nonce123`;
+
+  //   const redirect =
+  //     `${fixedIss}/login?` +
+  //     `client_id=${client_id}&` +
+  //     `login_hint=${login_hint}&` +
+  //     `lti_message_hint=${lti_message_hint}&` +
+  //     `redirect_uri=${encodeURIComponent(target_link_uri)}&` +
+  //     `response_type=id_token&` +
+  //     `response_mode=form_post&` +
+  //     `scope=openid&` +
+  //     `state=state123&` +
+  //     `nonce=nonce123`;
 
   console.log("🔁 Redirecting to Canvas /auth/login:", redirect);
 
