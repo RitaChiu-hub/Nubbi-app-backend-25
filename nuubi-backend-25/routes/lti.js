@@ -18,8 +18,10 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
     return res.status(400).send("Missing required LTI login parameters.");
   }
 
+  const fixedIss = "https://stthomas.beta.instructure.com";
+
   const redirect =
-    `${iss}/login?` +
+    `${fixedIss}/login?` +
     `client_id=${client_id}&` +
     `login_hint=${login_hint}&` +
     `lti_message_hint=${lti_message_hint}&` +
