@@ -20,28 +20,22 @@ app.use(
   })
 );
 
+// app.use((req, res, next) => {
+//   res.setHeader(
+//     "Content-Security-Policy",
+//     "frame-ancestors 'self' *.instructure.com;"
+//   );
+//   res.setHeader("X-Frame-Options", "ALLOW-FROM https://*.instructure.com");
+//   next();
+// });
+
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
-    "frame-ancestors 'self' *.instructure.com;"
+    "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com"
   );
-  res.setHeader("X-Frame-Options", "ALLOW-FROM https://*.instructure.com");
   next();
-}); 
-
-// app.use((req, res, next) => {
-//   if (
-//     req.path.startsWith("/lti") ||
-//     req.path === "/" ||
-//     req.headers.accept?.includes("text/html")
-//   ) {
-//     res.setHeader(
-//       "Content-Security-Policy",
-//       "frame-ancestors 'self' https://canvas.beta.instructure.com https://canvas.instructure.com"
-//     );
-//   }
-//   next();
-// });
+});
 
 app.use(express.json());
 
