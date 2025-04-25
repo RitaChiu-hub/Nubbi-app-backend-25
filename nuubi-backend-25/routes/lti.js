@@ -59,37 +59,46 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
 //   res.send("<h2>Nuubi LTI Launch received. Setup in progress.</h2>");
 // });
 
-router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
-  const idToken = req.body.id_token;
+router.post(
+  "/lti/launch",
+  express.urlencoded({ extended: false }),
+  (req, res) => {
+    console.log("LTI Launch hit — redirecting to Nuubi homepage for testing.");
+    res.redirect("https://www.nuubi.app");
+  }
+);
 
-  // Decode the token to see what's inside
-  const decoded = jwt.decode(idToken, { complete: true });
+// router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
+//   const idToken = req.body.id_token;
 
-  console.log("Full decoded LTI token:", JSON.stringify(decoded, null, 2));
+//   // Decode the token to see what's inside
+//   const decoded = jwt.decode(idToken, { complete: true });
 
-  const { sub, name, email, roles } = decoded.payload;
+//   console.log("Full decoded LTI token:", JSON.stringify(decoded, null, 2));
 
-  const context =
-    decoded.payload["https://purl.imsglobal.org/spec/lti/claim/context"];
-  const courseId = context?.id;
-  const courseTitle = context?.title;
+//   const { sub, name, email, roles } = decoded.payload;
 
-  console.log("User ID (sub):", sub);
-  console.log("Name:", name);
-  console.log("Email:", email);
-  console.log("Roles:", roles); // e.g. Instructor, Learner
-  console.log("Course ID:", courseId);
-  console.log("Course Title:", courseTitle);
+//   const context =
+//     decoded.payload["https://purl.imsglobal.org/spec/lti/claim/context"];
+//   const courseId = context?.id;
+//   const courseTitle = context?.title;
 
-  // Optionally, pass this to frontend for LTI login page
-  res.redirect(
-    `https://www.nuubi.app/lti-login?user=${sub}&course=${courseId}&name=${encodeURIComponent(
-      name
-    )}&email=${encodeURIComponent(email)}&roles=${encodeURIComponent(
-      roles.join(",")
-    )}`
-  );
-});
+//   console.log("User ID (sub):", sub);
+//   console.log("Name:", name);
+//   console.log("Email:", email);
+//   console.log("Roles:", roles); // e.g. Instructor, Learner
+//   console.log("Course ID:", courseId);
+//   console.log("Course Title:", courseTitle);
+
+//   // Optionally, pass this to frontend for LTI login page
+//   res.redirect(
+//     `https://www.nuubi.app/lti-login?user=${sub}&course=${courseId}&name=${encodeURIComponent(
+//       name
+//     )}&email=${encodeURIComponent(email)}&roles=${encodeURIComponent(
+//       roles.join(",")
+//     )}`
+//   );
+// });
 
 // // 🔹 2. LTI Launch Handler
 // router.post("/lti/launch", express.urlencoded({ extended: false }), (req, res) => {
