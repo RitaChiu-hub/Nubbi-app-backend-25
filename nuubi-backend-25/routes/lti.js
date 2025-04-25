@@ -66,8 +66,32 @@ router.post(
   "/lti/launch",
   express.urlencoded({ extended: false }),
   (req, res) => {
-    console.log("LTI Launch hit — redirecting to Nuubi homepage for testing.");
-    res.redirect("https://www.nuubi.app");
+    const idToken = req.body.id_token;
+
+    if (!idToken) {
+      return res.status(400).send("Missing id_token");
+    }
+
+    // Optional: decode it to see what's inside
+    const decoded = jwt.decode(idToken, { complete: true });
+    console.log("Decoded LTI Token:", decoded);
+
+    const html = `
+      <html>
+        <head>
+          <title>Launching Nuubi...</title>
+          <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
+        </head>
+        <body onload="document.forms[0].submit()" style="background:#f9f9f9;">
+          <form action="https://www.nuubi.app/lti-login" method="POST">
+            <input type="hidden" name="id_token" value="${idToken}" />
+          </form>
+          <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi...</p>
+        </body>
+      </html>
+    `;
+
+    res.status(200).send(html);
   }
 );
 
