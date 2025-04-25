@@ -2,24 +2,35 @@
   "title": "Nuubi",
   "description": "Q&A forums and group chat plugin with mobile access and soft skills certificates.",
   "scopes": [
+    "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
     "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
     "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
+    "https://purl.imsglobal.org/spec/lti-ags/scope/score",
     "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly"
   ],
   "extensions": [
     {
       "platform": "canvas.instructure.com",
+      "privacy_level": "public",
       "settings": {
-        "placements": ["course_navigation"],
-        "text": "Open Nuubi",
-        "icon_url": "https://www.nuubi.app/icon.png",
-        "target_link_uri": "https://www.nuubi.app/lti/launch"
+        "placements": [
+          {
+            "placement": "course_navigation",
+            "message_type": "LtiResourceLinkRequest",
+            "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
+            "text": "Open Nuubi",
+            "icon_url": "https://www.nuubi.app/icon.png",
+            "visibility": "public",
+            "enabled": true
+          }
+        ]
       }
     }
   ],
-  "public_jwk_url": "https://www.nuubi.app/.well-known/jwks.json",
-  "initiate_login_uri": "https://www.nuubi.app/lti/login",
-  "redirect_uris": ["https://www.nuubi.app/lti/launch"],
-  "target_link_uri": "https://www.nuubi.app/lti/launch",
-  "oidc_initiation_url": "https://www.nuubi.app/lti/login"
+  "custom_fields": {
+    "canvas_course_id": "$Canvas.course.id"
+  },
+  "public_jwk_url": "https://coral-app-n96bn.ondigitalocean.app/.well-known/jwks.json",
+  "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
+  "oidc_initiation_url": "https://coral-app-n96bn.ondigitalocean.app/lti/login"
 }
