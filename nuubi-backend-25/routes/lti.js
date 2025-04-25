@@ -90,11 +90,12 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   console.log("📘 Course ID:", courseId);
   console.log("📘 Course Title:", courseTitle);
 
+  // Instead of doing a POST form, just do a simple iframe-safe redirect for now
+  const redirectUrl = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
+    idToken
+  )}`;
 
-    // Instead of doing a POST form, just do a simple iframe-safe redirect for now
-    const redirectUrl = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(idToken)}`;
-
-    const html = `
+  const html = `
       <html>
         <head>
           <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
@@ -105,10 +106,10 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
         </body>
       </html>
     `;
-  
-    res.status(200).send(html);
-  });
-  
+
+  res.status(200).send(html);
+});
+
 //   const html = `
 //       <html>
 //         <head>
@@ -125,7 +126,6 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
 //     `;
 
 //   res.status(200).send(html);
-});
 
 module.exports = router;
 
