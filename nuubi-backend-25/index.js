@@ -20,22 +20,13 @@ app.use(
   })
 );
 
-// app.use((req, res, next) => {
-//   res.setHeader(
-//     "Content-Security-Policy",
-//     "frame-ancestors 'self' *.instructure.com;"
-//   );
-//   res.setHeader("X-Frame-Options", "ALLOW-FROM https://*.instructure.com");
-//   next();
-// });
-
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
-    "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com"
+    "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com  https://*.instructure.com"
   );
   res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   next();
 });
 
