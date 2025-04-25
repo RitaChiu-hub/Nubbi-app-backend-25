@@ -45,6 +45,8 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
     "frame-ancestors 'self' https://*.instructure.com"
   );
 
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+
   /* (if you like, also) */
   // res.setHeader("X-Frame-Options", "ALLOW-FROM https://*.instructure.com");
 

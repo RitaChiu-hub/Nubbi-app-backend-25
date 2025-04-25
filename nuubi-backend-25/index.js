@@ -34,6 +34,8 @@ app.use((req, res, next) => {
     "Content-Security-Policy",
     "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com"
   );
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+
   next();
 });
 
