@@ -30,7 +30,8 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
     `response_mode=form_post&` +
     `scope=openid&` +
     `state=state123&` +
-    `nonce=nonce123`;
+    `nonce=nonce123&` + // 👈 Already here
+    `prompt=none`; // 👈 ADD THIS
 
   //   const redirect =
   //     `${fixedIss}/login?` +
