@@ -34,37 +34,35 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   const idToken = req.body.id_token;
   if (!idToken) return res.status(400).send("Missing id_token");
 
-  /* Optional: parse & log */
-  const decoded = jwt.decode(idToken, { complete: true });
-  console.log(
-    "user:",
-    decoded?.payload?.sub,
-    "course:",
-    decoded?.payload?.["https://purl.imsglobal.org/spec/lti/claim/context"]?.id
-  );
-
-  /* 👇🏼 key bit – we KEEP the Canvas iframe, and inside it we create
-         another iframe that loads Nuubi with the token in the query-string */
+  /* (optional) inspect token … */
   const nuubiURL = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
     idToken
   )}`;
 
+  /* 👉 set CSP header, NOT a <meta> tag */
+  res.setHeader(
+    "Content-Security-Policy",
+    "frame-ancestors 'self' https://*.instructure.com"
+  );
+
+  /* (if you like, also) */
+  // res.setHeader("X-Frame-Options", "ALLOW-FROM https://*.instructure.com");
+
+  /* send the page that embeds Nuubi inside the Canvas iframe */
   res.status(200).send(`
-    <html>
-      <head>
-        <title>Loading Nuubi…</title>
-        <!-- keep the Canvas frame happy -->
-        <meta http-equiv="Content-Security-Policy"
-              content="frame-ancestors 'self' https://*.instructure.com;">
-        <style>body{margin:0;}</style>
-      </head>
-      <body>
-        <iframe src="${nuubiURL}"
-                style="border:0;width:100%;height:100vh;"
-                title="Nuubi LTI App"></iframe>
-      </body>
-    </html>
-  `);
+      <html>
+        <head>
+          <title>Loading Nuubi…</title>
+          <style>body{margin:0}</style>
+        </head>
+        <body>
+          <iframe src="${nuubiURL}"
+                  style="border:0;width:100%;height:100vh;"
+                  title="Nuubi LTI App">
+          </iframe>
+        </body>
+      </html>
+    `);
 });
 
 module.exports = router;
