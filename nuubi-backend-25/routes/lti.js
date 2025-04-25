@@ -30,12 +30,104 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
     `state=state123&` +
     `nonce=nonce123`;
 
-  //   console.log("LTI LOGIN hit — redirecting to Nuubi homepage for testing.");
-  //   res.redirect("https://www.nuubi.app");
-
   console.log("Redirecting to:", redirect);
-  res.redirect(redirect);
+  res.send(`
+      <html>
+        <head><title>Redirecting...</title></head>
+        <body>
+          <script>
+            window.top.location.href = "${redirect}";
+          </script>
+        </body>
+      </html>
+    `);
 });
+
+// 🔹 2. LTI Launch
+router.post(
+  "/lti/launch",
+  express.urlencoded({ extended: false }),
+  (req, res) => {
+    const idToken = req.body.id_token;
+
+    if (!idToken) {
+      return res.status(400).send("Missing id_token");
+    }
+
+    const decoded = jwt.decode(idToken, { complete: true });
+    console.log("Decoded LTI Token:", decoded);
+
+    // Escape for safe HTML embedding
+    const escapedToken = idToken
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+
+    const html = `
+      <html>
+        <head>
+          <title>Launching Nuubi...</title>
+          <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
+        </head>
+        <body onload="document.forms[0].submit()" style="background:#f9f9f9;">
+          <form action="https://www.nuubi.app/lti-login" method="POST">
+            <input type="hidden" name="id_token" value="${escapedToken}" />
+          </form>
+          <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi...</p>
+        </body>
+      </html>
+    `;
+
+    res.setHeader(
+      "Content-Security-Policy",
+      "frame-ancestors 'self' https://*.instructure.com;"
+    );
+    res.status(200).send(html);
+  }
+);
+
+// // 🔹 1. LTI Login Initiation
+// router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
+//   console.log("Headers:", req.headers);
+//   console.log("Query Params:", req.query);
+//   console.log("Body:", req.body);
+//   const params = req.method === "POST" ? req.body : req.query;
+//   console.log("Received LTI login params:", params);
+
+//   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
+//     params;
+
+//   if (!iss || !login_hint || !client_id || !target_link_uri) {
+//     return res.status(400).send("Missing required LTI login parameters.");
+//   }
+
+//   const redirect =
+//     `${iss}/auth/login?` +
+//     `client_id=${client_id}&` +
+//     `login_hint=${login_hint}&` +
+//     `lti_message_hint=${lti_message_hint}&` +
+//     `redirect_uri=${encodeURIComponent(target_link_uri)}&` +
+//     `response_type=id_token&` +
+//     `response_mode=form_post&` +
+//     `scope=openid&` +
+//     `state=state123&` +
+//     `nonce=nonce123`;
+
+//   //   console.log("LTI LOGIN hit — redirecting to Nuubi homepage for testing.");
+//   //   res.redirect("https://www.nuubi.app");
+
+//   console.log("Redirecting to:", redirect);
+//   res.send(`
+//   <html>
+//     <head><title>Redirecting...</title></head>
+//     <body>
+//       <script>
+//         window.top.location.href = "${redirect}";
+//       </script>
+//     </body>
+//   </html>
+// `);
+// });
 
 // router.all("/login", (req, res) => {
 //   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
@@ -62,38 +154,38 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
 //   res.send("<h2>Nuubi LTI Launch received. Setup in progress.</h2>");
 // });
 
-router.post(
-  "/lti/launch",
-  express.urlencoded({ extended: false }),
-  (req, res) => {
-    const idToken = req.body.id_token;
+// router.post(
+//   "/lti/launch",
+//   express.urlencoded({ extended: false }),
+//   (req, res) => {
+//     const idToken = req.body.id_token;
 
-    if (!idToken) {
-      return res.status(400).send("Missing id_token");
-    }
+//     if (!idToken) {
+//       return res.status(400).send("Missing id_token");
+//     }
 
-    // Optional: decode it to see what's inside
-    const decoded = jwt.decode(idToken, { complete: true });
-    console.log("Decoded LTI Token:", decoded);
+//     // Optional: decode it to see what's inside
+//     const decoded = jwt.decode(idToken, { complete: true });
+//     console.log("Decoded LTI Token:", decoded);
 
-    const html = `
-      <html>
-        <head>
-          <title>Launching Nuubi...</title>
-          <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
-        </head>
-        <body onload="document.forms[0].submit()" style="background:#f9f9f9;">
-          <form action="https://www.nuubi.app/lti-login" method="POST">
-            <input type="hidden" name="id_token" value="${idToken}" />
-          </form>
-          <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi...</p>
-        </body>
-      </html>
-    `;
+//     const html = `
+//       <html>
+//         <head>
+//           <title>Launching Nuubi...</title>
+//           <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
+//         </head>
+//         <body onload="document.forms[0].submit()" style="background:#f9f9f9;">
+//           <form action="https://www.nuubi.app/lti-login" method="POST">
+//             <input type="hidden" name="id_token" value="${idToken}" />
+//           </form>
+//           <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi...</p>
+//         </body>
+//       </html>
+//     `;
 
-    res.status(200).send(html);
-  }
-);
+//     res.status(200).send(html);
+//   }
+// );
 
 // router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
 //   const idToken = req.body.id_token;
