@@ -30,8 +30,11 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
     `state=state123&` +
     `nonce=nonce123`;
 
-  console.log("Redirecting to:", redirect);
-  res.redirect(redirect);
+  console.log("LTI LOGIN hit — redirecting to Nuubi homepage for testing.");
+  res.redirect("https://www.nuubi.app");
+
+  //   console.log("Redirecting to:", redirect);
+  //   res.redirect(redirect);
 });
 
 // router.all("/login", (req, res) => {
