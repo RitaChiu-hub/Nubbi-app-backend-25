@@ -72,18 +72,22 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   )}`;
 
   const html = `
-<html>
-<head>
-  <script>
-    window.onload = function() {
-      window.location.href = "${redirectUrl}";
-    }
-  </script>
-</head>
-<body>
-  <p>Redirecting...</p>
-</body>
-</html>
+  <html>
+    <head>
+      <title>Launching Nuubi…</title>
+      <script>
+        window.onload = function () {
+          window.parent.postMessage({
+            type: "LTI_ID_TOKEN",
+            token: "${idToken}"
+          }, "*");
+        };
+      </script>
+    </head>
+    <body>
+      <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi…</p>
+    </body>
+  </html>
 `;
 
   res.status(200).send(html);
