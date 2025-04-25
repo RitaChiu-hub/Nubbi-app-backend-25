@@ -61,6 +61,9 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
 router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   console.log("\n🚀 LTI LAUNCH REQUEST RECEIVED");
 
+  console.log("Body:", req.body);
+  console.log("Headers:", req.headers);
+
   const idToken = req.body.id_token;
   if (!idToken) {
     return res.status(400).send("Missing id_token");
