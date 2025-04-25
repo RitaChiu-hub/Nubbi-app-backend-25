@@ -3,14 +3,14 @@ const jwt = require("jsonwebtoken");
 const pool = require("../db"); // Adjust based on your project structure
 const router = express.Router();
 
-// 🔹 1. LTI Login Initiation
-router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
+// Support both GET and POST for /lti/login
+router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
+  console.log("\n📥 LTI LOGIN INITIATED");
   console.log("Headers:", req.headers);
   console.log("Query Params:", req.query);
   console.log("Body:", req.body);
-  const params = req.method === "POST" ? req.body : req.query;
-  console.log("Received LTI login params:", params);
 
+  const params = req.method === "POST" ? req.body : req.query;
   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
     params;
 
@@ -30,7 +30,8 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
     `state=state123&` +
     `nonce=nonce123`;
 
-  console.log("Redirecting to:", redirect);
+  console.log("🔁 Redirecting to Canvas /auth/login:", redirect);
+
   res.send(`
       <html>
         <head><title>Redirecting...</title></head>
@@ -43,48 +44,53 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
     `);
 });
 
-// 🔹 2. LTI Launch
-router.post(
-  "/lti/launch",
-  express.urlencoded({ extended: false }),
-  (req, res) => {
-    const idToken = req.body.id_token;
+router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
+  console.log("\n🚀 LTI LAUNCH REQUEST RECEIVED");
 
-    if (!idToken) {
-      return res.status(400).send("Missing id_token");
-    }
+  const idToken = req.body.id_token;
+  if (!idToken) {
+    return res.status(400).send("Missing id_token");
+  }
 
-    const decoded = jwt.decode(idToken, { complete: true });
-    console.log("Decoded LTI Token:", decoded);
+  const decoded = jwt.decode(idToken, { complete: true });
+  console.log("Decoded LTI Token:", JSON.stringify(decoded, null, 2));
 
-    // Escape for safe HTML embedding
-    const escapedToken = idToken
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/"/g, "&quot;");
+  // Optional: extract user and course info here
+  const payload = decoded?.payload;
+  const userId = payload?.sub;
+  const name = payload?.name;
+  const email = payload?.email;
+  const roles = payload?.["https://purl.imsglobal.org/spec/lti/claim/roles"];
+  const context =
+    payload?.["https://purl.imsglobal.org/spec/lti/claim/context"];
+  const courseId = context?.id;
+  const courseTitle = context?.title;
 
-    const html = `
+  console.log("🧑‍🎓 User ID:", userId);
+  console.log("📧 Email:", email);
+  console.log("🧑‍🏫 Roles:", roles);
+  console.log("📘 Course ID:", courseId);
+  console.log("📘 Course Title:", courseTitle);
+
+  const html = `
       <html>
         <head>
           <title>Launching Nuubi...</title>
           <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
         </head>
-        <body onload="document.forms[0].submit()" style="background:#f9f9f9;">
-          <form action="https://www.nuubi.app/lti-login" method="POST">
-            <input type="hidden" name="id_token" value="${escapedToken}" />
+        <body onload="document.forms[0].submit()">
+          <form action="https://www.nuubi.app/" method="POST">
+            <input type="hidden" name="id_token" value="${idToken}" />
           </form>
-          <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi...</p>
+          <p>Launching Nuubi...</p>
         </body>
       </html>
     `;
 
-    res.setHeader(
-      "Content-Security-Policy",
-      "frame-ancestors 'self' https://*.instructure.com;"
-    );
-    res.status(200).send(html);
-  }
-);
+  res.status(200).send(html);
+});
+
+module.exports = router;
 
 // // 🔹 1. LTI Login Initiation
 // router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
