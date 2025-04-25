@@ -62,59 +62,85 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
 router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   console.log("\n🚀 LTI LAUNCH REQUEST RECEIVED");
 
-  console.log("Body:", req.body);
-  console.log("Headers:", req.headers);
-
   const idToken = req.body.id_token;
   if (!idToken) {
     return res.status(400).send("Missing id_token");
   }
 
-  const decoded = jwt.decode(idToken, { complete: true });
-  console.log("Decoded LTI Token:", JSON.stringify(decoded, null, 2));
-
-  // Optional: extract user and course info here
-  const payload = decoded?.payload;
-  const userId = payload?.sub;
-  const name = payload?.name;
-  const email = payload?.email;
-  const roles = payload?.["https://purl.imsglobal.org/spec/lti/claim/roles"];
-  const context =
-    payload?.["https://purl.imsglobal.org/spec/lti/claim/context"];
-  const courseId = context?.id;
-  const courseTitle = context?.title;
-
-  console.log("🧑‍🎓 User ID:", userId);
-  console.log("📧 Email:", email);
-  console.log("🧑‍🏫 Roles:", roles);
-  console.log("📘 Course ID:", courseId);
-  console.log("📘 Course Title:", courseTitle);
-
-  // Instead of doing a POST form, just do a simple iframe-safe redirect for now
-  const redirectUrl = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
-    idToken
-  )}`;
-
   const html = `
-  <html>
-    <head>
-      <title>Launching Nuubi...</title>
-      <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
-      <script>
-        window.onload = function() {
-          window.location.href = "https://www.nuubi.app/lti-login?token=${encodeURIComponent(
-            idToken
-          )}";
-        }
-      </script>
-    </head>
-    <body style="background:#f9f9f9;">
-      <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi…</p>
-    </body>
-  </html>
-`;
+    <html>
+      <head>
+        <title>Launching Nuubi...</title>
+        <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
+      </head>
+      <body onload="document.forms[0].submit()" style="background:#f9f9f9;">
+        <form action="https://www.nuubi.app/lti-login" method="POST" target="_self">
+          <input type="hidden" name="id_token" value="${idToken}" />
+        </form>
+        <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi…</p>
+      </body>
+    </html>
+    `;
+
   res.status(200).send(html);
 });
+
+// router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
+//   console.log("\n🚀 LTI LAUNCH REQUEST RECEIVED");
+
+//   console.log("Body:", req.body);
+//   console.log("Headers:", req.headers);
+
+//   const idToken = req.body.id_token;
+//   if (!idToken) {
+//     return res.status(400).send("Missing id_token");
+//   }
+
+//   const decoded = jwt.decode(idToken, { complete: true });
+//   console.log("Decoded LTI Token:", JSON.stringify(decoded, null, 2));
+
+//   // Optional: extract user and course info here
+//   const payload = decoded?.payload;
+//   const userId = payload?.sub;
+//   const name = payload?.name;
+//   const email = payload?.email;
+//   const roles = payload?.["https://purl.imsglobal.org/spec/lti/claim/roles"];
+//   const context =
+//     payload?.["https://purl.imsglobal.org/spec/lti/claim/context"];
+//   const courseId = context?.id;
+//   const courseTitle = context?.title;
+
+//   console.log("🧑‍🎓 User ID:", userId);
+//   console.log("📧 Email:", email);
+//   console.log("🧑‍🏫 Roles:", roles);
+//   console.log("📘 Course ID:", courseId);
+//   console.log("📘 Course Title:", courseTitle);
+
+//   // Instead of doing a POST form, just do a simple iframe-safe redirect for now
+//   const redirectUrl = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
+//     idToken
+//   )}`;
+
+//   const html = `
+//   <html>
+//     <head>
+//       <title>Launching Nuubi...</title>
+//       <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
+//       <script>
+//         window.onload = function() {
+//           window.location.href = "https://www.nuubi.app/lti-login?token=${encodeURIComponent(
+//             idToken
+//           )}";
+//         }
+//       </script>
+//     </head>
+//     <body style="background:#f9f9f9;">
+//       <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi…</p>
+//     </body>
+//   </html>
+// `;
+//   res.status(200).send(html);
+// });
 
 module.exports = router;
 
