@@ -11,6 +11,25 @@ router.post("/login", express.urlencoded({ extended: false }), (req, res) => {
   const params = req.method === "POST" ? req.body : req.query;
   console.log("Received LTI login params:", params);
 
+  const idToken = req.body.id_token;
+
+  const decoded = jwt.decode(idToken, { complete: true });
+
+  const userId = decoded.payload.sub;
+  const name = decoded.payload.name;
+  const email = decoded.payload.email;
+  const roles = decoded.payload["https://purl.imsglobal.org/spec/lti/claim/roles"];
+  const context = decoded.payload["https://purl.imsglobal.org/spec/lti/claim/context"];
+  const courseId = context?.id;
+  const courseTitle = context?.title;
+
+  console.log("🧑‍🎓 LTI User ID (sub):", userId);
+  console.log("📛 Name:", name);
+  console.log("📧 Email:", email);
+  console.log("🧑‍🏫 Roles:", roles);
+  console.log("📘 Course ID:", courseId);
+  console.log("📘 Course Title:", courseTitle);
+
   const { iss, login_hint, target_link_uri, lti_message_hint, client_id } =
     params;
 
