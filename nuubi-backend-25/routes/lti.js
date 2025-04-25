@@ -90,22 +90,41 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   console.log("📘 Course ID:", courseId);
   console.log("📘 Course Title:", courseTitle);
 
-  const html = `
+
+    // Instead of doing a POST form, just do a simple iframe-safe redirect for now
+    const redirectUrl = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(idToken)}`;
+
+    const html = `
       <html>
         <head>
-          <title>Launching Nuubi...</title>
           <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
+          <title>Redirecting to Nuubi...</title>
         </head>
-        <body onload="document.forms[0].submit()">
-          <form action="https://www.nuubi.app/" method="POST">
-            <input type="hidden" name="id_token" value="${idToken}" />
-          </form>
-          <p>Launching Nuubi...</p>
+        <body onload="window.location='${redirectUrl}'">
+          <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi...</p>
         </body>
       </html>
     `;
+  
+    res.status(200).send(html);
+  });
+  
+//   const html = `
+//       <html>
+//         <head>
+//           <title>Launching Nuubi...</title>
+//           <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
+//         </head>
+//         <body onload="document.forms[0].submit()">
+//           <form action="https://www.nuubi.app/" method="POST">
+//             <input type="hidden" name="id_token" value="${idToken}" />
+//           </form>
+//           <p>Launching Nuubi...</p>
+//         </body>
+//       </html>
+//     `;
 
-  res.status(200).send(html);
+//   res.status(200).send(html);
 });
 
 module.exports = router;
