@@ -67,20 +67,24 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
     return res.status(400).send("Missing id_token");
   }
 
+  const redirectUrl = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
+    idToken
+  )}`;
+
   const html = `
-    <html>
-      <head>
-        <title>Launching Nuubi...</title>
-        <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.instructure.com;">
-      </head>
-      <body onload="document.forms[0].submit()" style="background:#f9f9f9;">
-        <form action="https://www.nuubi.app/lti-login" method="POST" target="_self">
-          <input type="hidden" name="id_token" value="${idToken}" />
-        </form>
-        <p style="text-align:center;font-family:sans-serif;margin-top:50px;">Launching Nuubi…</p>
-      </body>
-    </html>
-    `;
+<html>
+<head>
+  <script>
+    window.onload = function() {
+      window.location.href = "${redirectUrl}";
+    }
+  </script>
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>
+`;
 
   res.status(200).send(html);
 });
