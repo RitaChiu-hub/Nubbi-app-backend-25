@@ -428,6 +428,31 @@ io.on("connection", (socket) => {
       });
   });
 
+  socket.on("create_message", async (req) => {
+    try {
+      const decoded = await jwtVerify(req.token, process.env.JWT_SECRET);
+      const userID = decoded.id;
+      // Insert and return the new message
+      const insertRes = await pool.query(
+        `INSERT INTO messages(sender_id, group_id, text)
+         VALUES ($1, $2, $3)
+         RETURNING id AS messages_id, text, created_at AS iso_time_sent`,
+        [userID, req.currentGroup, req.text]
+      );
+      const newMsg = insertRes.rows[0];
+      // Fetch sender username
+      const userRes = await pool.query(
+        "SELECT username FROM users WHERE id = $1",
+        [userID]
+      );
+      const sender_username = userRes.rows[0].username;
+      // Broadcast just the new message
+      io.emit("new_message", { ...newMsg, sender_username });
+    } catch (error) {
+      socket.emit("error", { error: error.message });
+    }
+  });
+
   socket.on("insert comment return updated list", (req) => {
     const token = req.token || webToken;
 

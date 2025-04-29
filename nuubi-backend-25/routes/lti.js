@@ -39,17 +39,6 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
     idToken
   )}`;
 
-  /* 👉 set CSP header, NOT a <meta> tag */
-  res.setHeader(
-    "Content-Security-Policy",
-    "frame-ancestors 'self' https://*.instructure.com"
-  );
-
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-
-  /* (if you like, also) */
-  // res.setHeader("X-Frame-Options", "ALLOW-FROM https://*.instructure.com");
-
   /* send the page that embeds Nuubi inside the Canvas iframe */
   res.status(200).send(`
       <html>
