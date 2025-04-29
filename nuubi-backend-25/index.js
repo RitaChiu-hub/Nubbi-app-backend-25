@@ -392,41 +392,83 @@ io.on("connection", (socket) => {
     socket.join(room);
   });
 
-  socket.on("insert msg return updated list", (req) => {
+  socket.on("insert msg return updated list", async (req) => {
+    // restore your original token logic
     const token = req.token || webToken;
 
-    // Check if token is available
     if (!token) {
-      return socket.emit("error", { error: "JWT token is required" }); // Emit error back to client
+      // client-side will see this and can prompt for re-login or show an error
+      return socket.emit("error", { error: "JWT token is required" });
     }
-    // Now verify the token
-    jwtVerify(token, process.env.JWT_SECRET)
-      // jwtVerify(req.token, process.env.JWT_SECRET)
-      .then(async (decoded) => {
-        const userID = decoded.id;
-        try {
-          const firstQuery = pool.query(
-            "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
-            [userID, req.currentGroup, req.mymessage]
-          );
 
-          pool.query(
-            "SELECT username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1 ORDER BY messages.created_at DESC",
-            [req.currentGroup],
-            (err, res) => {
-              if (err) throw err;
-              io.emit("insert msg return updated list", res.rows);
-            }
-          );
-        } catch (error) {
-          console.error("Error fetching and adding messages:", error);
-          res.status(500).json({ error: "Internal server error" });
-        }
-      })
-      .catch(async () => {
-        res.json({ token: null });
-      });
+    try {
+      const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+      const userID = decoded.id;
+      // insert just the new row and return it
+      const insertRes = await pool.query(
+        `INSERT INTO messages(sender_id, group_id, text)
+         VALUES ($1, $2, $3)
+         RETURNING
+           id       AS messages_id,
+           text,
+           created_at AS iso_time_sent`,
+        [userID, req.currentGroup, req.mymessage]
+      );
+
+      const newMsg = insertRes.rows[0];
+      // fetch username for that sender
+      const userRes = await pool.query(
+        `SELECT username
+           FROM users
+          WHERE id = $1`,
+        [userID]
+      );
+
+      socket.emit(
+        "insert msg return updated list",
+        Object.assign(newMsg, { sender_username: userRes.rows[0].username })
+      );
+    } catch (err) {
+      console.error("Websocket message error:", err);
+      socket.emit("error", { error: "Internal server error" });
+    }
   });
+
+  // socket.on("insert msg return updated list", (req) => {
+  //   const token = req.token || webToken;
+
+  //   // Check if token is available
+  //   if (!token) {
+  //     return socket.emit("error", { error: "JWT token is required" }); // Emit error back to client
+  //   }
+  //   // Now verify the token
+  //   jwtVerify(token, process.env.JWT_SECRET)
+  //     // jwtVerify(req.token, process.env.JWT_SECRET)
+  //     .then(async (decoded) => {
+  //       const userID = decoded.id;
+  //       try {
+  //         const firstQuery = pool.query(
+  //           "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
+  //           [userID, req.currentGroup, req.mymessage]
+  //         );
+
+  //         pool.query(
+  //           "SELECT username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1 ORDER BY messages.created_at DESC",
+  //           [req.currentGroup],
+  //           (err, res) => {
+  //             if (err) throw err;
+  //             io.emit("insert msg return updated list", res.rows);
+  //           }
+  //         );
+  //       } catch (error) {
+  //         console.error("Error fetching and adding messages:", error);
+  //         res.status(500).json({ error: "Internal server error" });
+  //       }
+  //     })
+  //     .catch(async () => {
+  //       res.json({ token: null });
+  //     });
+  // });
 
   socket.on("create_message", async (req) => {
     try {
