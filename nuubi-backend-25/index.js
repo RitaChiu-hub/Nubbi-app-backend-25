@@ -394,6 +394,7 @@ io.on("connection", (socket) => {
 
   socket.on("insert msg return updated list", async (req) => {
     // restore your original token logic
+    console.log("my message: " + req.mymessage);
     const token = req.token || webToken;
 
     if (!token) {
