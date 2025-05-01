@@ -138,7 +138,6 @@ module.exports.attemptLogin = async (req, res) => {
 
 module.exports.checkWebLogin = async (req, res) => {
   let token = req.cookies.token || req.headers.authorization?.split(" ")[1]; // Bearer token
-  console.log(token);
   if (token) {
     // Verify the token and respond accordingly
     try {
