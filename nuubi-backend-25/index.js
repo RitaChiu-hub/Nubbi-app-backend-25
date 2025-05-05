@@ -21,13 +21,19 @@ app.use(
 );
 
 app.use((req, res, next) => {
+  // ① frame‑ancestors is always needed
   res.setHeader(
     "Content-Security-Policy",
-    "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com  https://*.instructure.com"
+    "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com https://*.instructure.com"
   );
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-  next();
+
+  // ② COEP / CORP everywhere *except* /lti/…
+  if (!req.path.startsWith("/lti/")) {
+    res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  }
+
+  return next();
 });
 
 app.use(express.json());
