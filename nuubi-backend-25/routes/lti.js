@@ -40,6 +40,11 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   console.log(JSON.stringify(decoded.header, null, 2));
   console.log("[Nuubi] — payload / claims —");
   console.log(JSON.stringify(decoded.payload, null, 2));
+  const roles = payload["https://purl.imsglobal.org/spec/lti/claim/roles"];
+  const isAdmin = roles.some(
+    (role) => role.includes("Instructor") || role === "Administrator"
+  );
+  console.log("is Instructor? (isAdmin?) : " + isAdmin);
 
   /* (optional) inspect token … */
   const nuubiURL = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
