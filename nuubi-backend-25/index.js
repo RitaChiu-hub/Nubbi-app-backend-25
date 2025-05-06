@@ -16,6 +16,7 @@ app.use(cookieParser());
 
 app.use(
   helmet({
+    contentSecurityPolicy: false,
     frameguard: false,
     crossOriginEmbedderPolicy: false, //  <- turn COEP off
     crossOriginResourcePolicy: false,
