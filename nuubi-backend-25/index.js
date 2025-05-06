@@ -27,11 +27,11 @@ app.use((req, res, next) => {
     "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com https://*.instructure.com"
   );
 
-  // ② COEP / CORP everywhere *except* /lti/…
-  if (!req.path.startsWith("/lti/")) {
-    res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-  }
+  // // ② COEP / CORP everywhere *except* /lti/…
+  // if (!req.path.startsWith("/lti/")) {
+  //   res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  //   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  // }
 
   return next();
 });
