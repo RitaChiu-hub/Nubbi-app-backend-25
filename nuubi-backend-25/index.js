@@ -23,20 +23,34 @@ app.use(
 );
 
 app.use((req, res, next) => {
-  // ① frame‑ancestors is always needed
-  res.setHeader(
-    "Content-Security-Policy",
-    "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com https://*.instructure.com"
-  );
-
-  // // ② COEP / CORP everywhere *except* /lti/…
-  // if (!req.path.startsWith("/lti/")) {
-  //   res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-  //   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-  // }
-
-  return next();
+  if (req.path.startsWith("/lti-login")) {
+    res.setHeader(
+      "Content-Security-Policy",
+      "frame-ancestors 'self' https://*.instructure.com https://*.ondigitalocean.app"
+    );
+    // No COEP/COOP on this path
+    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  }
+  next();
 });
+
+// app.use((req, res, next) => {
+//   // ① frame‑ancestors is always needed
+//   res.setHeader(
+//     "Content-Security-Policy",
+//     "frame-ancestors 'self' https://stthomas.beta.instructure.com https://canvas.beta.instructure.com https://*.instructure.com"
+//   );
+
+//   // // ② COEP / CORP everywhere *except* /lti/…
+//   // if (!req.path.startsWith("/lti/")) {
+//   //   res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+//   //   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+//   // }
+
+//   return next();
+// });
 
 app.use(express.json());
 
