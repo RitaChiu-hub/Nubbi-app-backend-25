@@ -343,13 +343,22 @@ function addLaunchHeaders(req, res, next) {
 }
 
 app.use(
-  "/lti/login", // full path after the router mount
+  ["/lti/login", "/lti/launch"], //  ← BOTH paths after the mount
   require("helmet")({
-    contentSecurityPolicy: false, // don’t overwrite our CSP
+    contentSecurityPolicy: false, // keep Helmet from rewriting our CSP
     frameguard: false,
   }),
   addLaunchHeaders
 );
+
+// app.use(
+//   "/lti/login", // full path after the router mount
+//   require("helmet")({
+//     contentSecurityPolicy: false, // don’t overwrite our CSP
+//     frameguard: false,
+//   }),
+//   addLaunchHeaders
+// );
 
 // keep your existing mount
 app.use("/lti", ltiRoutes);
