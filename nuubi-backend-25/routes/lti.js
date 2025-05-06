@@ -34,6 +34,13 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   const idToken = req.body.id_token;
   if (!idToken) return res.status(400).send("Missing id_token");
 
+  /* ───── quick peek (DEBUG ONLY – no signature check) ───── */
+  const decoded = jwt.decode(idToken, { complete: true });
+  console.log("[Nuubi] — header —");
+  console.log(JSON.stringify(decoded.header, null, 2));
+  console.log("[Nuubi] — payload / claims —");
+  console.log(JSON.stringify(decoded.payload, null, 2));
+
   /* (optional) inspect token … */
   const nuubiURL = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
     idToken
