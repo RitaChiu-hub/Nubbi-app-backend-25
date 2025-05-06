@@ -22,19 +22,19 @@ app.use(
   })
 );
 
-app.use((req, res, next) => {
-  if (req.path.startsWith("/lti-login")) {
-    res.setHeader(
-      "Content-Security-Policy",
-      "frame-ancestors 'self' https://*.instructure.com https://*.ondigitalocean.app"
-    );
-    // No COEP/COOP on this path
-    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
-    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-  }
-  next();
-});
+// app.use((req, res, next) => {
+//   if (req.path.startsWith("/lti-login")) {
+//     res.setHeader(
+//       "Content-Security-Policy",
+//       "frame-ancestors 'self' https://*.instructure.com https://*.ondigitalocean.app"
+//     );
+//     // No COEP/COOP on this path
+//     res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+//     res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+//     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+//   }
+//   next();
+// });
 
 // app.use((req, res, next) => {
 //   // ① frame‑ancestors is always needed
@@ -328,6 +328,30 @@ const exportsObject = {
 module.exports = exportsObject;
 
 const ltiRoutes = require("./routes/lti");
+// app.use("/lti", ltiRoutes);
+
+// ─── only for requests whose final path is /lti/login ────────────
+function addLaunchHeaders(req, res, next) {
+  res.setHeader(
+    "Content-Security-Policy",
+    "frame-ancestors 'self' https://*.instructure.com https://*.ondigitalocean.app"
+  );
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+}
+
+app.use(
+  "/lti/login", // full path after the router mount
+  require("helmet")({
+    contentSecurityPolicy: false, // don’t overwrite our CSP
+    frameguard: false,
+  }),
+  addLaunchHeaders
+);
+
+// keep your existing mount
 app.use("/lti", ltiRoutes);
 
 const myRouter = require("./routers.js");
