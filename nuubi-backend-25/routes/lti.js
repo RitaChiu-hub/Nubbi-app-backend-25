@@ -2,6 +2,8 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
 const pool = require("../db");
+const { adjectives } = require("../adjectives");
+const { nouns } = require("../nouns");
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
@@ -75,7 +77,7 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
     `);
 });
 
-// POST /api/lti/session
+// POST /lti/session
 router.post("/session", async (req, res) => {
   const { id_token } = req.body;
 
@@ -102,12 +104,37 @@ router.post("/session", async (req, res) => {
 
     // If user does not exist, create one
     if (userRes.rows.length === 0) {
-      const username = email.split("@")[0] + Math.floor(Math.random() * 10000);
+      async function generateUsername() {
+        var a = adjectives;
+        var b = nouns;
+
+        var rA = Math.floor(Math.random() * a.length);
+        var rB = Math.floor(Math.random() * b.length);
+
+        var adj = a[rA];
+        var capAdj = adj.charAt(0).toUpperCase() + adj.slice(1);
+
+        var noun = b[rB];
+        var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
+
+        const usernameAttempt = capAdj + capNoun;
+        const existingUser = await pool.query(
+          "SELECT username FROM users WHERE username = $1",
+          [usernameAttempt]
+        );
+        if (existingUser.rows.length === 0) {
+          return usernameAttempt;
+        } else {
+          return generateUsername();
+        }
+      }
+
+      const newUsername = await generateUsername();
 
       await pool.query(
         `INSERT INTO users (email, username, passhash, created_via_canvas)
            VALUES ($1, $2, $3, $4)`,
-        [email, username, null, true]
+        [email, newUsername, null, true]
       );
 
       userRes = await pool.query("SELECT * FROM users WHERE email = $1", [
@@ -133,12 +160,65 @@ router.post("/session", async (req, res) => {
       path: "/",
     });
 
+    // group finder or create new one
+
+    const context =
+      payload["https://purl.imsglobal.org/spec/lti/claim/context"];
+    const courseId = context?.id;
+    const courseTitle = context?.title || "Untitled Course";
+
+    let groupId;
+
+    if (courseId) {
+      const timestamp = Date.now();
+      const isPublic = false;
+      const invitePasscode = Math.random().toString(10).substring(2, 8);
+
+      const existingGroup = await pool.query(
+        "SELECT id FROM groups WHERE canvas_course_id = $1",
+        [courseId]
+      );
+
+      if (existingGroup.rows.length === 0) {
+        const newGroupRes = await pool.query(
+          `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+          [
+            courseId,
+            courseTitle,
+            isPublic,
+            invitePasscode,
+            timestamp,
+            timestamp,
+          ]
+        );
+        groupId = newGroupRes.rows[0].id;
+      } else {
+        groupId = existingGroup.rows[0].id;
+      }
+
+      // ✅ Now that groupId is set, check if user is a participant
+      const alreadyMember = await pool.query(
+        `SELECT * FROM participants WHERE user_id = $1 AND group_id = $2`,
+        [user.id, groupId]
+      );
+
+      if (alreadyMember.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO participants (user_id, group_id, is_admin, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+          [user.id, groupId, isAdmin, timestamp, timestamp]
+        );
+      }
+    }
     // Return token for mobile, and metadata
     return res.json({
       success: true,
       token: nuubiToken,
       isAdmin,
       email: user.email,
+      groupId,
     });
   } catch (err) {
     console.error("LTI session error:", err);

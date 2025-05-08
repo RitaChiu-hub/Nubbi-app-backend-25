@@ -16,7 +16,7 @@ const {
   handleValidateSignUp,
   handleSendFeedback,
   savePushToken,
-} = require("../controllers/settingsController");
+} = require("../controllers/settingsController.js");
 const validateChangeUsernameForm = require("../controllers/validation/validateChangeUsernameForm");
 const validateChangePasswordForm = require("../controllers/validation/validateChangePasswordForm");
 const validateForgotPasswordForm = require("../controllers/validation/validateForgotPasswordForm");

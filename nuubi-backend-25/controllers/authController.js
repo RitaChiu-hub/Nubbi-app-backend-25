@@ -6,8 +6,8 @@ const {
   getJwt,
   jwtVerifyMiddleware,
 } = require("./jwt/jwtAuth");
-const { adjectives } = require("./adjectives");
-const { nouns } = require("./nouns");
+const { adjectives } = require("../adjectives");
+const { nouns } = require("../nouns");
 const currentDate = new Date();
 // const { uuid } = require("uuidv4");
 const { v4: uuidv4 } = require("uuid");
