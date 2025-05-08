@@ -242,3 +242,12 @@ ALTER TABLE points
 
 ALTER TABLE users
     ADD COLUMN push_notification_token VARCHAR(255);
+
+ALTER TABLE groups
+    ADD COLUMN canvas_course_id TEXT;
+
+    ALTER TABLE users
+ALTER COLUMN passhash DROP NOT NULL;
+
+ALTER TABLE users
+ADD COLUMN created_via_canvas BOOLEAN DEFAULT FALSE;

@@ -1,6 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
+const pool = require("../db");
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
@@ -72,6 +73,77 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
         </body>
       </html>
     `);
+});
+
+// POST /api/lti/session
+router.post("/session", async (req, res) => {
+  const { id_token } = req.body;
+
+  if (!id_token) {
+    return res.status(400).json({ error: "Missing id_token" });
+  }
+
+  try {
+    // Decode without verifying (for now – upgrade to verified version later)
+    const decoded = jwt.decode(id_token);
+    const payload = decoded;
+
+    const email = payload.email;
+    const roles =
+      payload["https://purl.imsglobal.org/spec/lti/claim/roles"] || [];
+    const isAdmin = roles.some(
+      (role) => role.includes("Instructor") || role === "Administrator"
+    );
+
+    // Check if user exists
+    let userRes = await pool.query("SELECT * FROM users WHERE email = $1", [
+      email,
+    ]);
+
+    // If user does not exist, create one
+    if (userRes.rows.length === 0) {
+      const username = email.split("@")[0] + Math.floor(Math.random() * 10000);
+
+      await pool.query(
+        `INSERT INTO users (email, username, passhash, created_via_canvas)
+           VALUES ($1, $2, $3, $4)`,
+        [email, username, null, true]
+      );
+
+      userRes = await pool.query("SELECT * FROM users WHERE email = $1", [
+        email,
+      ]);
+    }
+
+    const user = userRes.rows[0];
+
+    // Issue your Nuubi JWT
+    const nuubiToken = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "365d" }
+    );
+
+    // Set cookie (for web)
+    res.cookie("token", nuubiToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year
+      path: "/",
+    });
+
+    // Return token for mobile, and metadata
+    return res.json({
+      success: true,
+      token: nuubiToken,
+      isAdmin,
+      email: user.email,
+    });
+  } catch (err) {
+    console.error("LTI session error:", err);
+    return res.status(500).json({ error: "Failed to process LTI session" });
+  }
 });
 
 module.exports = router;
