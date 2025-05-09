@@ -4,6 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { adjectives } = require("../adjectives");
 const { nouns } = require("../nouns");
+const { v4: uuidv4 } = require("uuid");
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
@@ -102,6 +103,8 @@ router.post("/session", async (req, res) => {
       email,
     ]);
 
+    let user;
+
     // If user does not exist, create one
     if (userRes.rows.length === 0) {
       async function generateUsername() {
@@ -131,18 +134,18 @@ router.post("/session", async (req, res) => {
 
       const newUsername = await generateUsername();
 
-      await pool.query(
-        `INSERT INTO users (email, username, passhash, created_via_canvas)
-           VALUES ($1, $2, $3, $4)`,
-        [email, newUsername, null, true]
+      const userId = uuidv4();
+
+      const insertRes = await pool.query(
+        `INSERT INTO users (id, email, username, passhash, created_via_canvas)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [userId, email, newUsername, null, true]
       );
-
-      userRes = await pool.query("SELECT * FROM users WHERE email = $1", [
-        email,
-      ]);
+      user = insertRes.rows[0];
+    } else {
+      user = userRes.rows[0];
     }
-
-    const user = userRes.rows[0];
 
     // Issue your Nuubi JWT
     const nuubiToken = jwt.sign(
@@ -175,7 +178,7 @@ router.post("/session", async (req, res) => {
 
     if (courseId) {
       const isPublic = false;
-      const timestamp = new Date().toISOString();
+      //   const timestamp = new Date().toISOString();
 
       const existingGroup = await pool.query(
         "SELECT id, invite_passcode FROM groups WHERE canvas_course_id = $1",
