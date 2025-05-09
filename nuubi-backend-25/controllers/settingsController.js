@@ -141,6 +141,15 @@ module.exports.handleDeleteAccount = async (req, res) => {
               }
             );
 
+            const updateBadgesQuery = await user_badges.update(
+              { user_id: null },
+              {
+                where: {
+                  user_id: userID,
+                },
+              }
+            );
+
             const deleteUserQuery = await users.destroy({
               where: {
                 id: userID,
