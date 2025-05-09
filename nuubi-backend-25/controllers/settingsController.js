@@ -132,6 +132,15 @@ module.exports.handleDeleteAccount = async (req, res) => {
               }
             );
 
+            const updateNotificationsQuery = await notifications.update(
+              { user_id: null },
+              {
+                where: {
+                  user_id: userID,
+                },
+              }
+            );
+
             const deleteUserQuery = await users.destroy({
               where: {
                 id: userID,
