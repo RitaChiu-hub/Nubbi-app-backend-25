@@ -203,7 +203,7 @@ router.post("/session", async (req, res) => {
       } else {
         groupId = existingGroup.rows[0].id;
         invitePasscode = existingGroup.rows[0].invite_passcode; // ✅ grab from DB
-        groupName = newGroupRes.rows[0].name;
+        groupName = existingGroup.rows[0].name;
       }
       // if (courseId) {
       //   const isPublic = false;
