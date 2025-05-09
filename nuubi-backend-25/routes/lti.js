@@ -167,23 +167,27 @@ router.post("/session", async (req, res) => {
     const courseId = context?.id;
     const courseTitle = context?.title || "Untitled Course";
 
-    let groupId;
     const timestamp = new Date().toISOString();
+
+    let groupId;
+    let invitePasscode = null;
+    let groupName = courseTitle;
 
     if (courseId) {
       const isPublic = false;
-      const invitePasscode = Math.random().toString(10).substring(2, 8);
+      const timestamp = new Date().toISOString();
 
       const existingGroup = await pool.query(
-        "SELECT id FROM groups WHERE canvas_course_id = $1",
+        "SELECT id, invite_passcode FROM groups WHERE canvas_course_id = $1",
         [courseId]
       );
 
       if (existingGroup.rows.length === 0) {
+        invitePasscode = Math.random().toString(10).substring(2, 8);
         const newGroupRes = await pool.query(
           `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id`,
+       RETURNING id, invite_passcode`,
           [
             courseId,
             courseTitle,
@@ -194,9 +198,40 @@ router.post("/session", async (req, res) => {
           ]
         );
         groupId = newGroupRes.rows[0].id;
+        invitePasscode = newGroupRes.rows[0].invite_passcode; // ✅ redundant but safe
+        groupName = newGroupRes.rows[0].name;
       } else {
         groupId = existingGroup.rows[0].id;
+        invitePasscode = existingGroup.rows[0].invite_passcode; // ✅ grab from DB
+        groupName = newGroupRes.rows[0].name;
       }
+      // if (courseId) {
+      //   const isPublic = false;
+      //   const invitePasscode = Math.random().toString(10).substring(2, 8);
+
+      //   const existingGroup = await pool.query(
+      //     "SELECT id FROM groups WHERE canvas_course_id = $1",
+      //     [courseId]
+      //   );
+
+      //   if (existingGroup.rows.length === 0) {
+      //     const newGroupRes = await pool.query(
+      //       `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
+      //    VALUES ($1, $2, $3, $4, $5, $6)
+      //    RETURNING id`,
+      //       [
+      //         courseId,
+      //         courseTitle,
+      //         isPublic,
+      //         invitePasscode,
+      //         timestamp,
+      //         timestamp,
+      //       ]
+      //     );
+      //     groupId = newGroupRes.rows[0].id;
+      //   } else {
+      //     groupId = existingGroup.rows[0].id;
+      //   }
 
       // ✅ Now that groupId is set, check if user is a participant
       const alreadyMember = await pool.query(
@@ -219,6 +254,8 @@ router.post("/session", async (req, res) => {
       isAdmin,
       email: user.email,
       groupId,
+      groupName,
+      invitePasscode,
     });
   } catch (err) {
     console.error("LTI session error:", err);
