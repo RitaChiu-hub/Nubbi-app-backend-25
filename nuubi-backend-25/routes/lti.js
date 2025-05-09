@@ -199,11 +199,11 @@ router.post("/session", async (req, res) => {
         );
         groupId = newGroupRes.rows[0].id;
         invitePasscode = newGroupRes.rows[0].invite_passcode; // ✅ redundant but safe
-        groupName = newGroupRes.rows[0].name;
+        groupName = courseTitle;
       } else {
         groupId = existingGroup.rows[0].id;
         invitePasscode = existingGroup.rows[0].invite_passcode; // ✅ grab from DB
-        groupName = existingGroup.rows[0].name;
+        groupName = courseTitle;
       }
       // if (courseId) {
       //   const isPublic = false;
