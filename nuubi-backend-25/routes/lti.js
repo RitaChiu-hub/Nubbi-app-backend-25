@@ -4,6 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { adjectives } = require("../adjectives");
 const { nouns } = require("../nouns");
+const currentDate = new Date();
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
@@ -189,8 +190,8 @@ router.post("/session", async (req, res) => {
             courseTitle,
             isPublic,
             invitePasscode,
-            timestamp,
-            timestamp,
+            currentDate.getTime(),
+            currentDate.getTime(),
           ]
         );
         groupId = newGroupRes.rows[0].id;
@@ -208,7 +209,13 @@ router.post("/session", async (req, res) => {
         await pool.query(
           `INSERT INTO participants (user_id, group_id, is_admin, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5)`,
-          [user.id, groupId, isAdmin, timestamp, timestamp]
+          [
+            user.id,
+            groupId,
+            isAdmin,
+            currentDate.getTime(),
+            currentDate.getTime(),
+          ]
         );
       }
     }
