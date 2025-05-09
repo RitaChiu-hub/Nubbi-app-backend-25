@@ -171,7 +171,6 @@ router.post("/session", async (req, res) => {
     const timestamp = new Date().toISOString();
 
     if (courseId) {
-      const timestamp = Date.now();
       const isPublic = false;
       const invitePasscode = Math.random().toString(10).substring(2, 8);
 
