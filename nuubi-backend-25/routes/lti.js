@@ -133,8 +133,12 @@ router.post("/session", async (req, res) => {
       //   }
 
       async function getUniqueUsername() {
-        const first = (payload.given_name || "").trim();
-        const last = (payload.family_name || "").trim();
+        const firstRaw = (payload.given_name || "").trim();
+        const lastRaw = (payload.family_name || "").trim();
+
+        // keep only letters A‑Z / a‑z
+        const first = firstRaw.replace(/[^A-Za-z]/g, "");
+        const last = lastRaw.replace(/[^A-Za-z]/g, "");
 
         let base =
           first && last
@@ -154,6 +158,7 @@ router.post("/session", async (req, res) => {
             noun.slice(1);
         }
 
+        // ensure uniqueness
         let candidate = base;
         let n = 1;
         while (
