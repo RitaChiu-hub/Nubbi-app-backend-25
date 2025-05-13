@@ -113,6 +113,14 @@ module.exports.handleDeleteAccount = async (req, res) => {
               }
             );
 
+            const updateUserTasksQuery = await user_tasks.update(
+              { user_id: null },
+              {
+                where: {
+                  user_id: userID,
+                },
+              }
+            );
             const updatePostsQuery = await posts.update(
               { sender_id: null },
               {
