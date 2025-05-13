@@ -168,7 +168,7 @@ router.post("/session", async (req, res) => {
         return candidate;
       }
 
-      const newUsername = await generateUsername();
+      const newUsername = await getUniqueUsername();
 
       const userId = uuidv4();
 
