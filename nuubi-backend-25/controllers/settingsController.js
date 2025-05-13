@@ -84,6 +84,14 @@ module.exports.handleDeleteAccount = async (req, res) => {
             existingUser.passhash
           );
           if (isSamePass) {
+            const updateAdminQuery = await groups.update(
+              { admin_id: null },
+              {
+                where: {
+                  admin_id: userID,
+                },
+              }
+            );
             const deleteParticipantsQuery = await participants.destroy({
               where: {
                 user_id: userID,
