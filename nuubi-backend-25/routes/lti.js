@@ -107,29 +107,65 @@ router.post("/session", async (req, res) => {
 
     // If user does not exist, create one
     if (userRes.rows.length === 0) {
-      async function generateUsername() {
-        var a = adjectives;
-        var b = nouns;
+      //   async function generateUsername() {
+      //     var a = adjectives;
+      //     var b = nouns;
 
-        var rA = Math.floor(Math.random() * a.length);
-        var rB = Math.floor(Math.random() * b.length);
+      //     var rA = Math.floor(Math.random() * a.length);
+      //     var rB = Math.floor(Math.random() * b.length);
 
-        var adj = a[rA];
-        var capAdj = adj.charAt(0).toUpperCase() + adj.slice(1);
+      //     var adj = a[rA];
+      //     var capAdj = adj.charAt(0).toUpperCase() + adj.slice(1);
 
-        var noun = b[rB];
-        var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
+      //     var noun = b[rB];
+      //     var capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);
 
-        const usernameAttempt = capAdj + capNoun;
-        const existingUser = await pool.query(
-          "SELECT username FROM users WHERE username = $1",
-          [usernameAttempt]
-        );
-        if (existingUser.rows.length === 0) {
-          return usernameAttempt;
-        } else {
-          return generateUsername();
+      //     const usernameAttempt = capAdj + capNoun;
+      //     const existingUser = await pool.query(
+      //       "SELECT username FROM users WHERE username = $1",
+      //       [usernameAttempt]
+      //     );
+      //     if (existingUser.rows.length === 0) {
+      //       return usernameAttempt;
+      //     } else {
+      //       return generateUsername();
+      //     }
+      //   }
+
+      async function getUniqueUsername() {
+        const first = (payload.given_name || "").trim();
+        const last = (payload.family_name || "").trim();
+
+        let base =
+          first && last
+            ? first[0].toUpperCase() +
+              first.slice(1) +
+              last[0].toUpperCase() +
+              last.slice(1)
+            : null;
+
+        if (!base) {
+          const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+          const noun = nouns[Math.floor(Math.random() * nouns.length)];
+          base =
+            adj[0].toUpperCase() +
+            adj.slice(1) +
+            noun[0].toUpperCase() +
+            noun.slice(1);
         }
+
+        let candidate = base;
+        let n = 1;
+        while (
+          (
+            await pool.query("SELECT 1 FROM users WHERE username=$1", [
+              candidate,
+            ])
+          ).rows.length > 0
+        ) {
+          candidate = `${base}${n++}`;
+        }
+        return candidate;
       }
 
       const newUsername = await generateUsername();

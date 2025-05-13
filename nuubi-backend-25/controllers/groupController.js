@@ -2278,7 +2278,7 @@ module.exports.handleCreatePost = async (req, res) => {
 
           // Create a notification for the user
           await notifications.create({
-            message: `Congratulations! You've been awarded the Composer Badge in the group "${group.name}" for creating your first post in that group.`,
+            message: `Great work on publishing your first post in "${group.name}". Keep participating to earn an award!`,
             user_id: userID,
             is_read: false,
             created_at: currentDate.getTime(),
