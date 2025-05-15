@@ -508,7 +508,7 @@ io.on("connection", (socket) => {
 
       // checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
-      socket.emit(
+      io.emit(
         "insert msg return updated list",
         Object.assign(newMsg, { sender_username: userRes.rows[0].username })
       );
