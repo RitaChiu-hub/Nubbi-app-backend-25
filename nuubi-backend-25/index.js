@@ -3,7 +3,7 @@ const { jwtSign, jwtVerify, getJwt } = require("./controllers/jwt/jwtAuth");
 const express = require("express");
 const app = express();
 app.use(express.static("public"));
-const { checkAwardsForUser } = require("./services/awardService");
+const { checkAwardsForUser } = require("./controllers/awardService");
 
 const helmet = require("helmet");
 const { Sequelize } = require("sequelize");
