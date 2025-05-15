@@ -210,7 +210,7 @@ module.exports.handleCreateTask = async (req, res) => {
 
           await Promise.all(userTasksPromises);
         } else {
-          console.log("No participants found for the group.");
+          console.error("No participants found for the group.");
         }
       }
 

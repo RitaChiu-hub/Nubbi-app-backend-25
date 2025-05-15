@@ -191,7 +191,6 @@ async function evaluateCriteria(userId, groupId, awardId) {
 }
 
 async function checkAwardsForUser(userId, groupId) {
-  console.log("checking awards for user!!!! (from the awardservice file");
   // load all awards and the group name once
   const awardsList = await awards.findAll();
   const group = await groups.findByPk(groupId);

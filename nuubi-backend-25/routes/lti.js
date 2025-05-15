@@ -8,7 +8,6 @@ const { v4: uuidv4 } = require("uuid");
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
-  console.log("📥 LTI login-init hit");
 
   const p = req.method === "POST" ? req.body : req.query;
   const { client_id, login_hint, lti_message_hint, target_link_uri } = p;
@@ -23,7 +22,6 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
     `response_type=id_token&response_mode=form_post&scope=openid&` +
     `state=state123&nonce=nonce123&prompt=none`;
 
-  console.log("↪ redirecting to Canvas authorize_redirect");
   /* *stay in iframe* – we only move the *iframe* to Canvas, not window.top */
   res.send(`
     <html><head><title>Redirecting…</title></head>
@@ -33,17 +31,12 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
 
 /* ────────────────────────────── 2. LTI launch ───────────────────────────── */
 router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
-  console.log("🚀 LTI launch hit");
 
   const idToken = req.body.id_token;
   if (!idToken) return res.status(400).send("Missing id_token");
 
   /* ───── quick peek (DEBUG ONLY – no signature check) ───── */
   const decoded = jwt.decode(idToken, { complete: true });
-  console.log("[Nuubi] — header —");
-  console.log(JSON.stringify(decoded.header, null, 2));
-  console.log("[Nuubi] — payload / claims —");
-  console.log(JSON.stringify(decoded.payload, null, 2));
 
   // Fix: assign payload from decoded
   const payload = decoded.payload;
@@ -53,8 +46,6 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   const isAdmin = roles.some(
     (role) => role.includes("Instructor") || role === "Administrator"
   );
-
-  console.log("is Instructor? (isAdmin?) : " + isAdmin);
 
   /* (optional) inspect token … */
   const nuubiURL = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
