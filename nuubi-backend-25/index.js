@@ -473,6 +473,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("insert msg return updated list", async (req) => {
+    console.log("INSERTING MESSAGE!!!");
     // restore your original token logic
     const token = req.token || webToken;
 
@@ -506,7 +507,7 @@ io.on("connection", (socket) => {
 
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
-      socket.emit(
+      io.emit(
         "insert msg return updated list",
         Object.assign(newMsg, { sender_username: userRes.rows[0].username })
       );
@@ -552,7 +553,7 @@ io.on("connection", (socket) => {
           );
 
           // 3) Emit only that new comment object
-          io.emit("insert comment return updated list", {
+          socket.emit("insert comment return updated list", {
             ...newComment,
             sender_username: userRow.sender_username,
           });
