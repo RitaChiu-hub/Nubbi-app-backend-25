@@ -1729,10 +1729,30 @@ module.exports.handleCreateComment = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
+      const postId = req.body.currentPost;
       try {
         const newPostQuery = await pool.query(
           "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
-          [req.body.mycomment, userID, req.body.currentPost]
+          [req.body.mycomment, userID, postId]
+        );
+
+        // look up the post's author & group
+        const {
+          rows: [postRow],
+        } = await pool.query(
+          `SELECT sender_id, group_id
+             FROM posts
+            WHERE id = $1`,
+          [postId]
+        );
+
+        // kick off award checks in parallel (don't await)
+        // 1) the commenter may have just unlocked Communication / Reliability
+        checkAwardsForUser(userID, postRow.group_id).catch(console.error);
+
+        // 2) the post’s author may have just unlocked Leadership
+        checkAwardsForUser(postRow.sender_id, postRow.group_id).catch(
+          console.error
         );
 
         res.json({
@@ -1792,6 +1812,14 @@ module.exports.handleAddPostPoint = async (req, res) => {
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
+
+          // Award checks
+          checkAwardsForUser(recipient_id, req.body.currentGroup).catch(
+            console.error
+          );
+          checkAwardsForUser(userID, req.body.currentGroup).catch(
+            console.error
+          );
 
           res.json({
             ...req.body,
@@ -1866,6 +1894,11 @@ module.exports.handleAddMessagePoint = async (req, res) => {
             },
           });
         }
+        // Award checks
+        checkAwardsForUser(recipient_id, req.body.currentGroup).catch(
+          console.error
+        );
+        checkAwardsForUser(userID, req.body.currentGroup).catch(console.error);
 
         res.json({
           ...req.body,
@@ -1919,6 +1952,10 @@ module.exports.handleAddCommentPoint = async (req, res) => {
             [userID, req.body.comment_id]
           );
         }
+        checkAwardsForUser(recipient_id, req.body.currentGroup).catch(
+          console.error
+        );
+        checkAwardsForUser(userID, req.body.currentGroup).catch(console.error);
 
         res.json({
           ...req.body,
