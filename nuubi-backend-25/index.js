@@ -510,47 +510,27 @@ io.on("connection", (socket) => {
         "insert msg return updated list",
         Object.assign(newMsg, { sender_username: userRes.rows[0].username })
       );
+
+      // A) Get the post’s author and group
+      const postRes = await pool.query(
+        `SELECT sender_id, group_id
+         FROM posts
+        WHERE id = $1`,
+        [req.currentPost]
+      );
+      const postAuthorId = postRes.rows[0].sender_id;
+      const postGroupId = postRes.rows[0].group_id;
+
+      // B) Commenter (communication & reliability)
+      checkAwardsForUser(userID, postGroupId).catch(console.error);
+
+      // C) Post’s author (leadership)
+      checkAwardsForUser(postAuthorId, postGroupId).catch(console.error);
     } catch (err) {
       console.error("Websocket message error:", err);
       socket.emit("error", { error: "Internal server error" });
     }
   });
-
-  // socket.on("insert msg return updated list", (req) => {
-  //   const token = req.token || webToken;
-
-  //   // Check if token is available
-  //   if (!token) {
-  //     return socket.emit("error", { error: "JWT token is required" }); // Emit error back to client
-  //   }
-  //   // Now verify the token
-  //   jwtVerify(token, process.env.JWT_SECRET)
-  //     // jwtVerify(req.token, process.env.JWT_SECRET)
-  //     .then(async (decoded) => {
-  //       const userID = decoded.id;
-  //       try {
-  //         const firstQuery = pool.query(
-  //           "INSERT INTO messages(sender_id, group_id, text) values ($1, $2, $3)",
-  //           [userID, req.currentGroup, req.mymessage]
-  //         );
-
-  //         pool.query(
-  //           "SELECT username sender_username, text, messages.id messages_id, messages.created_at iso_time_sent FROM messages INNER JOIN users ON messages.sender_id = users.id WHERE messages.group_id = $1 ORDER BY messages.created_at DESC",
-  //           [req.currentGroup],
-  //           (err, res) => {
-  //             if (err) throw err;
-  //             io.emit("insert msg return updated list", res.rows);
-  //           }
-  //         );
-  //       } catch (error) {
-  //         console.error("Error fetching and adding messages:", error);
-  //         res.status(500).json({ error: "Internal server error" });
-  //       }
-  //     })
-  //     .catch(async () => {
-  //       res.json({ token: null });
-  //     });
-  // });
 
   socket.on("insert comment return updated list", (req) => {
     const token = req.token || webToken;
@@ -602,145 +582,6 @@ io.on("connection", (socket) => {
         io.emit("insert comment error", { error: "Invalid token" });
       });
   });
-
-  // socket.on("insert comment return updated list", (req) => {
-  //   const token = req.token || webToken;
-
-  //   // Check if token is available
-  //   if (!token) {
-  //     return res.status(401).json({ error: "JWT token is required" });
-  //   }
-
-  //   // Now verify the token
-  //   jwtVerify(token, process.env.JWT_SECRET)
-  //     // jwtVerify(req.token, process.env.JWT_SECRET)
-  //     .then(async (decoded) => {
-  //       const userID = decoded.id;
-  //       try {
-  //         const firstQuery = pool.query(
-  //           "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
-  //           [req.mycomment, userID, req.currentPost]
-  //         );
-
-  //         pool.query(
-  //           "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
-  //           [req.currentPost],
-  //           (err, res) => {
-  //             if (err) throw err;
-  //             io.emit("insert comment return updated list", res.rows);
-  //           }
-  //         );
-  //       } catch (error) {
-  //         console.error("Error fetching and adding comments: ", error);
-  //         res.status(500).json({ error: "Internal server error" });
-  //       }
-  //     })
-  //     .catch(async () => {
-  //       res.json({ token: null });
-  //     });
-  // });
-
-  // socket.on("insert comment return updated list", async (req) => {
-  //   const token = req.token || webToken;
-
-  //   if (!token) {
-  //     socket.emit("auth_error", { error: "JWT token is required" });
-  //     return;
-  //   }
-
-  //   try {
-  //     const decoded = await jwtVerify(token, process.env.JWT_SECRET);
-  //     const userID = decoded.id;
-
-  //     // Insert the comment and make sure we wait for it
-  //     await pool.query(
-  //       "INSERT INTO post_comments(comment_text, sender_id, post_id) VALUES ($1, $2, $3)",
-  //       [req.mycomment, userID, req.currentPost]
-  //     );
-
-  //     // Short delay to ensure Postgres finishes transaction
-  //     await new Promise((resolve) => setTimeout(resolve, 100));
-
-  //     // Fetch updated list of comments for this post
-  //     const result = await pool.query(
-  //       "SELECT username AS sender_username, post_comments.id AS post_comment_id, sender_id, comment_text, post_comments.created_at AS comment_iso_time_sent, post_id FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at ASC",
-  //       [req.currentPost]
-  //     );
-
-  //     io.to(`post-${req.currentPost}`).emit(
-  //       "insert comment return updated list",
-  //       result.rows
-  //     );
-  //   } catch (error) {
-  //     console.error("Error in socket insert comment handler:", error);
-  //     socket.emit("error", { error: "Internal server error or invalid token" });
-  //   }
-  // });
-
-  // socket.on("insert comment return updated list", async (req) => {
-  //   //console.log(" my post is: " + req.currentPost);
-  //   const token = req.token || webToken;
-
-  //   if (!token) {
-  //     socket.emit("auth_error", { error: "JWT token is required" });
-  //     return;
-  //   }
-
-  //   try {
-  //     const decoded = await jwtVerify(token, process.env.JWT_SECRET);
-  //     const userID = decoded.id;
-
-  //     // Insert the comment
-  //     await pool.query(
-  //       "INSERT INTO post_comments(comment_text, sender_id, post_id) VALUES ($1, $2, $3)",
-  //       [req.mycomment, userID, req.currentPost]
-  //     );
-
-  //     // Fetch updated list of comments for this post
-  //     const result = await pool.query(
-  //       "SELECT username AS sender_username, post_comments.id AS post_comment_id, sender_id, comment_text, post_comments.created_at AS comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at ASC",
-  //       [req.currentPost]
-  //     );
-
-  //     // Emit updated list only to the current post's room
-  //     //io.emit("insert comment return updated list", result.rows);
-  //     io.to(`post-${req.currentPost}`).emit(
-  //       "insert comment return updated list",
-  //       result.rows
-  //     );
-  //   } catch (error) {
-  //     console.error("Error in socket insert comment handler:", error);
-  //     socket.emit("error", { error: "Internal server error or invalid token" });
-  //   }
-  // });
-
-  // // Now verify the token
-  // jwtVerify(token, process.env.JWT_SECRET)
-  //   // jwtVerify(req.token, process.env.JWT_SECRET)
-  //   .then(async (decoded) => {
-  //     const userID = decoded.id;
-  //     try {
-  //       const firstQuery = pool.query(
-  //         "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
-  //         [req.mycomment, userID, req.currentPost]
-  //       );
-
-  //       pool.query(
-  //         "SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC;",
-  //         [req.currentPost],
-  //         (err, res) => {
-  //           if (err) throw err;
-  //           io.emit("insert comment return updated list", res.rows);
-  //         }
-  //       );
-  //     } catch (error) {
-  //       console.error("Error fetching and adding comments: ", error);
-  //       res.status(500).json({ error: "Internal server error" });
-  //     }
-  //   })
-  //   .catch(async () => {
-  //     res.json({ token: null });
-  //   });
 
   socket.on("add post point return updated sum", async (req) => {
     const token = req.token || webToken;
@@ -796,6 +637,13 @@ io.on("connection", (socket) => {
               }
             );
           }
+
+          //  a) for the person WHO GOT the point
+          checkAwardsForUser(recipient_id, req.currentGroup).catch(
+            console.error
+          );
+          //  b) for the person WHO GAVE the point (they may earn reliability/communication)
+          checkAwardsForUser(userID, req.currentGroup).catch(console.error);
         } catch (error) {
           console.error("Error adding post point: ", error);
           res.status(500).json({ error: "Internal server error" });
@@ -805,140 +653,6 @@ io.on("connection", (socket) => {
         res.json({ token: null });
       });
   });
-
-  // socket.on("add comment point return updated sum", async (req) => {
-  //   const token = req.token || webToken;
-  //   // Check if token is available
-  //   if (!token) {
-  //     return res.status(401).json({ error: "JWT token is required" });
-  //   }
-
-  //   // Now verify the token
-  //   jwtVerify(token, process.env.JWT_SECRET)
-  //     // jwtVerify(req.token, process.env.JWT_SECRET)
-  //     .then(async (decoded) => {
-  //       const userID = decoded.id;
-  //       try {
-  //         const pointGiven = await pool.query(
-  //           "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and comment_id = $2",
-  //           [userID, req.post_comment_id]
-  //         );
-
-  //         if (pointGiven.rows[0].sum == null) {
-  //           const newCommentPoint = await pool.query(
-  //             "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
-  //             [req.sender_id, userID, req.post_comment_id, req.currentGroup]
-  //           );
-
-  //           pool.query(
-  //             "SELECT SUM(point_value) FROM points WHERE comment_id = $1;",
-  //             [req.post_comment_id],
-  //             (err, res) => {
-  //               if (err) throw err;
-  //               io.emit(
-  //                 "add comment point return updated sum",
-  //                 res.rows[0].sum
-  //               );
-  //             }
-  //           );
-  //         } else {
-  //           const deleteCommentPoint = await pool.query(
-  //             "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
-  //             [userID, req.post_comment_id]
-  //           );
-
-  //           pool.query(
-  //             "SELECT COALESCE(SUM(point_value),0) FROM points WHERE comment_id = $1;",
-  //             [req.post_comment_id],
-  //             (err, res) => {
-  //               if (err) throw err;
-  //               io.emit(
-  //                 "add comment point return updated sum",
-  //                 res.rows[0].sum
-  //               );
-  //             }
-  //           );
-  //         }
-  //       } catch (error) {
-  //         console.error("Error adding comment point: ", error);
-  //         res.status(500).json({ error: "Internal server error" });
-  //       }
-  //     })
-  //     .catch(async () => {
-  //       res.json({ token: null });
-  //     });
-  // });
-
-  // socket.on("add message point return updated sum", async (req) => {
-  //   const token = req.token || webToken;
-
-  //   // Check if token is available
-  //   if (!token) {
-  //     return res.status(401).json({ error: "JWT token is required" });
-  //   }
-
-  //   // Now verify the token
-  //   jwtVerify(token, process.env.JWT_SECRET)
-  //     // jwtVerify(req.token, process.env.JWT_SECRET)
-  //     .then(async (decoded) => {
-  //       const userID = decoded.id;
-  //       try {
-  //         const pointGiven = await pool.query(
-  //           "SELECT SUM(point_value) FROM points WHERE giver_id = $1 and messages_id = $2",
-  //           [userID, req.message_id]
-  //         );
-
-  //         const getRecipientId = await pool.query(
-  //           "SELECT sender_id FROM messages WHERE id = $1;",
-  //           [req.message_id]
-  //         );
-
-  //         const recipient_id = getRecipientId.rows[0].sender_id;
-
-  //         if (pointGiven.rows[0].sum == null) {
-  //           const newMessagePoint = await pool.query(
-  //             "INSERT INTO points(recipient_id, giver_id, messages_id, group_id) values($1,$2,$3,$4);",
-  //             [recipient_id, userID, req.message_id, req.currentGroup]
-  //           );
-
-  //           pool.query(
-  //             "SELECT SUM(point_value) FROM points WHERE messages_id = $1;",
-  //             [req.message_id],
-  //             (err, res) => {
-  //               if (err) throw err;
-  //               io.emit(
-  //                 "add message point return updated sum",
-  //                 res.rows[0].sum
-  //               );
-  //             }
-  //           );
-  //         } else {
-  //           const deleteMessagePoint = await pool.query(
-  //             "DELETE FROM points WHERE giver_id = $1 AND messages_id = $2;",
-  //             [userID, req.message_id]
-  //           );
-
-  //           pool.query(
-  //             "SELECT COALESCE(SUM(point_value),0) FROM points WHERE messages_id = $1;",
-  //             [req.message_id],
-  //             (err, res) => {
-  //               if (err) throw err;
-  //               io.emit(
-  //                 "add message point return updated sum",
-  //                 res.rows[0].sum
-  //               );
-  //             }
-  //           );
-  //         }
-  //       } catch (error) {
-  //         console.error("Error adding message point: ", error);
-  //         res.status(500).json({ error: "Internal server error" });
-  //       }
-  //     })
-  //     .catch(async () => {
-  //       res.json({ token: null });
-  //     });
-  // });
 
   socket.on("disconnect", () => {
     console.log("user disconnected");
