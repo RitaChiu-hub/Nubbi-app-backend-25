@@ -1,7 +1,7 @@
 const pool = require("../db");
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
-const { checkAwardsForUser } = require('../services/awardService')
+const { checkAwardsForUser } = require("./awardService");
 
 const Sequelize = require("sequelize");
 
@@ -151,14 +151,11 @@ module.exports.handleInviteLink = async (req, res) => {
         groupId,
         message: "User successfully added to the group.",
       });
-
-
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "An error occurred during group invite" });
     }
   });
-
 };
 
 module.exports.handleCreateTask = async (req, res) => {
@@ -557,7 +554,6 @@ module.exports.getWonBadges = async (req, res) => {
     });
 };
 
-
 module.exports.getAllPublicGroups = async (req, res) => {
   const allPubGroups = await groups.findAll({
     where: { is_public: true },
@@ -629,8 +625,6 @@ module.exports.getGroupMembers = async (req, res) => {
 
   res.send(groupMembersQuery.rows);
 };
-
-
 
 module.exports.getWeeklyGroupInfo = async (req, res) => {
   const { currentGroup, startDate, endDate } = req.body;
@@ -806,9 +800,6 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
   }
 };
 
-
-
-
 //////// MOST RECENT GET MEMBERS
 module.exports.getGroupMembers = async (req, res) => {
   const { currentGroup } = req.body;
@@ -967,7 +958,6 @@ module.exports.getMyGroupAnalytics = async (req, res) => {
           endDate = new Date().toISOString().split("T")[0]; // Default to today
         }
       }
-
 
       const userAnalyticsQuery = await pool.query(
         `
@@ -1385,8 +1375,6 @@ module.exports.handleDeleteGroup = async (req, res) => {
       res.json({ token: null });
     });
 };
-
-
 
 module.exports.handleCreatePost = async (req, res) => {
   // Use getJwt to get the token from either cookies or the Authorization header

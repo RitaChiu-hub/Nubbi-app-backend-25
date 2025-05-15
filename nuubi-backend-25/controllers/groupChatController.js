@@ -1,7 +1,7 @@
 const pool = require("../db");
 const currentDate = new Date();
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
-const { checkAwardsForUser } = require('../services/awardService')
+const { checkAwardsForUser } = require('./awardService')
 
 const Sequelize = require("sequelize");
 
