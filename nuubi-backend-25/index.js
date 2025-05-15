@@ -199,8 +199,8 @@ var _user_badges = require("./models/user_badges");
 var _tasks = require("./models/tasks");
 var _user_tasks = require("./models/user_tasks");
 var _notifications = require("./models/notifications");
-var _awards = require("./awards");
-var _user_awards = require("./user_awards");
+var _awards = require("./models/awards");
+var _user_awards = require("./models/user_awards");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
