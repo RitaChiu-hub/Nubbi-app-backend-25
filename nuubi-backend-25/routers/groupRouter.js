@@ -45,6 +45,7 @@ const {
   getMyGroupAnalytics,
   getWeeklyGroupInfo,
   handleInviteLink,
+  getWonCertificates,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -105,5 +106,6 @@ router.post("/myleaderboards", getMyLeaderboards);
 router.post("/mygroupanalytics", getMyGroupAnalytics);
 router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
 router.post("/invite/:token", handleInviteLink);
+router.post("/getwoncertificates", awardController.getWonCertificates);
 
 module.exports = router;

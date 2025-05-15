@@ -554,6 +554,59 @@ module.exports.getWonBadges = async (req, res) => {
     });
 };
 
+module.exports.getWonCertificates = async (req, res) => {
+  // extract the token
+  const token = getJwt(req);
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  // verify
+  jwtVerify(token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      const { groupId } = req.body;
+      if (!groupId) {
+        return res.status(400).json({ error: "Missing groupId" });
+      }
+
+      try {
+        // find all user_awards for this user + group, include award info and group name
+        const certs = await user_awards.findAll({
+          where: { user_id: userID, group_id: groupId },
+          include: [
+            {
+              model: awards,
+              attributes: ["id", "title"],
+            },
+            {
+              model: groups,
+              attributes: ["name"],
+            },
+          ],
+          order: [["created_at", "DESC"]],
+        });
+
+        // map to simple objects
+        const result = certs.map((ua) => ({
+          award_id: ua.award_id,
+          title: ua.award.title,
+          group_id: ua.group_id,
+          group_name: ua.group.name,
+        }));
+
+        res.json(result);
+      } catch (err) {
+        console.error("Error fetching won certificates:", err);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch((err) => {
+      console.error("JWT verification failed:", err);
+      res.status(403).json({ error: "Invalid or expired token" });
+    });
+};
+
 module.exports.getAllPublicGroups = async (req, res) => {
   const allPubGroups = await groups.findAll({
     where: { is_public: true },
