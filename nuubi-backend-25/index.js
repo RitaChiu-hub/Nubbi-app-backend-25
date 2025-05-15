@@ -503,28 +503,13 @@ io.on("connection", (socket) => {
           WHERE id = $1`,
         [userID]
       );
+
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
       socket.emit(
         "insert msg return updated list",
         Object.assign(newMsg, { sender_username: userRes.rows[0].username })
       );
-
-      // A) Get the post’s author and group
-      const postRes = await pool.query(
-        `SELECT sender_id, group_id
-         FROM posts
-        WHERE id = $1`,
-        [req.currentPost]
-      );
-      const postAuthorId = postRes.rows[0].sender_id;
-      const postGroupId = postRes.rows[0].group_id;
-
-      // B) Commenter (communication & reliability)
-      checkAwardsForUser(userID, postGroupId).catch(console.error);
-
-      // C) Post’s author (leadership)
-      checkAwardsForUser(postAuthorId, postGroupId).catch(console.error);
     } catch (err) {
       console.error("Websocket message error:", err);
       socket.emit("error", { error: "Internal server error" });
@@ -534,7 +519,7 @@ io.on("connection", (socket) => {
   socket.on("insert comment return updated list", (req) => {
     const token = req.token || webToken;
     if (!token) {
-      io.emit("insert comment error", { error: "JWT token is required" });
+      socket.emit("insert comment error", { error: "JWT token is required" });
       return;
     }
 
@@ -571,14 +556,32 @@ io.on("connection", (socket) => {
             ...newComment,
             sender_username: userRow.sender_username,
           });
+
+          // A) Get the post’s author and group
+          const postRes = await pool.query(
+            `SELECT sender_id, group_id
+         FROM posts
+        WHERE id = $1`,
+            [req.currentPost]
+          );
+          const postAuthorId = postRes.rows[0].sender_id;
+          const postGroupId = postRes.rows[0].group_id;
+
+          // B) Commenter (communication & reliability)
+          checkAwardsForUser(userID, postGroupId).catch(console.error);
+
+          // C) Post’s author (leadership)
+          checkAwardsForUser(postAuthorId, postGroupId).catch(console.error);
         } catch (err) {
           console.error("Error inserting comment:", err);
-          io.emit("insert comment error", { error: "Internal server error" });
+          socket.emit("insert comment error", {
+            error: "Internal server error",
+          });
         }
       })
       .catch((err) => {
         console.error("JWT verification failed:", err);
-        io.emit("insert comment error", { error: "Invalid token" });
+        socket.emit("insert comment error", { error: "Invalid token" });
       });
   });
 
@@ -586,7 +589,9 @@ io.on("connection", (socket) => {
     const token = req.token || webToken;
     // Check if token is available
     if (!token) {
-      return res.status(401).json({ error: "JWT token is required" });
+      return socket.emit("add post point error", {
+        error: "JWT token is required",
+      });
     }
 
     // Now verify the token
@@ -645,11 +650,13 @@ io.on("connection", (socket) => {
           checkAwardsForUser(userID, req.currentGroup).catch(console.error);
         } catch (error) {
           console.error("Error adding post point: ", error);
-          res.status(500).json({ error: "Internal server error" });
+          socket.emit("add post point error", {
+            error: "Internal server error",
+          });
         }
       })
       .catch(async () => {
-        res.json({ token: null });
+        socket.emit("add post point error", { error: "Invalid token" });
       });
   });
 
