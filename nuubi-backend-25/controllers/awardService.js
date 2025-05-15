@@ -20,7 +20,7 @@ const sequelize = new Sequelize({
       rejectUnauthorized: false, // Disable SSL certificate verification
     },
   },
-  ...config,
+  config: config,
 });
 
 const db = sequelize;
