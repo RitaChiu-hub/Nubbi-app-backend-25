@@ -106,6 +106,6 @@ router.post("/myleaderboards", getMyLeaderboards);
 router.post("/mygroupanalytics", getMyGroupAnalytics);
 router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
 router.post("/invite/:token", handleInviteLink);
-router.post("/getwoncertificates", awardController.getWonCertificates);
+router.post("/getwoncertificates", getWonCertificates);
 
 module.exports = router;
