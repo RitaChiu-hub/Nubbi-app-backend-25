@@ -193,12 +193,12 @@ async function evaluateCriteria(userId, groupId, awardId) {
 async function checkAwardsForUser(userId, groupId) {
   console.log("checking awards for user!!!! (from the awardservice file");
   // load all awards and the group name once
-  const awardsList = await db.awards.findAll();
-  const group = await db.groups.findByPk(groupId);
+  const awardsList = await awards.findAll();
+  const group = await groups.findByPk(groupId);
 
   for (const award of awardsList) {
     // skip if already earned
-    const already = await db.user_awards.findOne({
+    const already = await user_awards.findOne({
       where: { user_id: userId, group_id: groupId, award_id: award.id },
     });
     if (already) continue;
@@ -208,7 +208,7 @@ async function checkAwardsForUser(userId, groupId) {
     if (!earned) continue;
 
     // record the new award
-    await db.user_awards.create({
+    await user_awards.create({
       user_id: userId,
       group_id: groupId,
       award_id: award.id,
@@ -216,7 +216,7 @@ async function checkAwardsForUser(userId, groupId) {
 
     // send a congratulations notification
     const message = `Congratulations, you just won the ${award.title} in ${group.name}!`;
-    await db.notifications.create({
+    await notifications.create({
       user_id: userId,
       message,
     });
