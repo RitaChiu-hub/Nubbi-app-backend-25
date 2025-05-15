@@ -206,7 +206,7 @@ async function checkAwardsForUser(userId, groupId) {
     let allPassed = true;
     for (const criterion of award.criteriaList) {
       try {
-        const passed = await evaluateCriterion(
+        const passed = await evaluateCriteria(
           userId,
           groupId,
           award.id,
