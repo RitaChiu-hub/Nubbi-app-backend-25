@@ -1,6 +1,7 @@
 const pool = require("../db");
 const currentDate = new Date();
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
+const { checkAwardsForUser } = require('../services/awardService')
 
 const Sequelize = require("sequelize");
 
@@ -48,14 +49,17 @@ module.exports.addMessage = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
+      const groupID = req.body.currentGroup;
       try {
         const newMessage = await messages.create({
           sender_id: userID,
-          group_id: req.body.currentGroup,
+          group_id: groupID,
           text: req.body.mymessage,
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
+
+        checkAwardsForUser(userID, groupID).catch(console.error);
 
         res.json({
           ...req.body,
