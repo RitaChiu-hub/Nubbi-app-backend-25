@@ -503,7 +503,6 @@ io.on("connection", (socket) => {
           WHERE id = $1`,
         [userID]
       );
-      console.log("from the index.js file ... about the check awards for user");
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
       socket.emit(
