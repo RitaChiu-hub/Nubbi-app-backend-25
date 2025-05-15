@@ -202,11 +202,32 @@ async function checkAwardsForUser(userId, groupId) {
     });
     if (already) continue;
 
-    // check criteria
-    const earned = await evaluateCriteria(userId, groupId, award.id);
-    if (!earned) continue;
+    // SERIAL: check every individual criterion
+    let allPassed = true;
+    for (const criterion of award.criteriaList) {
+      try {
+        const passed = await evaluateCriterion(
+          userId,
+          groupId,
+          award.id,
+          criterion
+        );
+        if (!passed) {
+          allPassed = false;
+          break;
+        }
+      } catch (err) {
+        console.error(
+          `Error checking criterion ${criterion} for award ${award.id}:`,
+          err
+        );
+        allPassed = false;
+        break;
+      }
+    }
+    if (!allPassed) continue;
 
-    // record the new award
+    // OK—all criteria passed, so award it
     await user_awards.create({
       user_id: userId,
       group_id: groupId,
@@ -215,12 +236,41 @@ async function checkAwardsForUser(userId, groupId) {
 
     // send a congratulations notification
     const message = `Congratulations, you just won the ${award.title} in ${group.name}!`;
-    await notifications.create({
-      user_id: userId,
-      message,
-    });
+    await notifications.create({ user_id: userId, message });
   }
 }
+
+// async function checkAwardsForUser(userId, groupId) {
+//   // load all awards and the group name once
+//   const awardsList = await awards.findAll();
+//   const group = await groups.findByPk(groupId);
+
+//   for (const award of awardsList) {
+//     // skip if already earned
+//     const already = await user_awards.findOne({
+//       where: { user_id: userId, group_id: groupId, award_id: award.id },
+//     });
+//     if (already) continue;
+
+//     // check criteria
+//     const earned = await evaluateCriteria(userId, groupId, award.id);
+//     if (!earned) continue;
+
+//     // record the new award
+//     await user_awards.create({
+//       user_id: userId,
+//       group_id: groupId,
+//       award_id: award.id,
+//     });
+
+//     // send a congratulations notification
+//     const message = `Congratulations, you just won the ${award.title} in ${group.name}!`;
+//     await notifications.create({
+//       user_id: userId,
+//       message,
+//     });
+//   }
+// }
 
 module.exports = {
   evaluateLeadershipAward,
