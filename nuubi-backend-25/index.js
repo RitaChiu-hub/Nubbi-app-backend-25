@@ -473,8 +473,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("insert msg return updated list", async (req) => {
-    console.log("📥 Received socket payload:", JSON.stringify(req, null, 2));
-    console.log("INSERTING MESSAGE!!!");
     // restore your original token logic
     const token = req.token || webToken;
 
