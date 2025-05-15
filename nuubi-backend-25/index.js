@@ -3,6 +3,7 @@ const { jwtSign, jwtVerify, getJwt } = require("./controllers/jwt/jwtAuth");
 const express = require("express");
 const app = express();
 app.use(express.static("public"));
+const { checkAwardsForUser } = require("./services/awardService");
 
 const helmet = require("helmet");
 const { Sequelize } = require("sequelize");
@@ -502,6 +503,8 @@ io.on("connection", (socket) => {
           WHERE id = $1`,
         [userID]
       );
+
+      checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
       socket.emit(
         "insert msg return updated list",
