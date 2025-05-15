@@ -251,3 +251,23 @@ ALTER COLUMN passhash DROP NOT NULL;
 
 ALTER TABLE users
 ADD COLUMN created_via_canvas BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE awards (
+  id               SERIAL PRIMARY KEY,
+  title            VARCHAR NOT NULL,
+  skill            VARCHAR,                      -- e.g. Initiative & Peer Leadership
+  criteria_text    TEXT NOT NULL,                -- human-readable rule
+  asset_url        VARCHAR,                      -- color image path
+  unwon_asset_url  VARCHAR,                      -- greyscale image path
+  created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_awards (
+  id            SERIAL PRIMARY KEY,
+  user_id       VARCHAR NOT NULL REFERENCES users(id),
+  group_id      INTEGER NOT NULL REFERENCES groups(id),
+  award_id      INTEGER NOT NULL REFERENCES awards(id),
+  awarded_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, group_id, award_id)
+);

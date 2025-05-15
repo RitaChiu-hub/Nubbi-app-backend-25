@@ -11,6 +11,9 @@ var _user_badges = require("./user_badges");
 var _tasks = require("./tasks");
 var _user_tasks = require("./user_tasks");
 var _notifications = require("./notifications");
+// ← Add these two lines
+var _awards = require("./awards");
+var _user_awards = require("./user_awards");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -25,6 +28,9 @@ function initModels(sequelize) {
   var tasks = _tasks(sequelize, DataTypes);
   var user_tasks = _user_tasks(sequelize, DataTypes);
   var notifications = _notifications(sequelize, DataTypes);
+  // ← Initialize your new tables here
+  var awards = _awards(sequelize, DataTypes);
+  var user_awards = _user_awards(sequelize, DataTypes);
 
   messages.belongsTo(groups, { foreignKey: "group_id" });
   groups.hasMany(messages, { foreignKey: "group_id" });
@@ -85,6 +91,21 @@ function initModels(sequelize) {
   notifications.belongsTo(users, { foreignKey: "user_id" });
   users.hasMany(notifications, { foreignKey: "user_id" });
 
+  // ← Then wire up associations for awards/user_awards
+  // An award can be earned by many users (through user_awards)
+  awards.belongsToMany(users, { through: user_awards, foreignKey: "award_id" });
+  users.belongsToMany(awards, { through: user_awards, foreignKey: "user_id" });
+
+  // The join table itself
+  user_awards.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(user_awards, { foreignKey: "user_id" });
+
+  user_awards.belongsTo(awards, { foreignKey: "award_id" });
+  awards.hasMany(user_awards, { foreignKey: "award_id" });
+
+  user_awards.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(user_awards, { foreignKey: "group_id" });
+
   return {
     groups,
     messages,
@@ -98,6 +119,8 @@ function initModels(sequelize) {
     tasks,
     user_tasks,
     notifications,
+    awards,
+    user_awards,
   };
 }
 module.exports = initModels;

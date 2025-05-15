@@ -199,6 +199,8 @@ var _user_badges = require("./models/user_badges");
 var _tasks = require("./models/tasks");
 var _user_tasks = require("./models/user_tasks");
 var _notifications = require("./models/notifications");
+var _awards = require("./awards");
+var _user_awards = require("./user_awards");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -213,6 +215,8 @@ function initModels(sequelize) {
   var tasks = _tasks(sequelize, DataTypes);
   var user_tasks = _user_tasks(sequelize, DataTypes);
   var notifications = _notifications(sequelize, DataTypes);
+  var awards = _awards(sequelize, DataTypes);
+  var user_awards = _user_awards(sequelize, DataTypes);
 
   messages.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(messages, { as: "messages", foreignKey: "group_id" });
@@ -274,6 +278,19 @@ function initModels(sequelize) {
   notifications.belongsTo(users, { foreignKey: "user_id" });
   users.hasMany(notifications, { foreignKey: "user_id" });
 
+  awards.belongsToMany(users, { through: user_awards, foreignKey: "award_id" });
+  users.belongsToMany(awards, { through: user_awards, foreignKey: "user_id" });
+
+  // The join table itself
+  user_awards.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(user_awards, { foreignKey: "user_id" });
+
+  user_awards.belongsTo(awards, { foreignKey: "award_id" });
+  awards.hasMany(user_awards, { foreignKey: "award_id" });
+
+  user_awards.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(user_awards, { foreignKey: "group_id" });
+
   return {
     groups,
     messages,
@@ -287,6 +304,8 @@ function initModels(sequelize) {
     tasks,
     user_tasks,
     notifications,
+    awards,
+    user_awards,
   };
 }
 
@@ -305,6 +324,8 @@ var UserBadge = require("./models/user_badges")(sequelize, DataTypes);
 var Task = require("./models/tasks")(sequelize, DataTypes);
 var UserTask = require("./models/user_tasks")(sequelize, DataTypes);
 var Notification = require("./models/notifications")(sequelize, DataTypes);
+var Award = require("./models/awards")(sequelize, DataTypes);
+var UserAward = require("./models/user_awards")(sequelize, DataTypes);
 
 // Find all users
 
@@ -323,6 +344,8 @@ const exportsObject = {
   Task: Task,
   UserTask: UserTask,
   Notification: Notification,
+  Award: Award,
+  UserAward: UserAward,
 };
 
 // Export the object containing both sequelize and User

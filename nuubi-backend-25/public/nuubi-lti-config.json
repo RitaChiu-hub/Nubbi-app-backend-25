@@ -1,6 +1,6 @@
 {
   "title": "Nuubi",
-  "description": "Q&A forums and group chat plugin with mobile access and soft skills certificates.",
+  "description": "Q&A forums and group chat plugin with mobile access and awards for soft skills.",
   "scopes": [
     "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
     "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",

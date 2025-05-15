@@ -34,5 +34,8 @@
     "uuidv4": "^6.2.13",
     "yup": "^1.0.2",
     "yup-password": "^0.2.2"
+  },
+  "devDependencies": {
+    "sequelize-cli": "^6.6.3"
   }
 }
