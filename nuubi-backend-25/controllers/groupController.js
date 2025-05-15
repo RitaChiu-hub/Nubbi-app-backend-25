@@ -43,6 +43,8 @@ const {
   tasks,
   user_tasks,
   notifications,
+  awards,
+  user_awards,
 } = require("../models/init-models")(sequelize, DataTypes);
 
 const bcrypt = require("bcrypt");
@@ -555,43 +557,32 @@ module.exports.getWonBadges = async (req, res) => {
 };
 
 module.exports.getWonCertificates = async (req, res) => {
-  // extract the token
+  // 1) extract and verify token
   const token = getJwt(req);
   if (!token) {
     return res.status(401).json({ error: "JWT token is required" });
   }
 
-  // verify
   jwtVerify(token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
-      const { groupId } = req.body;
-      if (!groupId) {
-        return res.status(400).json({ error: "Missing groupId" });
-      }
 
       try {
-        // find all user_awards for this user + group, include award info and group name
+        // 2) fetch all awards this user has earned, across all groups
         const certs = await user_awards.findAll({
-          where: { user_id: userID, group_id: groupId },
+          where: { user_id: userID },
           include: [
-            {
-              model: awards,
-              attributes: ["id", "title"],
-            },
-            {
-              model: groups,
-              attributes: ["name"],
-            },
+            { model: awards, attributes: ["id", "title"] },
+            { model: groups, attributes: ["id", "name"] },
           ],
           order: [["created_at", "DESC"]],
         });
 
-        // map to simple objects
+        // 3) normalize for the front-end
         const result = certs.map((ua) => ({
           award_id: ua.award_id,
           title: ua.award.title,
-          group_id: ua.group_id,
+          group_id: ua.group.id,
           group_name: ua.group.name,
         }));
 

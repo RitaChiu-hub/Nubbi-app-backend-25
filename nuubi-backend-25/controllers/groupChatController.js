@@ -1,7 +1,7 @@
 const pool = require("../db");
 const currentDate = new Date();
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
-const { checkAwardsForUser } = require('./awardService')
+const { checkAwardsForUser } = require("./awardService");
 
 const Sequelize = require("sequelize");
 
@@ -43,6 +43,8 @@ const {
   tasks,
   user_tasks,
   notifications,
+  awards,
+  user_awards,
 } = require("../models/init-models")(sequelize, DataTypes);
 
 module.exports.addMessage = async (req, res) => {
