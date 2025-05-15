@@ -1253,7 +1253,10 @@ module.exports.handleJoinGroupWithPasscode = async (req, res) => {
 };
 
 module.exports.handleIsAdmin = async (req, res) => {
-  console.log("📥 Received isADMIN payload:", req.body);
+  console.log(
+    "📥 Received isADMIN payload:",
+    JSON.stringify(req.body, null, 2)
+  );
   // Use getJwt to get the token from either cookies or the Authorization header
   const token = getJwt(req);
 
