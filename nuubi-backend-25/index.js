@@ -476,46 +476,46 @@ io.on("connection", (socket) => {
     console.log("📥 Received socket payload:", JSON.stringify(req, null, 2));
     console.log("INSERTING MESSAGE!!!");
     // restore your original token logic
-    const token = req.token || webToken;
+    // const token = req.token || webToken;
 
-    if (!token) {
-      // client-side will see this and can prompt for re-login or show an error
-      return socket.emit("error", { error: "JWT token is required" });
-    }
+    // if (!token) {
+    //   // client-side will see this and can prompt for re-login or show an error
+    //   return socket.emit("error", { error: "JWT token is required" });
+    // }
 
-    try {
-      const decoded = await jwtVerify(token, process.env.JWT_SECRET);
-      const userID = decoded.id;
-      // insert just the new row and return it
-      const insertRes = await pool.query(
-        `INSERT INTO messages(sender_id, group_id, text)
-         VALUES ($1, $2, $3)
-         RETURNING
-           id       AS messages_id,
-           text,
-           created_at AS iso_time_sent`,
-        [userID, req.currentGroup, req.mymessage]
-      );
+    // try {
+    //   const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+    //   const userID = decoded.id;
+    //   // insert just the new row and return it
+    //   const insertRes = await pool.query(
+    //     `INSERT INTO messages(sender_id, group_id, text)
+    //      VALUES ($1, $2, $3)
+    //      RETURNING
+    //        id       AS messages_id,
+    //        text,
+    //        created_at AS iso_time_sent`,
+    //     [userID, req.currentGroup, req.mymessage]
+    //   );
 
-      const newMsg = insertRes.rows[0];
-      // fetch username for that sender
-      const userRes = await pool.query(
-        `SELECT username
-           FROM users
-          WHERE id = $1`,
-        [userID]
-      );
+    //   const newMsg = insertRes.rows[0];
+    //   // fetch username for that sender
+    //   const userRes = await pool.query(
+    //     `SELECT username
+    //        FROM users
+    //       WHERE id = $1`,
+    //     [userID]
+    //   );
 
-      // checkAwardsForUser(userID, req.currentGroup).catch(console.error);
+    //   // checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
-      io.emit(
-        "insert msg return updated list",
-        Object.assign(newMsg, { sender_username: userRes.rows[0].username })
-      );
-    } catch (err) {
-      console.error("Websocket message error:", err);
-      socket.emit("error", { error: "Internal server error" });
-    }
+    //   io.emit(
+    //     "insert msg return updated list",
+    //     Object.assign(newMsg, { sender_username: userRes.rows[0].username })
+    //   );
+    // } catch (err) {
+    //   console.error("Websocket message error:", err);
+    //   socket.emit("error", { error: "Internal server error" });
+    // }
   });
 
   socket.on("insert comment return updated list", (req) => {
