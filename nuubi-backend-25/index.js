@@ -473,6 +473,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("insert msg return updated list", async (req) => {
+    console.log("📥 Received socket payload:", JSON.stringify(req, null, 2));
     console.log("INSERTING MESSAGE!!!");
     // restore your original token logic
     const token = req.token || webToken;
@@ -507,7 +508,7 @@ io.on("connection", (socket) => {
 
       // checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
-      io.emit(
+      socket.emit(
         "insert msg return updated list",
         Object.assign(newMsg, { sender_username: userRes.rows[0].username })
       );
