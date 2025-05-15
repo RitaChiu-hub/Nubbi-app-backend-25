@@ -660,10 +660,15 @@ io.on("connection", (socket) => {
       });
   });
 
-  socket.on("disconnect", () => {
-    console.log("user disconnected");
+  socket.on("disconnect", (reason) => {
+    console.log("Socket disconnected because:", reason);
   });
 });
+//   socket.on("disconnect", () => {
+//     console.log("user disconnected");
+
+//   });
+// });
 
 server.listen(8080, () => {
   console.log("server listening on port 8080");
