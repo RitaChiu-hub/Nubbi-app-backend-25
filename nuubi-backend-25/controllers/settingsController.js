@@ -184,7 +184,11 @@ module.exports.handleDeleteAccount = async (req, res) => {
 
             res.json({ token: null, status: "Success" });
           } else {
-            res.json({ ...req.body, status: "Wrong password!" });
+            res.json({
+              ...req.body,
+              status:
+                "Wrong password! If you signed up via Canvas, you may need to set a Nuubi password in the settings page to verify your access before deleting.",
+            });
           }
         } else {
           res.json({ token: null, status: "User does not exist" });
