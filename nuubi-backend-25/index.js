@@ -76,7 +76,7 @@ const io = new Server(server, {
     origin: true,
     credentials: true,
   },
-  transports: ["polling", "websocket"],
+  transports: ["websocket"],
 });
 
 const sequelize = new Sequelize({
