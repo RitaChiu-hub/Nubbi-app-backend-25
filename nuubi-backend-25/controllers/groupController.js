@@ -15,7 +15,7 @@ var config = {
 
 const sequelize = new Sequelize({
   dialect: "postgres",
-  logging: false,   
+  logging: false,
   database: process.env.DATABASE_NAME,
   host: process.env.DATABASE_HOST,
   port: process.env.DATABASE_PORT,
@@ -76,6 +76,14 @@ module.exports.handleCreateGroup = async (req, res) => {
           description: req.body.description,
           is_public: isPublic,
           invite_passcode: invitePasscode,
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
+        });
+
+        const seederMessage = await messages.create({
+          group_id: newGroup.id,
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
+          text: "Welcome to your group’s Chat! This is your space for informal, ongoing conversations. Get to know your group members, ask quick questions, and keep the energy alive. Want to kick things off with a subject-related joke?",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
