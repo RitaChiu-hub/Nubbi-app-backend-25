@@ -1764,7 +1764,7 @@ module.exports.handleCreateComment = async (req, res) => {
           [req.body.mycomment, userID, postId]
         );
 
-        // look up the post's author & group
+        // look up the post's author & group - sender_id is the id of the post author
         const {
           rows: [postRow],
         } = await pool.query(
@@ -1773,6 +1773,13 @@ module.exports.handleCreateComment = async (req, res) => {
             WHERE id = $1`,
           [postId]
         );
+
+        // 1. get the id of the post author
+
+        // 2. check and make sure the sender _Id and post_author id are not the same
+
+        // 3. if they're not the same, send a notification to the post author id that they
+        // got a comment to their post in the group with group id
 
         // kick off award checks in parallel (don't await)
         // 1) the commenter may have just unlocked Communication / Reliability
