@@ -8,11 +8,23 @@ const { v4: uuidv4 } = require("uuid");
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
-
   const p = req.method === "POST" ? req.body : req.query;
   const { client_id, login_hint, lti_message_hint, target_link_uri } = p;
 
-  const iss = "https://stthomas.beta.instructure.com"; // << fixed issuer
+  // TEMP: log client_id for future use
+  // console.log("🔥 LTI login received → client_id:", client_id);
+
+  // TEMP fallback: basic platform guessing
+  let iss;
+  if (target_link_uri?.includes("blackboard.com")) {
+    iss = "https://ucumberlands.blackboard.com";
+  } else if (target_link_uri?.includes("stthomas.instructure.com")) {
+    iss = "https://stthomas.instructure.com";
+  } else {
+    iss = "https://stthomas.beta.instructure.com"; // fallback
+  }
+  //const iss = "https://stthomas.beta.instructure.com"; // << fixed issuer
+
   const redirect =
     `${iss}/api/lti/authorize_redirect?` +
     `client_id=${client_id}&` +
@@ -31,7 +43,6 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
 
 /* ────────────────────────────── 2. LTI launch ───────────────────────────── */
 router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
-
   const idToken = req.body.id_token;
   if (!idToken) return res.status(400).send("Missing id_token");
 
