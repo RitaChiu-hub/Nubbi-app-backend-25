@@ -234,28 +234,73 @@ router.post("/session", async (req, res) => {
         : null;
       if (!column) throw new Error("Unsupported LMS platform");
 
-      const existingGroup = await pool.query(
-        // "SELECT id, invite_passcode FROM groups WHERE canvas_course_id = $1",
-        `SELECT id, invite_passcode FROM groups WHERE ${column} = $1`,
-        [courseId]
-      );
+      // const existingGroup = await pool.query(
+      //   // "SELECT id, invite_passcode FROM groups WHERE canvas_course_id = $1",
+      //   `SELECT id, invite_passcode FROM groups WHERE ${column} = $1`,
+      //   [courseId]
+      // );
+
+      let existingGroup;
+      if (isCanvas) {
+        existingGroup = await pool.query(
+          `SELECT id, invite_passcode FROM groups WHERE canvas_course_id = $1`,
+          [courseId]
+        );
+      } else if (isBlackboard) {
+        existingGroup = await pool.query(
+          `SELECT id, invite_passcode FROM groups WHERE blackboard_course_id = $1`,
+          [courseId]
+        );
+      } else {
+        throw new Error("Unsupported LMS platform");
+      }
 
       if (existingGroup.rows.length === 0) {
         invitePasscode = Math.random().toString(10).substring(2, 8);
-        const newGroupRes = await pool.query(
-          //  `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
-          `INSERT INTO groups (${column}, name, is_public, invite_passcode, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, invite_passcode`,
-          [
-            courseId,
-            courseTitle,
-            isPublic,
-            invitePasscode,
-            timestamp,
-            timestamp,
-          ]
-        );
+        //   const newGroupRes = await pool.query(
+        //     //  `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
+        //     `INSERT INTO groups (${column}, name, is_public, invite_passcode, created_at, updated_at)
+        //   VALUES ($1, $2, $3, $4, $5, $6)
+        //  RETURNING id, invite_passcode`,
+        //     [
+        //       courseId,
+        //       courseTitle,
+        //       isPublic,
+        //       invitePasscode,
+        //       timestamp,
+        //       timestamp,
+        //     ]
+        //   );
+        let newGroupRes;
+        if (isCanvas) {
+          newGroupRes = await pool.query(
+            `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, invite_passcode`,
+            [
+              courseId,
+              courseTitle,
+              isPublic,
+              invitePasscode,
+              timestamp,
+              timestamp,
+            ]
+          );
+        } else if (isBlackboard) {
+          newGroupRes = await pool.query(
+            `INSERT INTO groups (blackboard_course_id, name, is_public, invite_passcode, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, invite_passcode`,
+            [
+              courseId,
+              courseTitle,
+              isPublic,
+              invitePasscode,
+              timestamp,
+              timestamp,
+            ]
+          );
+        }
         groupId = newGroupRes.rows[0].id;
         invitePasscode = newGroupRes.rows[0].invite_passcode; // ✅ redundant but safe
         groupName = courseTitle;
