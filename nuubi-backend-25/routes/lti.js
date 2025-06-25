@@ -63,7 +63,7 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
     idToken
   )}`;
 
-  /* send the page that embeds Nuubi inside the Canvas iframe */
+  /* send the page that embeds Nuubi inside the Canvas/Blackboard iframe */
   res.status(200).send(`
       <html>
         <head>
@@ -223,16 +223,29 @@ router.post("/session", async (req, res) => {
       const isPublic = false;
       //   const timestamp = new Date().toISOString();
 
+      const iss = payload.iss;
+      const isCanvas = iss.includes("instructure.com");
+      const isBlackboard = iss.includes("blackboard.com");
+
+      const column = isCanvas
+        ? "canvas_course_id"
+        : isBlackboard
+        ? "blackboard_course_id"
+        : null;
+      if (!column) throw new Error("Unsupported LMS platform");
+
       const existingGroup = await pool.query(
-        "SELECT id, invite_passcode FROM groups WHERE canvas_course_id = $1",
+        // "SELECT id, invite_passcode FROM groups WHERE canvas_course_id = $1",
+        `SELECT id, invite_passcode FROM groups WHERE ${column} = $1`,
         [courseId]
       );
 
       if (existingGroup.rows.length === 0) {
         invitePasscode = Math.random().toString(10).substring(2, 8);
         const newGroupRes = await pool.query(
-          `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
+          //  `INSERT INTO groups (canvas_course_id, name, is_public, invite_passcode, created_at, updated_at)
+          `INSERT INTO groups (${column}, name, is_public, invite_passcode, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, invite_passcode`,
           [
             courseId,
