@@ -16,7 +16,7 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
 
   // TEMP fallback: basic platform guessing
   let iss;
-  if (target_link_uri?.includes("blackboard.com")) {
+  if (target_link_uri?.includes("ucumberlands.blackboard.com")) {
     iss = "https://ucumberlands.blackboard.com";
   } else if (target_link_uri?.includes("stthomas.instructure.com")) {
     iss = "https://stthomas.instructure.com";
