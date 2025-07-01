@@ -1483,7 +1483,11 @@ module.exports.handleCreatePost = async (req, res) => {
           updated_at: currentDate.getTime(),
         });
 
-        // If it's the user's first post in this group, award the "Composer Badge"
+        // for everyone participanting in the group with group ID,
+        // who is not the post author, let's notify them that there
+        // is a new post, in the group with the group name associate with group ID
+
+        // If it's the user's first post in this group
         if (!existingPosts) {
           const composerBadge = await badges.findOne({
             where: { title: "Composer" },
@@ -1516,6 +1520,7 @@ module.exports.handleCreatePost = async (req, res) => {
           });
         }
 
+        //
         res.json({
           ...req.body,
           status: "Post successfully created",

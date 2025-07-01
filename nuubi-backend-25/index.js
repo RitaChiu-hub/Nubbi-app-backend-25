@@ -446,6 +446,8 @@ io.on("connection", (socket) => {
         [userID]
       );
 
+      // create a notification to the members of the group, letting everyone know there's a new message 
+
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
       io.emit(
