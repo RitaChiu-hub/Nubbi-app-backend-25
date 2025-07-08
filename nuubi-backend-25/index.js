@@ -569,17 +569,9 @@ io.on("connection", (socket) => {
           // }
 
           // Fetch post author
-          console.log(`Fetching post author with ID: ${postAuthorId}`);
           const postAuthor = await users.findOne({
             where: { id: postAuthorId },
           });
-          if (!postAuthor) {
-            console.log(`No user found with ID: ${postAuthorId}`);
-          } else {
-            console.log(
-              `Found post author: ${postAuthor.username || "unknown username"}`
-            );
-          }
 
           // Send push notification if token exists
           if (postAuthor?.push_notification_token) {
@@ -610,7 +602,7 @@ io.on("connection", (socket) => {
               );
 
               const responseData = await response.json();
-              console.log("Push notification response:", responseData);
+
               if (!response.ok) {
                 console.error(
                   "Failed to send push notification:",
