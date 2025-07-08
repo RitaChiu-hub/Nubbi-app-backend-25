@@ -284,7 +284,7 @@ function initModels(sequelize) {
 
 // var initModels = require("./models/init-models");
 const models = initModels(sequelize);
-const { notifications } = models;
+const { notifications, users } = models;
 
 var User = require("./models/users.js")(sequelize, DataTypes);
 var Participant = require("./models/participants.js")(sequelize, DataTypes);
@@ -534,6 +534,33 @@ io.on("connection", (socket) => {
               updated_at: currentDate.getTime(),
             });
           }
+
+          // Fetch post author
+          const postAuthor = await users.findOne({
+            where: { id: postAuthorId },
+          });
+
+          // Send push notification if token exists
+          if (postAuthor?.push_notification_token) {
+            const message = {
+              to: postAuthor.push_notification_token,
+              sound: "default",
+              title: "New Comment on Your Post",
+              body: `${userRow.sender_username} commented in "${groupName}"`,
+              data: { postId: req.currentPost, groupId: postGroupId },
+            };
+
+            await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(message),
+            });
+          }
+
           // B) Commenter (communication & reliability)
           checkAwardsForUser(userID, postGroupId).catch(console.error);
 
