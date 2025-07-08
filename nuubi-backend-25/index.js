@@ -535,13 +535,58 @@ io.on("connection", (socket) => {
             });
           }
 
+          // // Fetch post author
+          // console.log(`Fetching post author with ID: ${postAuthorId}`);
+          // const postAuthor = await users.findOne({
+          //   where: { id: postAuthorId },
+          // });
+          // if (!postAuthor) {
+          //   console.log(`No user found with ID: ${postAuthorId}`);
+          // } else {
+          //   console.log(`Found post author: ${postAuthor.username || 'unknown username'}`);
+          // }
+          // // Send push notification if token exists
+          // if (postAuthor?.push_notification_token) {
+          //   console.log(`Found push token for user: ${postAuthor.push_notification_token}`);
+
+          //   const message = {
+          //     to: postAuthor.push_notification_token,
+          //     sound: "default",
+          //     title: "New Comment on Your Post",
+          //     body: `${userRow.sender_username} commented in "${groupName}"`,
+          //     data: { postId: req.currentPost, groupId: postGroupId },
+          //   };
+
+          //   await fetch("https://exp.host/--/api/v2/push/send", {
+          //     method: "POST",
+          //     headers: {
+          //       Accept: "application/json",
+          //       "Accept-encoding": "gzip, deflate",
+          //       "Content-Type": "application/json",
+          //     },
+          //     body: JSON.stringify(message),
+          //   });
+          // }
+
           // Fetch post author
+          console.log(`Fetching post author with ID: ${postAuthorId}`);
           const postAuthor = await users.findOne({
             where: { id: postAuthorId },
           });
+          if (!postAuthor) {
+            console.log(`No user found with ID: ${postAuthorId}`);
+          } else {
+            console.log(
+              `Found post author: ${postAuthor.username || "unknown username"}`
+            );
+          }
 
           // Send push notification if token exists
           if (postAuthor?.push_notification_token) {
+            console.log(
+              `Found push token for user: ${postAuthor.push_notification_token}`
+            );
+
             const message = {
               to: postAuthor.push_notification_token,
               sound: "default",
@@ -550,15 +595,36 @@ io.on("connection", (socket) => {
               data: { postId: req.currentPost, groupId: postGroupId },
             };
 
-            await fetch("https://exp.host/--/api/v2/push/send", {
-              method: "POST",
-              headers: {
-                Accept: "application/json",
-                "Accept-encoding": "gzip, deflate",
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(message),
-            });
+            try {
+              const response = await fetch(
+                "https://exp.host/--/api/v2/push/send",
+                {
+                  method: "POST",
+                  headers: {
+                    Accept: "application/json",
+                    "Accept-encoding": "gzip, deflate",
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(message),
+                }
+              );
+
+              const responseData = await response.json();
+              console.log("Push notification response:", responseData);
+              if (!response.ok) {
+                console.error(
+                  "Failed to send push notification:",
+                  response.status,
+                  response.statusText
+                );
+              }
+            } catch (error) {
+              console.error("Error sending push notification:", error);
+            }
+          } else {
+            console.log(
+              `No push notification token for user ID: ${postAuthorId}`
+            );
           }
 
           // B) Commenter (communication & reliability)
