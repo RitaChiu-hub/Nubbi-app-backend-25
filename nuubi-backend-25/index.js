@@ -284,6 +284,7 @@ function initModels(sequelize) {
 
 // var initModels = require("./models/init-models");
 const models = initModels(sequelize);
+const { notifications } = models;
 
 var User = require("./models/users.js")(sequelize, DataTypes);
 var Participant = require("./models/participants.js")(sequelize, DataTypes);
@@ -446,7 +447,7 @@ io.on("connection", (socket) => {
         [userID]
       );
 
-      // create a notification to the members of the group, letting everyone know there's a new message 
+      // create a notification to the members of the group, letting everyone know there's a new message
 
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
@@ -511,6 +512,28 @@ io.on("connection", (socket) => {
           const postAuthorId = postRes.rows[0].sender_id;
           const postGroupId = postRes.rows[0].group_id;
 
+          const groupRes = await pool.query(
+            `SELECT name FROM groups WHERE id = $1`,
+            [postGroupId]
+          );
+          const groupName = groupRes.rows[0]?.name || "Unnamed Group";
+
+          if (userID != postAuthorId) {
+            const currentDate = new Date();
+            console.log(
+              `Commenter ID: ${userID}, Post Author ID: ${postAuthorId}`
+            );
+            console.log(
+              `You got a comment from ${userRow.sender_username} in "${groupName}"`
+            );
+            await notifications.create({
+              message: `You got a comment from ${userRow.sender_username} in "${groupName}"`,
+              user_id: postAuthorId,
+              is_read: false,
+              created_at: currentDate.getTime(),
+              updated_at: currentDate.getTime(),
+            });
+          }
           // B) Commenter (communication & reliability)
           checkAwardsForUser(userID, postGroupId).catch(console.error);
 
