@@ -585,6 +585,7 @@ io.on("connection", (socket) => {
               title: "New Comment on Your Post",
               body: `${userRow.sender_username} commented in "${groupName}"`,
               data: { postId: req.currentPost, groupId: postGroupId },
+              channelId: "default",
             };
 
             try {
