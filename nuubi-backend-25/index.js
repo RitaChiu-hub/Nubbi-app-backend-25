@@ -579,6 +579,7 @@ io.on("connection", (socket) => {
               `Found push token for user: ${postAuthor.push_notification_token}`
             );
 
+            
             const message = {
               to: postAuthor.push_notification_token,
               sound: "default",
