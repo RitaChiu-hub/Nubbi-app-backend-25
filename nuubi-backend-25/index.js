@@ -579,7 +579,6 @@ io.on("connection", (socket) => {
               `Found push token for user: ${postAuthor.push_notification_token}`
             );
 
-            
             const message = {
               to: postAuthor.push_notification_token,
               sound: "default",
@@ -588,6 +587,10 @@ io.on("connection", (socket) => {
               data: { postId: req.currentPost, groupId: postGroupId },
               channelId: "default",
             };
+            console.log(
+              "Sending push message:",
+              JSON.stringify(message, null, 2)
+            );
 
             try {
               const response = await fetch(
@@ -604,6 +607,7 @@ io.on("connection", (socket) => {
               );
 
               const responseData = await response.json();
+              console.log("Expo push response:", responseData);
 
               if (!response.ok) {
                 console.error(
