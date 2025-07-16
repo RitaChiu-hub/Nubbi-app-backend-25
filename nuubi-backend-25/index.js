@@ -520,12 +520,6 @@ io.on("connection", (socket) => {
 
           if (userID != postAuthorId) {
             const currentDate = new Date();
-            console.log(
-              `Commenter ID: ${userID}, Post Author ID: ${postAuthorId}`
-            );
-            console.log(
-              `You got a comment from ${userRow.sender_username} in "${groupName}"`
-            );
             await notifications.create({
               message: `You got a comment from ${userRow.sender_username} in "${groupName}"`,
               user_id: postAuthorId,
@@ -535,38 +529,6 @@ io.on("connection", (socket) => {
             });
           }
 
-          // // Fetch post author
-          // console.log(`Fetching post author with ID: ${postAuthorId}`);
-          // const postAuthor = await users.findOne({
-          //   where: { id: postAuthorId },
-          // });
-          // if (!postAuthor) {
-          //   console.log(`No user found with ID: ${postAuthorId}`);
-          // } else {
-          //   console.log(`Found post author: ${postAuthor.username || 'unknown username'}`);
-          // }
-          // // Send push notification if token exists
-          // if (postAuthor?.push_notification_token) {
-          //   console.log(`Found push token for user: ${postAuthor.push_notification_token}`);
-
-          //   const message = {
-          //     to: postAuthor.push_notification_token,
-          //     sound: "default",
-          //     title: "New Comment on Your Post",
-          //     body: `${userRow.sender_username} commented in "${groupName}"`,
-          //     data: { postId: req.currentPost, groupId: postGroupId },
-          //   };
-
-          //   await fetch("https://exp.host/--/api/v2/push/send", {
-          //     method: "POST",
-          //     headers: {
-          //       Accept: "application/json",
-          //       "Accept-encoding": "gzip, deflate",
-          //       "Content-Type": "application/json",
-          //     },
-          //     body: JSON.stringify(message),
-          //   });
-          // }
 
           // Fetch post author
           const postAuthor = await users.findOne({
@@ -575,10 +537,6 @@ io.on("connection", (socket) => {
 
           // Send push notification if token exists
           if (postAuthor?.push_notification_token) {
-            console.log(
-              `Found push token for user: ${postAuthor.push_notification_token}`
-            );
-
             const message = {
               to: postAuthor.push_notification_token,
               sound: "default",
@@ -587,10 +545,6 @@ io.on("connection", (socket) => {
               data: { postId: req.currentPost, groupId: postGroupId },
               channelId: "default",
             };
-            console.log(
-              "Sending push message:",
-              JSON.stringify(message, null, 2)
-            );
 
             try {
               const response = await fetch(
@@ -607,7 +561,6 @@ io.on("connection", (socket) => {
               );
 
               const responseData = await response.json();
-              console.log("Expo push response:", responseData);
 
               if (!response.ok) {
                 console.error(
