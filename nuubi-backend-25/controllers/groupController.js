@@ -1853,6 +1853,32 @@ module.exports.handleAddPostPoint = async (req, res) => {
             updated_at: currentDate.getTime(),
           });
 
+          if (
+            recipient_id !== userID &&
+            (pointGiven === null || pointGiven === 0)
+          ) {
+            const currentDate = new Date();
+            const giverUser = await users.findOne({
+              where: { id: userID },
+              attributes: ["username"],
+            });
+
+            const group = await groups.findOne({
+              where: { id: req.body.currentGroup },
+              attributes: ["name"],
+            });
+
+            const giverUsername = giverUser.username;
+            const groupName = group.name;
+            await notifications.create({
+              message: `You received a point on your post from ${giverUsername} in ${groupName}`,
+              user_id: recipient_id,
+              is_read: false,
+              created_at: currentDate.getTime(),
+              updated_at: currentDate.getTime(),
+            });
+          }
+
           // Award checks
           checkAwardsForUser(recipient_id, req.body.currentGroup).catch(
             console.error
