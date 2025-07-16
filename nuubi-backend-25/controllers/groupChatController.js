@@ -15,7 +15,7 @@ var config = {
 
 const sequelize = new Sequelize({
   dialect: "postgres",
-  logging: false,   
+  logging: false,
   database: process.env.DATABASE_NAME,
   host: process.env.DATABASE_HOST,
   port: process.env.DATABASE_PORT,

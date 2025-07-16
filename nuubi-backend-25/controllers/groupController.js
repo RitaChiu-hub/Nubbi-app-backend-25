@@ -1871,7 +1871,7 @@ module.exports.handleAddPostPoint = async (req, res) => {
             const giverUsername = giverUser.username;
             const groupName = group.name;
             await notifications.create({
-              message: `You received a point on your post from ${giverUsername} in ${groupName}`,
+              message: `You received a point on your post from ${giverUsername} in ${groupName}!`,
               user_id: recipient_id,
               is_read: false,
               created_at: currentDate.getTime(),
@@ -1949,6 +1949,30 @@ module.exports.handleAddMessagePoint = async (req, res) => {
             giver_id: userID,
             messages_id: req.body.message_id,
             group_id: req.body.currentGroup,
+            created_at: currentDate.getTime(),
+            updated_at: currentDate.getTime(),
+          });
+        }
+        if (
+          recipient_id !== userID &&
+          (pointGiven === null || pointGiven === 0)
+        ) {
+          const currentDate = new Date();
+          const giverUser = await users.findOne({
+            where: { id: userID },
+            attributes: ["username"],
+          });
+
+          const group = await groups.findOne({
+            where: { id: req.body.currentGroup },
+            attributes: ["name"],
+          });
+          const giverUsername = giverUser.username;
+          const groupName = group.name;
+          await notifications.create({
+            message: `You received a point on your message from ${giverUsername} in ${groupName}!`,
+            user_id: recipient_id,
+            is_read: false,
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
