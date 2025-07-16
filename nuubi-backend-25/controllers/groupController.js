@@ -1449,7 +1449,6 @@ module.exports.handleDeleteGroup = async (req, res) => {
 };
 
 module.exports.handleCreatePost = async (req, res) => {
-  console.log("🧾 Incoming body filename:", req.body.fileName);
   // Use getJwt to get the token from either cookies or the Authorization header
   const token = getJwt(req);
 
