@@ -1692,8 +1692,12 @@ module.exports.handleGetPosts = async (req, res) => {
 // };
 
 module.exports.handleGetPostInfo = async (req, res) => {
+  // const getPostInfoQuery = await pool.query(
+  //   "SELECT title post_title, body_text, username post_author, image_url, file_url, file_name, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
+  //   [req.body.currentPost]
+  // );
   const getPostInfoQuery = await pool.query(
-    "SELECT title post_title, body_text, username post_author, image_url, file_url, file_name, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
+    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
     [req.body.currentPost]
   );
 
