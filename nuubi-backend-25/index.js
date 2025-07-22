@@ -527,57 +527,55 @@ io.on("connection", (socket) => {
               created_at: currentDate.getTime(),
               updated_at: currentDate.getTime(),
             });
-          }
 
+            // Fetch post author
+            const postAuthor = await users.findOne({
+              where: { id: postAuthorId },
+            });
 
-          // Fetch post author
-          const postAuthor = await users.findOne({
-            where: { id: postAuthorId },
-          });
+            // Send push notification if token exists
+            if (postAuthor?.push_notification_token) {
+              const message = {
+                to: postAuthor.push_notification_token,
+                sound: "default",
+                title: "New Comment on Your Post",
+                body: `You got a comment from ${userRow.sender_username} in "${groupName}"`,
+                data: { postId: req.currentPost, groupId: postGroupId },
+                channelId: "default",
+              };
 
-          // Send push notification if token exists
-          if (postAuthor?.push_notification_token) {
-            const message = {
-              to: postAuthor.push_notification_token,
-              sound: "default",
-              title: "New Comment on Your Post",
-              body: `${userRow.sender_username} commented in "${groupName}"`,
-              data: { postId: req.currentPost, groupId: postGroupId },
-              channelId: "default",
-            };
-
-            try {
-              const response = await fetch(
-                "https://exp.host/--/api/v2/push/send",
-                {
-                  method: "POST",
-                  headers: {
-                    Accept: "application/json",
-                    "Accept-encoding": "gzip, deflate",
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify(message),
-                }
-              );
-
-              const responseData = await response.json();
-
-              if (!response.ok) {
-                console.error(
-                  "Failed to send push notification:",
-                  response.status,
-                  response.statusText
+              try {
+                const response = await fetch(
+                  "https://exp.host/--/api/v2/push/send",
+                  {
+                    method: "POST",
+                    headers: {
+                      Accept: "application/json",
+                      "Accept-encoding": "gzip, deflate",
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(message),
+                  }
                 );
-              }
-            } catch (error) {
-              console.error("Error sending push notification:", error);
-            }
-          } else {
-            console.log(
-              `No push notification token for user ID: ${postAuthorId}`
-            );
-          }
 
+                const responseData = await response.json();
+
+                if (!response.ok) {
+                  console.error(
+                    "Failed to send push notification:",
+                    response.status,
+                    response.statusText
+                  );
+                }
+              } catch (error) {
+                console.error("Error sending push notification:", error);
+              }
+            } else {
+              console.log(
+                `No push notification token for user ID: ${postAuthorId}`
+              );
+            }
+          }
           // B) Commenter (communication & reliability)
           checkAwardsForUser(userID, postGroupId).catch(console.error);
 
