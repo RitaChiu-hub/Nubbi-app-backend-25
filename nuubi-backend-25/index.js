@@ -441,7 +441,7 @@ io.on("connection", (socket) => {
       const newMsg = insertRes.rows[0];
       // fetch username for that sender
       const userRes = await pool.query(
-        `SELECT username
+        `SELECT username, avatar_url
            FROM users
           WHERE id = $1`,
         [userID]
@@ -453,7 +453,10 @@ io.on("connection", (socket) => {
 
       io.emit(
         "insert msg return updated list",
-        Object.assign(newMsg, { sender_username: userRes.rows[0].username })
+        Object.assign(newMsg, {
+          sender_username: userRes.rows[0].username,
+          sender_avatar_url: userRes.rows[0].avatar_url,
+        })
       );
     } catch (err) {
       console.error("Websocket message error:", err);
