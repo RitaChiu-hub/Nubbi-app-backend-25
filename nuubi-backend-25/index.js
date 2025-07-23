@@ -490,7 +490,7 @@ io.on("connection", (socket) => {
           const {
             rows: [userRow],
           } = await pool.query(
-            `SELECT username AS sender_username
+            `SELECT username AS sender_username, avatar_url AS sender_avatar_url
                FROM users
               WHERE id = $1`,
             [userID]
@@ -500,6 +500,7 @@ io.on("connection", (socket) => {
           socket.emit("insert comment return updated list", {
             ...newComment,
             sender_username: userRow.sender_username,
+            sender_avatar_url: userRow.sender_avatar_url,
           });
 
           // A) Get the post’s author and group
