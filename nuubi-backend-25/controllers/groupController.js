@@ -1463,6 +1463,12 @@ module.exports.handleCreatePost = async (req, res) => {
     .then(async (decoded) => {
       const userID = decoded.id;
       const groupID = req.params.group_id;
+      if (!groupID) {
+        console.error("❌ groupID is missing");
+        return res
+          .status(400)
+          .json({ error: "Missing group_id in request body" });
+      }
       try {
         // Check if the user has already posted in this group
         const existingPosts = await posts.findOne({
@@ -1479,7 +1485,8 @@ module.exports.handleCreatePost = async (req, res) => {
           file_url: req.body.fileUrl || null,
           file_name: req.body.fileName || null,
           sender_id: userID,
-          group_id: req.params.group_id,
+          //  group_id: req.params.group_id,
+          group_id: groupID, // ✅ fixed
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
@@ -1520,7 +1527,33 @@ module.exports.handleCreatePost = async (req, res) => {
             // updated_at: currentDate,
           });
         }
+        const user = await users.findOne({
+          where: { id: userID },
+          attributes: ["username"],
+        });
+        const getGroupMembers = async (groupID) => {
+          const members = await participants.findAll({
+            where: { group_id: groupID },
+            attributes: ["user_id"],
+          });
+          return members.map((m) => m.user_id);
+        };
+        const groupMembers = await getGroupMembers(groupID); // Assuming this returns an array of user IDs
 
+        for (const member of groupMembers) {
+          if (member !== userID) {
+            console.log(
+              `New post was created by ${user.username} in "${req.body.groupName}"`
+            );
+            await notifications.create({
+              message: `New post was created by ${user.username} in "${req.body.groupName}"`,
+              user_id: member,
+              is_read: false,
+              created_at: currentDate.getTime(),
+              updated_at: currentDate.getTime(),
+            });
+          }
+        }
         //
         res.json({
           ...req.body,
@@ -2041,6 +2074,35 @@ module.exports.handleAddCommentPoint = async (req, res) => {
             "INSERT INTO points(recipient_id, giver_id, comment_id, group_id) values($1,$2,$3,$4);",
             [recipient_id, userID, req.body.comment_id, req.body.currentGroup]
           );
+        }
+        if (
+          recipient_id !== userID &&
+          (pointGiven.rows[0].sum === null || pointGiven.rows[0].sum === 0)
+        ) {
+          const currentDate = new Date();
+          const giverUser = await users.findOne({
+            where: { id: userID },
+            attributes: ["username"],
+          });
+
+          const group = await groups.findOne({
+            where: { id: req.body.currentGroup },
+            attributes: ["name"],
+          });
+
+          const giverUsername = giverUser.username;
+          const groupName = group.name;
+          console.log(
+            `You received a point on your comment from ${giverUsername} in ${groupName}`
+          );
+
+          await notifications.create({
+            message: `You received a point on your comment from ${giverUsername} in ${groupName}`,
+            user_id: recipient_id,
+            is_read: false,
+            created_at: currentDate.getTime(),
+            updated_at: currentDate.getTime(),
+          });
         } else {
           const deleteCommentPoint = await pool.query(
             "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
