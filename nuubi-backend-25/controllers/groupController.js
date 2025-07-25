@@ -1551,48 +1551,48 @@ module.exports.handleCreatePost = async (req, res) => {
             });
           }
         }
-        // console.log(" sender name is... " + user.username);
+        console.log(" sender name is... " + user.username);
 
-        // if (user.username === "Testuser") {
-        //   console.log("test user made a post!");
-        //   const messages = [
-        //     {
-        //       role: "system",
-        //       content: "You are Cuubi, a friendly student Q&A assistant.",
-        //     },
-        //     {
-        //       role: "user",
-        //       content: `New post:\nTitle: ${req.body.title}\n\nQuestion: ${req.body.body_text}`,
-        //     },
-        //   ];
+        if (user.username === "Testuser") {
+          console.log("test user made a post!");
+          const messages = [
+            {
+              role: "system",
+              content: "You are Cuubi, a friendly student Q&A assistant.",
+            },
+            {
+              role: "user",
+              content: `New post:\nTitle: ${req.body.title}\n\nQuestion: ${req.body.body_text}`,
+            },
+          ];
 
-        //   let answer;
-        //   try {
-        //     const resp = await llama.chat.completions.create({
-        //       model: "meta-llama/Llama-2-7b-chat-hf",
-        //       messages,
-        //       temperature: 0.7,
-        //       max_tokens: 150,
-        //     });
-        //     answer = resp.choices[0].message.content.trim();
-        //   } catch (err) {
-        //     console.error("Llama error:", err);
-        //     answer =
-        //       "Oops, I'm having trouble thinking right now—please try again soon!";
-        //   }
+          let answer;
+          try {
+            const resp = await llama.chat.completions.create({
+              model: "meta-llama/Llama-2-7b-chat-hf",
+              messages,
+              temperature: 0.7,
+              max_tokens: 150,
+            });
+            answer = resp.choices[0].message.content.trim();
+          } catch (err) {
+            console.error("Llama error:", err);
+            answer =
+              "Oops, I'm having trouble thinking right now—please try again soon!";
+          }
 
-        //   // === 4) Persist Cuubi’s reply as a comment on this post ===
-        //   await post_comments.create({
-        //     sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-        //     post_id: newPost.id,
-        //     comment_text: answer,
-        //     created_at: currentDate.getTime(),
-        //     updated_at: currentDate.getTime(),
-        //   });
-        //   console.log(`✅ Created comment on post #${newPost.id}`);
-        // } else {
-        //   console.log("—> Not Testuser, skipping Cuubi reply");
-        // }
+          // === 4) Persist Cuubi’s reply as a comment on this post ===
+          await post_comments.create({
+            sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+            post_id: newPost.id,
+            comment_text: answer,
+            created_at: currentDate.getTime(),
+            updated_at: currentDate.getTime(),
+          });
+          console.log(`✅ Created comment on post #${newPost.id}`);
+        } else {
+          console.log("—> Not Testuser, skipping Cuubi reply");
+        }
         // //
         res.json({
           ...req.body,
