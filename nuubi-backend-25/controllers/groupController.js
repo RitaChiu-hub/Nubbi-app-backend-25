@@ -1525,7 +1525,6 @@ module.exports.handleCreatePost = async (req, res) => {
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
             // created_at: currentDate,
-            // updated_at: currentDate,
           });
         }
         const user = await users.findOne({
@@ -1590,9 +1589,7 @@ module.exports.handleCreatePost = async (req, res) => {
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
-          console.log(
-            `✅ Created comment #${comment.id} on post #${newPost.id}`
-          );
+          console.log(`✅ Created comment on post #${newPost.id}`);
         } else {
           console.log("—> Not Testuser, skipping Cuubi reply");
         }
