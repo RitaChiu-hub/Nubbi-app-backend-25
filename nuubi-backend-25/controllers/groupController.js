@@ -1558,11 +1558,17 @@ module.exports.handleCreatePost = async (req, res) => {
           const messages = [
             {
               role: "system",
-              content: "You are Cuubi, a friendly student Q&A assistant.",
+              content:
+                "You are **Cuubi**, a friendly, concise peer‑help assistant. " +
+                "Answer like a helpful classmate: short, clear, actionable.",
             },
             {
               role: "user",
-              content: `New post:\nTitle: ${req.body.title}\n\nQuestion: ${req.body.body_text}`,
+              // note the back‑ticks preserve line‑breaks exactly as the model sees them
+              content: `Title: ${req.body.title}
+
+            Question:
+              ${req.body.body_text}`,
             },
           ];
 
@@ -1572,26 +1578,33 @@ module.exports.handleCreatePost = async (req, res) => {
               model: "mistralai/Mistral-7B-Instruct-v0.2",
               messages,
               temperature: 0.7,
-              max_tokens: 256, 
-              stop: ["</SYS>", "```"],
+              max_tokens: 256,
+              stop: ["</SYS>"],
             });
-            answer = resp.choices[0].message.content.trim();
-            console.log("HF resp:", JSON.stringify(resp, null, 2));
-          } catch (err) {
-            console.error("Llama error:", err);
-            answer =
-              "Oops, I'm your friendly helper. Usually I can provide an answer for you, but I'm having trouble thinking right now. I'll try harder next time!";
-          }
+            answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
+            console.log("ℹ️ Cuubi reply:", answer);
 
-          // === 4) Persist Cuubi’s reply as a comment on this post ===
-          await post_comments.create({
-            sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-            post_id: newPost.id,
-            comment_text: answer,
-            created_at: currentDate.getTime(),
-            updated_at: currentDate.getTime(),
-          });
-          console.log(`✅ Created comment on post #${newPost.id}`);
+            // 5)  Persist as a comment
+            await post_comments.create({
+              post_id: newPost.id,
+              sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Cuubi’s user‑id
+              comment_text: answer,
+              created_at: Date.now(),
+              updated_at: Date.now(),
+            });
+          } catch (err) {
+            // 6)  Always log the full HTTP response for traceability
+            console.error(" Cuubi HF error:", err);
+
+            await post_comments.create({
+              post_id: newPost.id,
+              sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+              comment_text:
+                "Cuubi tried to answer but hit a snag. Please try again in a few minutes!",
+              created_at: Date.now(),
+              updated_at: Date.now(),
+            });
+          }
         } else {
           console.log("—> Not Testuser, skipping Cuubi reply");
         }
