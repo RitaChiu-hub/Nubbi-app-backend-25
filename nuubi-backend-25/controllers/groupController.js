@@ -1569,10 +1569,11 @@ module.exports.handleCreatePost = async (req, res) => {
           let answer;
           try {
             const resp = await llama.chat.completions.create({
-              model: "meta-llama/Llama-2-13b-chat-hf",
+              model: "mistralai/Mistral-7B-Instruct-v0.2",
               messages,
               temperature: 0.7,
-              max_tokens: 150,
+              max_tokens: 256, 
+              stop: ["</SYS>", "```"],
             });
             answer = resp.choices[0].message.content.trim();
             console.log("HF resp:", JSON.stringify(resp, null, 2));
