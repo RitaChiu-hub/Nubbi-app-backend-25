@@ -27,6 +27,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.1",
     "nodemon": "^2.0.22",
+    "openai": "^5.10.2",
     "pg": "^8.10.0",
     "sequelize": "^6.34.0",
     "socket.io": "^4.6.1",

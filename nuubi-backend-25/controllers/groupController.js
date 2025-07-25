@@ -2,6 +2,7 @@ const pool = require("../db");
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 const { checkAwardsForUser } = require("./awardService");
+import { llama } from "../utils/llamaClient";
 
 const Sequelize = require("sequelize");
 
@@ -1554,6 +1555,45 @@ module.exports.handleCreatePost = async (req, res) => {
             });
           }
         }
+
+        // === 3) Cuubi reply (skip if the poster _is_ Cuubi) ===
+        if (req.body.sender_name === "Testuser") {
+          const messages = [
+            {
+              role: "system",
+              content: "You are Cuubi, a friendly student Q&A assistant.",
+            },
+            {
+              role: "user",
+              content: `New post:\nTitle: ${req.body.title}\n\nQuestion: ${req.body.body_text}`,
+            },
+          ];
+
+          let answer;
+          try {
+            const resp = await llama.chat.completions.create({
+              model: "meta-llama/Llama-2-7b-chat-hf",
+              messages,
+              temperature: 0.7,
+              max_tokens: 150,
+            });
+            answer = resp.choices[0].message.content.trim();
+          } catch (err) {
+            console.error("Llama error:", err);
+            answer =
+              "Oops, I'm having trouble thinking right now—please try again soon!";
+          }
+
+          // === 4) Persist Cuubi’s reply as a comment on this post ===
+          await post_comments.create({
+            sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+            post_id: newPost.id,
+            comment_text: answer,
+            created_at: currentDate.getTime(),
+            updated_at: currentDate.getTime(),
+          });
+        }
+
         //
         res.json({
           ...req.body,
