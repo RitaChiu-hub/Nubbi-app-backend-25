@@ -2,7 +2,7 @@ const pool = require("../db");
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 const { checkAwardsForUser } = require("./awardService");
-import { llama } from "../utils/llamaClient";
+const { llama } = require("../utils/llamaClient");
 
 const Sequelize = require("sequelize");
 
