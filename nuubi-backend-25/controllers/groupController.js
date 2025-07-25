@@ -1543,9 +1543,6 @@ module.exports.handleCreatePost = async (req, res) => {
 
         for (const member of groupMembers) {
           if (member !== userID) {
-            console.log(
-              `New post was created by ${user.username} in "${req.body.groupName}"`
-            );
             await notifications.create({
               message: `New post was created by ${user.username} in "${req.body.groupName}"`,
               user_id: member,
@@ -1555,9 +1552,10 @@ module.exports.handleCreatePost = async (req, res) => {
             });
           }
         }
-
+        console.log(" sender name is... " + username);
         // === 3) Cuubi reply (skip if the poster _is_ Cuubi) ===
-        if (req.body.sender_name === "Testuser") {
+        if (username === "Testuser") {
+          console.log("test user made a post!");
           const messages = [
             {
               role: "system",
@@ -1592,8 +1590,12 @@ module.exports.handleCreatePost = async (req, res) => {
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
+          console.log(
+            `✅ Created comment #${comment.id} on post #${newPost.id}`
+          );
+        } else {
+          console.log("—> Not Testuser, skipping Cuubi reply");
         }
-
         //
         res.json({
           ...req.body,
@@ -2133,9 +2135,6 @@ module.exports.handleAddCommentPoint = async (req, res) => {
 
           const giverUsername = giverUser.username;
           const groupName = group.name;
-          console.log(
-            `You received a point on your comment from ${giverUsername} in ${groupName}`
-          );
 
           await notifications.create({
             message: `You received a point on your comment from ${giverUsername} in ${groupName}`,
