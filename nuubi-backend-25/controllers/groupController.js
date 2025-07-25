@@ -1552,9 +1552,9 @@ module.exports.handleCreatePost = async (req, res) => {
             });
           }
         }
-        console.log(" sender name is... " + username);
-        // === 3) Cuubi reply (skip if the poster _is_ Cuubi) ===
-        if (username === "Testuser") {
+        console.log(" sender name is... " + user.username);
+
+        if (user.username === "Testuser") {
           console.log("test user made a post!");
           const messages = [
             {
