@@ -1578,7 +1578,7 @@ module.exports.handleCreatePost = async (req, res) => {
           } catch (err) {
             console.error("Llama error:", err);
             answer =
-              "Oops, I'm having trouble thinking right now—please try again soon!";
+              "Oops, I'm your friendly helper. Usually I can provide an answer for you, but I'm having trouble thinking right now. I'll try harder next time!";
           }
 
           // === 4) Persist Cuubi’s reply as a comment on this post ===
