@@ -1575,6 +1575,7 @@ module.exports.handleCreatePost = async (req, res) => {
               max_tokens: 150,
             });
             answer = resp.choices[0].message.content.trim();
+            console.log("HF resp:", JSON.stringify(resp, null, 2));
           } catch (err) {
             console.error("Llama error:", err);
             answer =
