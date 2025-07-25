@@ -1570,7 +1570,7 @@ module.exports.handleCreatePost = async (req, res) => {
           try {
             const resp = await llama.chat.completions.create({
               //   model: "meta-llama/Llama-2-7b-chat-hf",
-              model: "OpenAccess-AI-Collective/guanaco-7b",
+              model: "openaccess-ai-collective/wizard-mega-13b",
               messages,
               temperature: 0.7,
               max_tokens: 150,
