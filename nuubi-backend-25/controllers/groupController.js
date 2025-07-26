@@ -1530,23 +1530,6 @@ module.exports.handleCreatePost = async (req, res) => {
           });
         }
 
-        // Send a push to the author for their first post (if they have a token)
-        const author = await users.findOne({
-          where: { id: userID },
-          attributes: ["push_notification_token"],
-        });
-
-        if (author && isExpoPushToken(author.push_notification_token)) {
-          await sendExpoPush({
-            to: author.push_notification_token,
-            sound: "default",
-            title: "First post 🎉",
-            body: `Great work on your first post in "${group.name}" — keep it up!`,
-            data: { type: "first_post", groupId: groupID, postId: newPost.id },
-            channelId: "default",
-          });
-        }
-
         const user = await users.findOne({
           where: { id: userID },
           attributes: ["username"],
@@ -1560,15 +1543,42 @@ module.exports.handleCreatePost = async (req, res) => {
         };
         const groupMembers = await getGroupMembers(groupID); // Assuming this returns an array of user IDs
 
-        for (const member of groupMembers) {
-          if (member !== userID) {
+        // Fetch the group details to get the group name
+        const group = await groups.findOne({
+          where: { id: groupID },
+        });
+
+        for (const memberId of groupMembers) {
+          if (memberId !== userID) {
             await notifications.create({
-              message: `New post was created by ${user.username} in "${req.body.groupName}"`,
-              user_id: member,
+              message: `New post was created by ${user.username} in "${group.name}"`,
+              user_id: memberId,
               is_read: false,
               created_at: currentDate.getTime(),
               updated_at: currentDate.getTime(),
             });
+
+            // push (use the member's token, not author)
+            const recipient = await users.findOne({
+              where: { id: memberId },
+              attributes: ["push_notification_token"],
+            });
+
+            const pushToken = recipient?.push_notification_token;
+            if (pushToken && isExpoPushToken(pushToken)) {
+              await sendExpoPush({
+                to: pushToken,
+                sound: "default",
+                title: "New post",
+                body: `New post from ${user.username} in "${group.name}"`,
+                data: {
+                  type: "new_post",
+                  groupId: groupID,
+                  postId: newPost.id,
+                },
+                channelId: "default",
+              });
+            }
           }
         }
 
