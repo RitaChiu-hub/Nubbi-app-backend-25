@@ -3,6 +3,7 @@ const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 const { checkAwardsForUser } = require("./awardService");
 const { llama } = require("../utils/llamaClient");
+const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
 const Sequelize = require("sequelize");
 
@@ -50,6 +51,7 @@ const {
 } = require("../models/init-models")(sequelize, DataTypes);
 
 const bcrypt = require("bcrypt");
+const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 const currentDate = new Date();
 require("dotenv").config();
 
@@ -1527,6 +1529,24 @@ module.exports.handleCreatePost = async (req, res) => {
             // created_at: currentDate,
           });
         }
+
+        // Send a push to the author for their first post (if they have a token)
+        const author = await users.findOne({
+          where: { id: userID },
+          attributes: ["push_notification_token"],
+        });
+
+        if (author && isExpoPushToken(author.push_notification_token)) {
+          await sendExpoPush({
+            to: author.push_notification_token,
+            sound: "default",
+            title: "First post 🎉",
+            body: `Great work on your first post in "${group.name}" — keep it up!`,
+            data: { type: "first_post", groupId: groupID, postId: newPost.id },
+            channelId: "default",
+          });
+        }
+
         const user = await users.findOne({
           where: { id: userID },
           attributes: ["username"],
@@ -1551,10 +1571,8 @@ module.exports.handleCreatePost = async (req, res) => {
             });
           }
         }
-        console.log(" sender name is... " + user.username);
 
-        if (user.username === "Testuser") {
-          console.log("test user made a post!");
+        if (user.username !== "Cuubi") {
           const messages = [
             {
               role: "system",
@@ -1582,7 +1600,6 @@ module.exports.handleCreatePost = async (req, res) => {
               stop: ["</SYS>"],
             });
             answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
-            console.log("ℹ️ Cuubi reply:", answer);
 
             // 5)  Persist as a comment
             await post_comments.create({
@@ -1599,14 +1616,13 @@ module.exports.handleCreatePost = async (req, res) => {
             await post_comments.create({
               post_id: newPost.id,
               sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-              comment_text:
-                "Cuubi tried to answer but hit a snag. Please try again in a few minutes!",
+              comment_text: "Cuubi tried to answer but hit a snag.",
               created_at: Date.now(),
               updated_at: Date.now(),
             });
           }
         } else {
-          console.log("—> Not Testuser, skipping Cuubi reply");
+          //skip reply
         }
         // //
         res.json({
