@@ -1586,39 +1586,13 @@ module.exports.handleCreatePost = async (req, res) => {
               continue;
             }
 
-            const valid = isExpoPushToken(pushToken);
-            console.log(`[push] token valid? ${valid} for user ${memberId}`);
-            if (!valid) {
-              console.warn(
-                `[push] invalid Expo token for user ${memberId}: ${pushToken}`
-              );
-              continue;
-            }
-
-            try {
-              console.log(`[push] sending to ${memberId}…`);
-              await sendExpoPush({
-                to: pushToken,
-                sound: "default",
-                title: "New post",
-                body: `New post from ${user.username} in "${group?.name}"`,
-                data: {
-                  type: "new_post",
-                  groupId: groupID,
-                  postId: newPost.id,
-                },
-                channelId: "default",
-              });
-              console.log(`[push] sent successfully to ${memberId}`);
-            } catch (e) {
-              console.error(`[push] send failed for ${memberId}:`, e);
-            }
-            // if (pushToken && isExpoPushToken(pushToken)) {
+            // try {
+            //   console.log(`[push] sending to ${memberId}…`);
             //   await sendExpoPush({
             //     to: pushToken,
             //     sound: "default",
             //     title: "New post",
-            //     body: `New post from ${user.username} in "${group.name}"`,
+            //     body: `New post from ${user.username} in "${group?.name}"`,
             //     data: {
             //       type: "new_post",
             //       groupId: groupID,
@@ -1626,7 +1600,24 @@ module.exports.handleCreatePost = async (req, res) => {
             //     },
             //     channelId: "default",
             //   });
+            //   console.log(`[push] sent successfully to ${memberId}`);
+            // } catch (e) {
+            //   console.error(`[push] send failed for ${memberId}:`, e);
             // }
+            if (pushToken && isExpoPushToken(pushToken)) {
+              await sendExpoPush({
+                to: pushToken,
+                sound: "default",
+                title: "New post",
+                body: `New post from ${user.username} in "${group.name}"`,
+                data: {
+                  type: "new_post",
+                  groupId: groupID,
+                  postId: newPost.id,
+                },
+                channelId: "default",
+              });
+            }
           }
         }
 
