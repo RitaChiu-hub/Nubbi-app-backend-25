@@ -237,7 +237,6 @@ module.exports.handleUpdateAvatar = async (req, res) => {
 };
 
 module.exports.savePushToken = async (req, res) => {
-  console.log("saving push token!");
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;

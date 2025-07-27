@@ -10,7 +10,7 @@ var config = {
 
 const sequelize = new Sequelize({
   dialect: "postgres",
-  logging: false,   
+  logging: false,
   database: process.env.DATABASE_NAME,
   host: process.env.DATABASE_HOST,
   port: process.env.DATABASE_PORT,
@@ -191,7 +191,6 @@ async function evaluateCriteria(userId, groupId, awardId) {
   }
 }
 
-
 async function checkAwardsForUser(userId, groupId) {
   // load all awards and the group name once
   const awardsList = await awards.findAll();
@@ -221,6 +220,38 @@ async function checkAwardsForUser(userId, groupId) {
       user_id: userId,
       message,
     });
+
+    // Push notification
+    try {
+      const recipient = await users.findOne({
+        where: { id: userId },
+        attributes: ["push_notification_token"],
+      });
+
+      const pushToken = recipient?.push_notification_token;
+
+      if (!pushToken) {
+        console.warn(`[push] no push token for user ${userId}`);
+      } else if (!isExpoPushToken(pushToken)) {
+        console.warn(
+          `[push] invalid Expo token for user ${userId}: ${pushToken}`
+        );
+      } else {
+        await sendExpoPush({
+          to: pushToken,
+          sound: "default",
+          title: "You earned an Award! 🎉",
+          body: `Congratulations, you just won the ${award.title} in ${group.name}!`,
+          data: {
+            type: "award_received",
+            groupId: groupId,
+          },
+          channelId: "default",
+        });
+      }
+    } catch (e) {
+      console.error(`[push] send failed for ${userId}:`, e);
+    }
   }
 }
 

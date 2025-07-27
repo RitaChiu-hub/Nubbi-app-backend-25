@@ -2273,7 +2273,7 @@ module.exports.handleAddCommentPoint = async (req, res) => {
                 data: {
                   type: "point_received",
                   groupId: req.body.currentGroup,
-                  postId: req.body.currentPost, 
+                  postId: req.body.currentPost,
                 },
                 channelId: "default",
               });
