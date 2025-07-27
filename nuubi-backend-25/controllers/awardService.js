@@ -232,10 +232,10 @@ async function checkAwardsForUser(userId, groupId) {
       const pushToken = recipient?.push_notification_token;
 
       if (!pushToken) {
-        console.warn(`[push] no push token for user ${userId}`);
+        console.warn(`[push] no push token for user`);
       } else if (!isExpoPushToken(pushToken)) {
         console.warn(
-          `[push] invalid Expo token for user ${userId}: ${pushToken}`
+          `[push] invalid Expo token for user`
         );
       } else {
         await sendExpoPush({

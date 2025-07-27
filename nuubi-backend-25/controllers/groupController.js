@@ -1564,7 +1564,7 @@ module.exports.handleCreatePost = async (req, res) => {
             const pushToken = recipient?.push_notification_token;
 
             if (!pushToken) {
-              console.warn(`[push] no push token for user ${memberId}`);
+              console.warn(`[push] no push token for user`);
               continue;
             }
 
@@ -2010,11 +2010,9 @@ module.exports.handleAddPostPoint = async (req, res) => {
               const pushToken = recipient?.push_notification_token;
 
               if (!pushToken) {
-                console.warn(`[push] no push token for user ${recipient_id}`);
+                console.warn(`[push] no push token for user`);
               } else if (!isExpoPushToken(pushToken)) {
-                console.warn(
-                  `[push] invalid Expo token for user ${recipient_id}: ${pushToken}`
-                );
+                console.warn(`[push] invalid Expo token for user`);
               } else {
                 await sendExpoPush({
                   to: pushToken,
@@ -2141,11 +2139,9 @@ module.exports.handleAddMessagePoint = async (req, res) => {
             const pushToken = recipient?.push_notification_token;
 
             if (!pushToken) {
-              console.warn(`[push] no push token for user ${recipient_id}`);
+              console.warn(`[push] no push token for user`);
             } else if (!isExpoPushToken(pushToken)) {
-              console.warn(
-                `[push] invalid Expo token for user ${recipient_id}: ${pushToken}`
-              );
+              console.warn(`[push] invalid Expo token for user`);
             } else {
               await sendExpoPush({
                 to: pushToken,
@@ -2163,13 +2159,6 @@ module.exports.handleAddMessagePoint = async (req, res) => {
           } catch (e) {
             console.error(`[push] send failed for ${recipient_id}:`, e);
           }
-        } else {
-          await points.destroy({
-            where: {
-              giver_id: userID,
-              messages_id: req.body.message_id,
-            },
-          });
         }
         // Award checks
         checkAwardsForUser(recipient_id, req.body.currentGroup).catch(
@@ -2259,11 +2248,9 @@ module.exports.handleAddCommentPoint = async (req, res) => {
             const pushToken = recipient?.push_notification_token;
 
             if (!pushToken) {
-              console.warn(`[push] no push token for user ${recipient_id}`);
+              console.warn(`[push] no push token for user`);
             } else if (!isExpoPushToken(pushToken)) {
-              console.warn(
-                `[push] invalid Expo token for user ${recipient_id}: ${pushToken}`
-              );
+              console.warn(`[push] invalid Expo token for user`);
             } else {
               await sendExpoPush({
                 to: pushToken,
