@@ -1,4 +1,5 @@
 const Sequelize = require("sequelize"); // alias for clarity
+const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
 var config = {
   define: {
