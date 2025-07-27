@@ -1499,10 +1499,6 @@ module.exports.handleCreatePost = async (req, res) => {
           where: { id: groupID },
         });
 
-        console.log(
-          `[push] group=${groupID} name="${group?.name}" members(total)=${groupMembers.length} author=${userID}`
-        );
-
         // If it's the user's first post in this group
         if (!existingPosts) {
           const composerBadge = await badges.findOne({
@@ -1535,7 +1531,6 @@ module.exports.handleCreatePost = async (req, res) => {
           attributes: ["username"],
         });
 
-        // 👇 get members BEFORE you use groupMembers in the log
         const members = await participants.findAll({
           where: { group_id: groupID },
           attributes: ["user_id"],
