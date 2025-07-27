@@ -1451,7 +1451,6 @@ module.exports.handleDeleteGroup = async (req, res) => {
 };
 
 module.exports.handleCreatePost = async (req, res) => {
-  console.log("creating a post...");
   // Use getJwt to get the token from either cookies or the Authorization header
   const token = getJwt(req);
 
@@ -1537,10 +1536,6 @@ module.exports.handleCreatePost = async (req, res) => {
         });
         const groupMembers = members.map((m) => m.user_id);
 
-        console.log(
-          `[push] group=${groupID} name="${group?.name}" members(total)=${groupMembers.length} author=${userID}`
-        );
-
         for (const memberId of groupMembers) {
           if (memberId !== userID) {
             try {
@@ -1551,14 +1546,8 @@ module.exports.handleCreatePost = async (req, res) => {
                 created_at: currentDate.getTime(),
                 updated_at: currentDate.getTime(),
               });
-              console.log(
-                `[push] in-app notification created for user ${memberId}`
-              );
             } catch (e) {
-              console.error(
-                `[push] failed to create in-app notification for ${memberId}:`,
-                e
-              );
+              console.error(`[push] failed to create in-app notification: `, e);
             }
             // push (use the member's token, not author)
             let recipient;
@@ -1573,33 +1562,12 @@ module.exports.handleCreatePost = async (req, res) => {
               continue;
             }
             const pushToken = recipient?.push_notification_token;
-            console.log(
-              `[push] user ${memberId} token: ${pushToken || "(none)"}`
-            );
 
             if (!pushToken) {
               console.warn(`[push] no push token for user ${memberId}`);
               continue;
             }
 
-            // try {
-            //   console.log(`[push] sending to ${memberId}…`);
-            //   await sendExpoPush({
-            //     to: pushToken,
-            //     sound: "default",
-            //     title: "New post",
-            //     body: `New post from ${user.username} in "${group?.name}"`,
-            //     data: {
-            //       type: "new_post",
-            //       groupId: groupID,
-            //       postId: newPost.id,
-            //     },
-            //     channelId: "default",
-            //   });
-            //   console.log(`[push] sent successfully to ${memberId}`);
-            // } catch (e) {
-            //   console.error(`[push] send failed for ${memberId}:`, e);
-            // }
             if (pushToken && isExpoPushToken(pushToken)) {
               await sendExpoPush({
                 to: pushToken,
