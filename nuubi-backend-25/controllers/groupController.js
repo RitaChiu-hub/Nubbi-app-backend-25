@@ -2028,7 +2028,6 @@ module.exports.handleAddPostPoint = async (req, res) => {
                   },
                   channelId: "default",
                 });
-                console.log(`[push] sent point_received to ${recipient_id}`);
               }
             } catch (e) {
               console.error(`[push] send failed for ${recipient_id}:`, e);
@@ -2131,6 +2130,39 @@ module.exports.handleAddMessagePoint = async (req, res) => {
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
+
+          // Push notification
+          try {
+            const recipient = await users.findOne({
+              where: { id: recipient_id },
+              attributes: ["push_notification_token"],
+            });
+
+            const pushToken = recipient?.push_notification_token;
+
+            if (!pushToken) {
+              console.warn(`[push] no push token for user ${recipient_id}`);
+            } else if (!isExpoPushToken(pushToken)) {
+              console.warn(
+                `[push] invalid Expo token for user ${recipient_id}: ${pushToken}`
+              );
+            } else {
+              await sendExpoPush({
+                to: pushToken,
+                sound: "default",
+                title: "You earned a point 🎉",
+                body: `From ${giverUsername} for your chat message in "${groupName}".`,
+                data: {
+                  type: "point_received",
+                  groupId: req.body.currentGroup,
+                  postId: req.body.currentPost,
+                },
+                channelId: "default",
+              });
+            }
+          } catch (e) {
+            console.error(`[push] send failed for ${recipient_id}:`, e);
+          }
         } else {
           await points.destroy({
             where: {
@@ -2217,6 +2249,38 @@ module.exports.handleAddCommentPoint = async (req, res) => {
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
+          // Push notification
+          try {
+            const recipient = await users.findOne({
+              where: { id: recipient_id },
+              attributes: ["push_notification_token"],
+            });
+
+            const pushToken = recipient?.push_notification_token;
+
+            if (!pushToken) {
+              console.warn(`[push] no push token for user ${recipient_id}`);
+            } else if (!isExpoPushToken(pushToken)) {
+              console.warn(
+                `[push] invalid Expo token for user ${recipient_id}: ${pushToken}`
+              );
+            } else {
+              await sendExpoPush({
+                to: pushToken,
+                sound: "default",
+                title: "You earned a point 🎉",
+                body: `From ${giverUsername} for your comment in "${groupName}".`,
+                data: {
+                  type: "point_received",
+                  groupId: req.body.currentGroup,
+                  postId: req.body.currentPost, 
+                },
+                channelId: "default",
+              });
+            }
+          } catch (e) {
+            console.error(`[push] send failed for ${recipient_id}:`, e);
+          }
         } else {
           const deleteCommentPoint = await pool.query(
             "DELETE FROM points WHERE giver_id = $1 AND comment_id = $2;",
