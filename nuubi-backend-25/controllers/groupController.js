@@ -1548,29 +1548,73 @@ module.exports.handleCreatePost = async (req, res) => {
           where: { id: groupID },
         });
 
+        console.log(
+          `[push] group=${groupID} name="${group?.name}" members(total)=${groupMembers.length} author=${userID}`
+        );
+
         for (const memberId of groupMembers) {
+          console.log(`[push] considering member ${memberId}`);
+
+          if (memberId === userID) {
+            console.log(`[push] skip author ${memberId}`);
+            continue;
+          }
           if (memberId !== userID) {
-            await notifications.create({
-              message: `New post was created by ${user.username} in "${group.name}"`,
-              user_id: memberId,
-              is_read: false,
-              created_at: currentDate.getTime(),
-              updated_at: currentDate.getTime(),
-            });
-
+            try {
+              await notifications.create({
+                message: `New post was created by ${user.username} in "${group.name}"`,
+                user_id: memberId,
+                is_read: false,
+                created_at: currentDate.getTime(),
+                updated_at: currentDate.getTime(),
+              });
+              console.log(
+                `[push] in-app notification created for user ${memberId}`
+              );
+            } catch (e) {
+              console.error(
+                `[push] failed to create in-app notification for ${memberId}:`,
+                e
+              );
+            }
             // push (use the member's token, not author)
-            const recipient = await users.findOne({
-              where: { id: memberId },
-              attributes: ["push_notification_token"],
-            });
+            let recipient;
 
+            try {
+              recipient = await users.findOne({
+                where: { id: memberId },
+                attributes: ["push_notification_token"],
+              });
+            } catch (e) {
+              console.error(`[push] failed to fetch recipient ${memberId}:`, e);
+              continue;
+            }
             const pushToken = recipient?.push_notification_token;
-            if (pushToken && isExpoPushToken(pushToken)) {
+            console.log(
+              `[push] user ${memberId} token: ${pushToken || "(none)"}`
+            );
+
+            if (!pushToken) {
+              console.warn(`[push] no push token for user ${memberId}`);
+              continue;
+            }
+
+            const valid = isExpoPushToken(pushToken);
+            console.log(`[push] token valid? ${valid} for user ${memberId}`);
+            if (!valid) {
+              console.warn(
+                `[push] invalid Expo token for user ${memberId}: ${pushToken}`
+              );
+              continue;
+            }
+
+            try {
+              console.log(`[push] sending to ${memberId}…`);
               await sendExpoPush({
                 to: pushToken,
                 sound: "default",
                 title: "New post",
-                body: `New post from ${user.username} in "${group.name}"`,
+                body: `New post from ${user.username} in "${group?.name}"`,
                 data: {
                   type: "new_post",
                   groupId: groupID,
@@ -1578,7 +1622,24 @@ module.exports.handleCreatePost = async (req, res) => {
                 },
                 channelId: "default",
               });
+              console.log(`[push] sent successfully to ${memberId}`);
+            } catch (e) {
+              console.error(`[push] send failed for ${memberId}:`, e);
             }
+            // if (pushToken && isExpoPushToken(pushToken)) {
+            //   await sendExpoPush({
+            //     to: pushToken,
+            //     sound: "default",
+            //     title: "New post",
+            //     body: `New post from ${user.username} in "${group.name}"`,
+            //     data: {
+            //       type: "new_post",
+            //       groupId: groupID,
+            //       postId: newPost.id,
+            //     },
+            //     channelId: "default",
+            //   });
+            // }
           }
         }
 
