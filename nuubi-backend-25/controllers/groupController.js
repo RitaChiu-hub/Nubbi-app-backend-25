@@ -661,12 +661,30 @@ module.exports.getMyGroups = async (req, res) => {
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
+        const lastActivity = Sequelize.literal(`
+  GREATEST(
+    COALESCE(LEAST((SELECT MAX(m.created_at)
+                    FROM messages m
+                    WHERE m.group_id = "groups"."id"), now()::timestamp), 'epoch'::timestamp),
+    COALESCE(LEAST((SELECT MAX(p.created_at)
+                    FROM posts p
+                    WHERE p.group_id = "groups"."id"), now()::timestamp), 'epoch'::timestamp),
+    COALESCE(LEAST((SELECT MAX(pc.created_at)
+                    FROM post_comments pc
+                    JOIN posts p2 ON p2.id = pc.post_id
+                    WHERE p2.group_id = "groups"."id"), now()::timestamp), 'epoch'::timestamp),
+    COALESCE(LEAST("groups"."updated_at", now()::timestamp), 'epoch'::timestamp),
+    COALESCE(LEAST("groups"."created_at", now()::timestamp), 'epoch'::timestamp)
+  )
+`);
+
         const myGroups = await groups.findAll({
           attributes: [
             "invite_passcode",
             ["id", "group_id"],
             "name",
             "description",
+            [lastActivity, "last_activity"],
           ],
           include: [
             {
@@ -676,7 +694,8 @@ module.exports.getMyGroups = async (req, res) => {
               required: true,
             },
           ],
-          order: [[Sequelize.literal("participants.created_at"), "DESC"]],
+          order: [[lastActivity, "DESC"]],
+          //    order: [[Sequelize.literal("participants.created_at"), "DESC"]],
         });
 
         res.json(myGroups);
