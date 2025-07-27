@@ -1535,14 +1535,16 @@ module.exports.handleCreatePost = async (req, res) => {
           attributes: ["username"],
         });
 
-        const getGroupMembers = async (groupID) => {
-          const members = await participants.findAll({
-            where: { group_id: groupID },
-            attributes: ["user_id"],
-          });
-          return members.map((m) => m.user_id);
-        };
-        const groupMembers = await getGroupMembers(groupID); // Assuming this returns an array of user IDs
+        // 👇 get members BEFORE you use groupMembers in the log
+        const members = await participants.findAll({
+          where: { group_id: groupID },
+          attributes: ["user_id"],
+        });
+        const groupMembers = members.map((m) => m.user_id);
+
+        console.log(
+          `[push] group=${groupID} name="${group?.name}" members(total)=${groupMembers.length} author=${userID}`
+        );
 
         for (const memberId of groupMembers) {
           if (memberId !== userID) {
