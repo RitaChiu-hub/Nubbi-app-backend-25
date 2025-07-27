@@ -662,20 +662,24 @@ module.exports.getMyGroups = async (req, res) => {
       const userID = decoded.id;
       try {
         const lastActivity = Sequelize.literal(`
-  GREATEST(
-    COALESCE(LEAST((SELECT MAX(m.created_at)
-                    FROM messages m
-                    WHERE m.group_id = "groups"."id"), now()::timestamp), 'epoch'::timestamp),
-    COALESCE(LEAST((SELECT MAX(p.created_at)
-                    FROM posts p
-                    WHERE p.group_id = "groups"."id"), now()::timestamp), 'epoch'::timestamp),
-    COALESCE(LEAST((SELECT MAX(pc.created_at)
-                    FROM post_comments pc
-                    JOIN posts p2 ON p2.id = pc.post_id
-                    WHERE p2.group_id = "groups"."id"), now()::timestamp), 'epoch'::timestamp),
-    COALESCE(LEAST("groups"."updated_at", now()::timestamp), 'epoch'::timestamp),
-    COALESCE(LEAST("groups"."created_at", now()::timestamp), 'epoch'::timestamp)
-  )
+(
+  SELECT MAX(ts) FROM (
+    SELECT LEAST(m.created_at, now()::timestamp) AS ts
+      FROM messages m WHERE m.group_id = "groups"."id"
+    UNION ALL
+    SELECT LEAST(p.created_at, now()::timestamp) AS ts
+      FROM posts p WHERE p.group_id = "groups"."id"
+    UNION ALL
+    SELECT LEAST(pc.created_at, now()::timestamp) AS ts
+      FROM post_comments pc
+      JOIN posts p2 ON p2.id = pc.post_id
+     WHERE p2.group_id = "groups"."id"
+    UNION ALL
+    SELECT LEAST("groups"."updated_at", now()::timestamp)
+    UNION ALL
+    SELECT LEAST("groups"."created_at", now()::timestamp)
+  ) x
+)
 `);
 
         const myGroups = await groups.findAll({
