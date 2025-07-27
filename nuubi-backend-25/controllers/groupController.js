@@ -51,7 +51,6 @@ const {
 } = require("../models/init-models")(sequelize, DataTypes);
 
 const bcrypt = require("bcrypt");
-const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 const currentDate = new Date();
 require("dotenv").config();
 
