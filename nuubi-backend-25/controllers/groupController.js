@@ -2023,7 +2023,7 @@ module.exports.handleAddPostPoint = async (req, res) => {
                   body: `From ${giverUsername} in "${groupName}".`,
                   data: {
                     type: "point_received",
-                    groupId: groupID,
+                    groupId: req.body.currentGroup,
                     postId: req.body.currentPost, // ← replace with your actual post id var if different
                   },
                   channelId: "default",
