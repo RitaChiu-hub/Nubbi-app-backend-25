@@ -1452,6 +1452,7 @@ module.exports.handleDeleteGroup = async (req, res) => {
 };
 
 module.exports.handleCreatePost = async (req, res) => {
+  console.log("creating a post...");
   // Use getJwt to get the token from either cookies or the Authorization header
   const token = getJwt(req);
 
@@ -1494,9 +1495,14 @@ module.exports.handleCreatePost = async (req, res) => {
           updated_at: currentDate.getTime(),
         });
 
-        // for everyone participanting in the group with group ID,
-        // who is not the post author, let's notify them that there
-        // is a new post, in the group with the group name associate with group ID
+        // Fetch the group details to get the group name
+        const group = await groups.findOne({
+          where: { id: groupID },
+        });
+
+        console.log(
+          `[push] group=${groupID} name="${group?.name}" members(total)=${groupMembers.length} author=${userID}`
+        );
 
         // If it's the user's first post in this group
         if (!existingPosts) {
@@ -1514,11 +1520,6 @@ module.exports.handleCreatePost = async (req, res) => {
             });
           }
 
-          // Fetch the group details to get the group name
-          const group = await groups.findOne({
-            where: { id: groupID },
-          });
-
           // Create a notification for the user
           await notifications.create({
             message: `Great work on publishing your first post in "${group.name}". Keep participating to earn an award!`,
@@ -1534,6 +1535,7 @@ module.exports.handleCreatePost = async (req, res) => {
           where: { id: userID },
           attributes: ["username"],
         });
+
         const getGroupMembers = async (groupID) => {
           const members = await participants.findAll({
             where: { group_id: groupID },
@@ -1543,22 +1545,7 @@ module.exports.handleCreatePost = async (req, res) => {
         };
         const groupMembers = await getGroupMembers(groupID); // Assuming this returns an array of user IDs
 
-        // Fetch the group details to get the group name
-        const group = await groups.findOne({
-          where: { id: groupID },
-        });
-
-        console.log(
-          `[push] group=${groupID} name="${group?.name}" members(total)=${groupMembers.length} author=${userID}`
-        );
-
         for (const memberId of groupMembers) {
-          console.log(`[push] considering member ${memberId}`);
-
-          if (memberId === userID) {
-            console.log(`[push] skip author ${memberId}`);
-            continue;
-          }
           if (memberId !== userID) {
             try {
               await notifications.create({
