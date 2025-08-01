@@ -1614,7 +1614,8 @@ module.exports.handleCreatePost = async (req, res) => {
               role: "system",
               content:
                 "You are **Cuubi**, a friendly, concise peer‑help assistant. " +
-                "Answer like a helpful classmate: short, clear, actionable.",
+                "Answer like a helpful classmate: short, clear, actionable." +
+                `Please keep your reply under 800 characters.`,
             },
             {
               role: "user",
