@@ -1632,7 +1632,7 @@ module.exports.handleCreatePost = async (req, res) => {
             const resp = await openai.chat.completions.create({
               model: "o4-mini",
               messages,
-              max_completion_tokens: 256,
+              max_completion_tokens: 512,
             });
 
             const choice = resp.choices[0] ?? {};
