@@ -1632,7 +1632,6 @@ module.exports.handleCreatePost = async (req, res) => {
             const resp = await openai.chat.completions.create({
               model: "o4-mini",
               messages,
-              temperature: 0.7,
               max_completion_tokens: 256,
             });
             // const resp = await llama.chat.completions.create({
