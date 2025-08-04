@@ -2,6 +2,7 @@
 const OpenAI = require("openai");
 
 module.exports.llama = new OpenAI({
-  apiKey: process.env.LLAMA_API_KEY,
-  baseURL: process.env.LLAMA_API_URL, // points at HF inference
+  apiKey: process.env.OPENAI_API_KEY,
+  // apiKey: process.env.LLAMA_API_KEY,
+  // baseURL: process.env.LLAMA_API_URL, // points at HF inference
 });

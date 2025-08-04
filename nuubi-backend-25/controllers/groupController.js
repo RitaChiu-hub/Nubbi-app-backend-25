@@ -1629,14 +1629,20 @@ module.exports.handleCreatePost = async (req, res) => {
 
           let answer;
           try {
-            const resp = await llama.chat.completions.create({
-              // model: "mistralai/Mistral-7B-Instruct-v0.2",
-              model: "gpt-3.5-turbo",
+            const resp = await openai.chat.completions.create({
+              model: "o4-mini",
               messages,
               temperature: 0.7,
               max_tokens: 256,
-              stop: ["</SYS>"],
             });
+            // const resp = await llama.chat.completions.create({
+            //   // model: "mistralai/Mistral-7B-Instruct-v0.2",
+            //   model: "gpt-3.5-turbo",
+            //   messages,
+            //   temperature: 0.7,
+            //   max_tokens: 256,
+            //   stop: ["</SYS>"],
+            // });
             answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
 
             // 5)  Persist as a comment
