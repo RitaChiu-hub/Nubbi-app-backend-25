@@ -1654,7 +1654,7 @@ module.exports.handleCreatePost = async (req, res) => {
             });
           } catch (err) {
             // 6)  Always log the full HTTP response for traceability
-            console.error(" Cuubi HF error:", err);
+            console.error(" Cuubi OpenAI error:", err);
 
             await post_comments.create({
               post_id: newPost.id,
