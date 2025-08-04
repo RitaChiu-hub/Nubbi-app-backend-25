@@ -2,7 +2,7 @@ const pool = require("../db");
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 const { checkAwardsForUser } = require("./awardService");
-const { llama } = require("../utils/llamaClient");
+const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
 const Sequelize = require("sequelize");
