@@ -1630,7 +1630,8 @@ module.exports.handleCreatePost = async (req, res) => {
           let answer;
           try {
             const resp = await llama.chat.completions.create({
-              model: "mistralai/Mistral-7B-Instruct-v0.2",
+              // model: "mistralai/Mistral-7B-Instruct-v0.2",
+              model: "gpt-3.5-turbo",
               messages,
               temperature: 0.7,
               max_tokens: 256,
