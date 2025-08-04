@@ -1634,6 +1634,19 @@ module.exports.handleCreatePost = async (req, res) => {
               messages,
               max_completion_tokens: 256,
             });
+
+            const choice = resp.choices[0] ?? {};
+            if (!choice.message?.content?.trim()) {
+              console.warn(
+                "Cuubi empty reply → finish_reason:",
+                choice.finish_reason,
+                "│ prompt_tokens:",
+                resp.usage?.prompt_tokens,
+                "│ completion_tokens:",
+                resp.usage?.completion_tokens
+              );
+            }
+
             // const resp = await llama.chat.completions.create({
             //   // model: "mistralai/Mistral-7B-Instruct-v0.2",
             //   model: "gpt-3.5-turbo",
