@@ -1633,7 +1633,7 @@ module.exports.handleCreatePost = async (req, res) => {
               model: "o4-mini",
               messages,
               temperature: 0.7,
-              max_tokens: 256,
+              max_completion_tokens: 256,
             });
             // const resp = await llama.chat.completions.create({
             //   // model: "mistralai/Mistral-7B-Instruct-v0.2",
