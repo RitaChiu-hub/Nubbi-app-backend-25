@@ -20,9 +20,25 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
     iss = "https://ucumberlands.blackboard.com";
   } else if (target_link_uri?.includes("stthomas.instructure.com")) {
     iss = "https://stthomas.instructure.com";
+  } else if (target_link_uri?.includes("stthomas.beta.instructure.com")) {
+    iss = "https://stthomas.beta.instructure.com";
+  } else if (target_link_uri?.includes("canvas.merrimack.edu")) {
+    iss = "https://canvas.merrimack.edu";
+  } else if (target_link_uri?.includes("merrimack.instructure.com")) {
+    iss = "https://merrimack.instructure.com";
+  } else if (target_link_uri?.includes("merrimack.beta.instructure.com")) {
+    iss = "https://merrimack.beta.instructure.com";
   } else {
     iss = "https://stthomas.beta.instructure.com"; // fallback
   }
+  // let iss;
+  // if (target_link_uri?.includes("ucumberlands.blackboard.com")) {
+  //   iss = "https://ucumberlands.blackboard.com";
+  // } else if (target_link_uri?.includes("stthomas.instructure.com")) {
+  //   iss = "https://stthomas.instructure.com";
+  // } else {
+  //   iss = "https://stthomas.beta.instructure.com"; // fallback
+  // }
   //const iss = "https://stthomas.beta.instructure.com"; // << fixed issuer
 
   const redirect =
@@ -224,7 +240,8 @@ router.post("/session", async (req, res) => {
       //   const timestamp = new Date().toISOString();
 
       const iss = payload.iss;
-      const isCanvas = iss.includes("instructure.com");
+      const isCanvas =
+        iss.includes("instructure.com") || iss.includes("canvas");
       const isBlackboard = iss.includes("blackboard.com");
 
       const column = isCanvas

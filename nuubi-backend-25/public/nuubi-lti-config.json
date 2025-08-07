@@ -27,6 +27,23 @@
       }
     },
     {
+        "platform": "canvas.merrimack.edu",
+        "privacy_level": "public",
+        "settings": {
+          "placements": [
+            {
+              "placement": "course_navigation",
+              "message_type": "LtiResourceLinkRequest",
+              "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
+              "text": "Open Nuubi",
+              "icon_url": "https://www.nuubi.app/icon.png",
+              "visibility": "public",
+              "enabled": true
+            }
+          ]
+        }
+      },
+    {
       "platform": "blackboard.com",
       "privacy_level": "public",
       "settings": {
