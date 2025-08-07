@@ -216,7 +216,7 @@ module.exports.freebieSignup = async (req, res) => {
       from: `"Nuubi Team" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Your Free Study Guide & AI-Powered Study Plan",
-      text: `Hi ${name},\n\nThank you for signing up! Your free study guide is attached.\n\nJoin our community here: https://nuubi.app/community\n\nBest,\nThe Nuubi Team`,
+      text: `Hi ${name},\n\nThank you for signing up! Your free study guide is attached.\n\nJoin our community here: https://nuubi.com/community\n\nBest,\nThe Nuubi Team`,
       attachments: [
         {
           filename: "DataSciencePortfolio.pdf",
