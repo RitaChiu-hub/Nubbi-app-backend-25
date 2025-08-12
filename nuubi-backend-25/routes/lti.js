@@ -5,6 +5,7 @@ const pool = require("../db");
 const { adjectives } = require("../adjectives");
 const { nouns } = require("../nouns");
 const { v4: uuidv4 } = require("uuid");
+const currentDate = new Date();
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
@@ -321,6 +322,33 @@ router.post("/session", async (req, res) => {
         groupId = newGroupRes.rows[0].id;
         invitePasscode = newGroupRes.rows[0].invite_passcode; // ✅ redundant but safe
         groupName = courseTitle;
+
+        const seederMessage = await messages.create({
+          group_id: groupId,
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
+          text: "Welcome to your group’s Chat! This is your space for informal, ongoing conversations. Get to know your group members, ask quick questions, and keep the energy alive. Want to kick things off with a subject-related joke?",
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
+        });
+
+        const seededPost = await posts.create({
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+          group_id: groupId,
+          title: "Welcome to Threads! Click here for more info",
+          body_text:
+            "This is a Post. Use this space to ask questions, share resources, or offer helpful tips. Posts are perfect for starting deeper conversations that everyone in the group can see and respond to. Try asking about a tricky concept from class or sharing a study strategy that’s working well for you!",
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
+        });
+
+        const seededComment = await post_comments.create({
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+          post_id: seededPost.id,
+          comment_text:
+            "This is a Post Comment. It can be an answer to the question in the Post or any other helpful response. See the plus signs next to Posts and Comments? You can click the + to reward helpful contributions with a point!",
+          created_at: currentDate.getTime(),
+          updated_at: currentDate.getTime(),
+        });
       } else {
         groupId = existingGroup.rows[0].id;
         invitePasscode = existingGroup.rows[0].invite_passcode; // ✅ grab from DB
