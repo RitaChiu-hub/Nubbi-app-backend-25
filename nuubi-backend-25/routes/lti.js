@@ -6,6 +6,42 @@ const { adjectives } = require("../adjectives");
 const { nouns } = require("../nouns");
 const { v4: uuidv4 } = require("uuid");
 const currentDate = new Date();
+const Sequelize = require("sequelize");
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  logging: false,
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false, // Disable SSL certificate verification
+    },
+  },
+  config: config,
+});
+
+const DataTypes = require("sequelize").DataTypes;
+
+const {
+  participants,
+  groups,
+  messages,
+  points,
+  post_comments,
+  posts,
+  users,
+  badges,
+  user_badges,
+  tasks,
+  user_tasks,
+  notifications,
+  awards,
+  user_awards,
+} = require("../models/init-models")(sequelize, DataTypes);
 
 /* ────────────────────────────── 1. OIDC login ───────────────────────────── */
 router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
