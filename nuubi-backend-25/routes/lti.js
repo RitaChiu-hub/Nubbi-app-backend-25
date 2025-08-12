@@ -5,8 +5,15 @@ const pool = require("../db");
 const { adjectives } = require("../adjectives");
 const { nouns } = require("../nouns");
 const { v4: uuidv4 } = require("uuid");
-const currentDate = new Date();
+
 const Sequelize = require("sequelize");
+var config = {
+  define: {
+    underscored: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+};
 
 const sequelize = new Sequelize({
   dialect: "postgres",
@@ -358,6 +365,7 @@ router.post("/session", async (req, res) => {
         groupId = newGroupRes.rows[0].id;
         invitePasscode = newGroupRes.rows[0].invite_passcode; // ✅ redundant but safe
         groupName = courseTitle;
+        const currentDate = new Date();
 
         const seederMessage = await messages.create({
           group_id: groupId,
