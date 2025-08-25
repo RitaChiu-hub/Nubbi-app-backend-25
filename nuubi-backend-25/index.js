@@ -547,6 +547,7 @@ io.on("connection", (socket) => {
         Object.assign(newMsg, {
           sender_username: userRes.rows[0].username,
           sender_avatar_url: userRes.rows[0].avatar_url,
+          message_points: 0,
         })
       );
     } catch (err) {
