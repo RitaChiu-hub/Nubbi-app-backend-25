@@ -542,7 +542,6 @@ io.on("connection", (socket) => {
 
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
-      console.log("newMsg payload", newMsg);
       io.emit(
         "insert msg return updated list",
         Object.assign(newMsg, {
