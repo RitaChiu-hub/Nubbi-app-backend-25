@@ -16,6 +16,8 @@ const {
   handleValidateSignUp,
   handleSendFeedback,
   savePushToken,
+  saveNotifPrefs,
+  getNotifPrefs,
 } = require("../controllers/settingsController.js");
 const validateChangeUsernameForm = require("../controllers/validation/validateChangeUsernameForm");
 const validateChangePasswordForm = require("../controllers/validation/validateChangePasswordForm");
@@ -27,6 +29,8 @@ router.post("/delete", handleDeleteAccount);
 
 router.post("/updateavatar", handleUpdateAvatar);
 router.post("/savepushtoken", savePushToken);
+router.post("/get-notif-prefs", getNotifPrefs);
+router.post("/notif-prefs", saveNotifPrefs);
 
 router.post("/getuseravatar", handleGetAvatar);
 

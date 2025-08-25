@@ -260,6 +260,62 @@ module.exports.savePushToken = async (req, res) => {
     });
 };
 
+// GET whether push notifications are enabled
+module.exports.getNotifPrefs = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        const result = await pool.query(
+          "SELECT push_notifications_enabled FROM users WHERE id=$1",
+          [userID]
+        );
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json({
+          enabled: result.rows[0].push_notifications_enabled,
+        });
+      } catch (error) {
+        console.error("Error fetching notif prefs: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch((err) => {
+      console.error("JWT verification failed: ", err);
+      res.status(401).json({ error: "Unauthorized" });
+    });
+};
+
+// SAVE push notifications enabled/disabled
+module.exports.saveNotifPrefs = async (req, res) => {
+  jwtVerify(req.body.token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userID = decoded.id;
+      try {
+        await pool.query(
+          "UPDATE users SET push_notifications_enabled=$2 WHERE id=$1",
+          [userID, req.body.enabled]
+        );
+
+        res.json({
+          status: "Push notification preference updated",
+          enabled: req.body.enabled,
+        });
+      } catch (error) {
+        console.error("Error updating notif prefs: ", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch((err) => {
+      console.error("JWT verification failed: ", err);
+      res.status(401).json({ error: "Unauthorized" });
+    });
+};
+
+
 module.exports.handleDeleteAvatar = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
