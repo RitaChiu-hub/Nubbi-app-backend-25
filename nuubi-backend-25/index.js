@@ -448,6 +448,97 @@ io.on("connection", (socket) => {
       );
 
       // create a notification to the members of the group, letting everyone know there's a new message
+      const groupMembersRes = await pool.query(
+        `SELECT user_id FROM participants WHERE group_id = $1`,
+        [req.currentGroup]
+      );
+
+      const groupRes = await pool.query(
+        `SELECT name FROM groups WHERE id = $1`,
+        [req.currentGroup]
+      );
+
+      const groupMembers = groupMembersRes.rows.map((row) => row.user_id);
+      const currentDate = new Date();
+      const groupName = groupRes.rows[0]?.name || "Unnamed Group";
+
+      for (const memberId of groupMembers) {
+        if (memberId !== userID) {
+          console.log(
+            `New message from ${userRes.rows[0].username} in ${groupName} message chat`
+          );
+          await notifications.create({
+            message: `New message from ${userRes.rows[0].username} in ${groupName} message chat`,
+            user_id: memberId,
+            is_read: false,
+            created_at: currentDate.getTime(),
+            updated_at: currentDate.getTime(),
+          });
+        }
+      }
+
+      // add push notifications
+      // Send push notifications to all group members (except the sender) for a new message
+      const senderUsername = userRes.rows[0].username;
+
+      await Promise.all(
+        groupMembers
+          .filter((memberId) => memberId !== userID)
+          .map(async (memberId) => {
+            // get the recipient's push token
+            const tokRes = await pool.query(
+              "SELECT push_notification_token FROM users WHERE id = $1",
+              [memberId]
+            );
+            const token = tokRes.rows[0]?.push_notification_token;
+
+            if (!token) {
+              console.log(
+                `No push notification token for user ID: ${memberId}`
+              );
+              return;
+            }
+
+            const message = {
+              to: token,
+              sound: "default",
+              title: "New Group Message",
+              body: `New message from ${senderUsername} in "${groupName}"`,
+              data: {
+                groupId: req.currentGroup,
+                messageId: newMsg.messages_id,
+              },
+              channelId: "default",
+            };
+
+            try {
+              const response = await fetch(
+                "https://exp.host/--/api/v2/push/send",
+                {
+                  method: "POST",
+                  headers: {
+                    Accept: "application/json",
+                    "Accept-encoding": "gzip, deflate",
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(message),
+                }
+              );
+
+              const responseData = await response.json();
+              if (!response.ok) {
+                console.error(
+                  "Failed to send push notification:",
+                  response.status,
+                  response.statusText,
+                  responseData
+                );
+              }
+            } catch (error) {
+              console.error("Error sending push notification:", error);
+            }
+          })
+      );
 
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
