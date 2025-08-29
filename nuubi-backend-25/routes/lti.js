@@ -72,6 +72,12 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
     iss = "https://merrimack.instructure.com";
   } else if (target_link_uri?.includes("merrimack.beta.instructure.com")) {
     iss = "https://merrimack.beta.instructure.com";
+  } else if (target_link_uri?.includes("canvas.northeastern.edu")) {
+    iss = "https://canvas.northeastern.edu";
+  } else if (target_link_uri?.includes("northeastern.instructure.com")) {
+    iss = "https://northeastern.instructure.com";
+  } else if (target_link_uri?.includes("northeastern.beta.instructure.com")) {
+    iss = "https://northeastern.beta.instructure.com";
   } else {
     iss = "https://stthomas.beta.instructure.com"; // fallback
   }
