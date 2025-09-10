@@ -583,7 +583,7 @@ module.exports.handleGeneratePasscode = async (req, res) => {
       ...req.body,
       hashedOTP: hashedOTP,
       status:
-        "Passcode sent to your email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
+        "Passcode sent to email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
       //  status: "Passcode sent to email. May need to check spam folder.",
     });
     //  }
@@ -712,7 +712,7 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
       ...req.body,
       hashedOTP: hashedOTP,
       status:
-        "Passcode sent to your email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
+        "Passcode sent to email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
       //status: "Passcode sent to email. May need to check spam folder.",
     });
   }
