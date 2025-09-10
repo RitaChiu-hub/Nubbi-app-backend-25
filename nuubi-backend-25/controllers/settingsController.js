@@ -315,7 +315,6 @@ module.exports.saveNotifPrefs = async (req, res) => {
     });
 };
 
-
 module.exports.handleDeleteAvatar = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
@@ -583,7 +582,9 @@ module.exports.handleGeneratePasscode = async (req, res) => {
     res.json({
       ...req.body,
       hashedOTP: hashedOTP,
-      status: "Passcode sent to email. May need to check spam folder.",
+      status:
+        "Passcode sent to your email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
+      //  status: "Passcode sent to email. May need to check spam folder.",
     });
     //  }
   } else {
@@ -710,7 +711,9 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
     res.json({
       ...req.body,
       hashedOTP: hashedOTP,
-      status: "Passcode sent to email. May need to check spam folder.",
+      status:
+        "Passcode sent to your email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
+      //status: "Passcode sent to email. May need to check spam folder.",
     });
   }
 };
