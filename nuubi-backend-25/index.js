@@ -391,7 +391,6 @@ app.use("/backend", myRouter);
 
 io.on("connection", (socket) => {
   console.log("a user connected");
-  // console.log("Socket request object:", socket.request); // Log the entire request object
 
   const getJwt = (request) => {
     // Check if the cookie header exists and is not empty
@@ -464,9 +463,6 @@ io.on("connection", (socket) => {
 
       for (const memberId of groupMembers) {
         if (memberId !== userID) {
-          console.log(
-            `New message from ${userRes.rows[0].username} in ${groupName} message chat`
-          );
           await notifications.create({
             message: `New message from ${userRes.rows[0].username} in ${groupName} message chat`,
             user_id: memberId,
@@ -620,8 +616,6 @@ io.on("connection", (socket) => {
             [req.currentPost, userID]
           );
 
-          console.log("Raw recipientsRes.rows:", recipientsRes.rows);
-
           const recipientSet = new Set(
             recipientsRes.rows.map((r) => r.sender_id) // no filter(id => id) so 0 is not dropped
           );
@@ -631,10 +625,8 @@ io.on("connection", (socket) => {
           }
 
           const recipientIds = Array.from(recipientSet);
-          console.log("Final recipientIds:", recipientIds);
 
           for (const recipientId of recipientIds) {
-            console.log("Processing recipient:", recipientId);
             await notifications.create({
               message: `New comment from ${userRow.sender_username} in "${groupName}"`,
               user_id: recipientId,
@@ -642,16 +634,9 @@ io.on("connection", (socket) => {
               created_at: currentDate.getTime(),
               updated_at: currentDate.getTime(),
             });
-            console.log("Created in-app notification for", recipientId);
             const recipient = await users.findOne({
               where: { id: recipientId },
             });
-            console.log(
-              "Loaded recipient from users table:",
-              recipientId,
-              recipient ? "found" : "NOT FOUND"
-            );
-
             // await notifications.create({
             //   message: `New comment from ${userRow.sender_username} in "${groupName}"`,
             //   user_id: postAuthorId,
@@ -661,10 +646,6 @@ io.on("connection", (socket) => {
             // });
 
             if (recipient?.push_notification_token) {
-              console.log(
-                "Recipient has push token:",
-                recipient.push_notification_token
-              );
               const message = {
                 to: recipient.push_notification_token,
                 sound: "default",
