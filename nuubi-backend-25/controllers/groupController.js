@@ -1489,7 +1489,7 @@ module.exports.handleCreatePost = async (req, res) => {
       const userID = decoded.id;
       const groupID = req.params.group_id;
       if (!groupID) {
-        console.error("❌ groupID is missing");
+        console.error("groupID is missing");
         return res
           .status(400)
           .json({ error: "Missing group_id in request body" });

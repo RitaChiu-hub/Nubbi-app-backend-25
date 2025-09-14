@@ -612,6 +612,15 @@ io.on("connection", (socket) => {
           );
           const groupName = groupRes.rows[0]?.name || "Unnamed Group";
 
+          console.log(
+            "postId",
+            req.currentPost,
+            "currentUser",
+            userID,
+            "postAuthor",
+            postAuthorId
+          );
+
           if (userID != postAuthorId) {
             const currentDate = new Date();
 
@@ -620,6 +629,8 @@ io.on("connection", (socket) => {
               `SELECT DISTINCT sender_id FROM post_comments WHERE post_id = $1 AND sender_id <> $2 AND sender_id IS NOT NULL`,
               [req.currentPost, userID]
             );
+
+            console.log("Raw recipientsRes.rows:", recipientsRes.rows);
 
             const recipientSet = new Set(
               recipientsRes.rows.map((r) => r.sender_id) // no filter(id => id) so 0 is not dropped
@@ -630,8 +641,10 @@ io.on("connection", (socket) => {
             }
 
             const recipientIds = Array.from(recipientSet);
+            console.log("Final recipientIds:", recipientIds);
 
             for (const recipientId of recipientIds) {
+              console.log("Processing recipient:", recipientId);
               await notifications.create({
                 message: `New comment from ${userRow.sender_username} in "${groupName}"`,
                 user_id: recipientId,
@@ -639,8 +652,16 @@ io.on("connection", (socket) => {
                 created_at: currentDate.getTime(),
                 updated_at: currentDate.getTime(),
               });
+              console.log("Created in-app notification for", recipientId);
+              const recipient = await users.findOne({
+                where: { id: recipientId },
+              });
+              console.log(
+                "Loaded recipient from users table:",
+                recipientId,
+                recipient ? "found" : "NOT FOUND"
+              );
 
-              const recipient = await users.findOne({ where: { id: uid } });
               // await notifications.create({
               //   message: `New comment from ${userRow.sender_username} in "${groupName}"`,
               //   user_id: postAuthorId,
@@ -650,6 +671,10 @@ io.on("connection", (socket) => {
               // });
 
               if (recipient?.push_notification_token) {
+                console.log(
+                  "Recipient has push token:",
+                  recipient.push_notification_token
+                );
                 const message = {
                   to: recipient.push_notification_token,
                   sound: "default",
