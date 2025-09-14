@@ -600,9 +600,7 @@ io.on("connection", (socket) => {
 
           // A) Get the post’s author and group
           const postRes = await pool.query(
-            `SELECT sender_id, group_id
-         FROM posts
-        WHERE id = $1`,
+            `SELECT sender_id, group_id FROM posts WHERE id = $1`,
             [req.currentPost]
           );
           const postAuthorId = postRes.rows[0].sender_id;
@@ -619,25 +617,24 @@ io.on("connection", (socket) => {
 
             // Collect recipients = post author + prior commenters (no duplicates, no current user)
             const recipientsRes = await pool.query(
-              `SELECT DISTINCT sender_id FROM post_comments WHERE post_id = $1 AND sender_id <> $2`,
+              `SELECT DISTINCT sender_id FROM post_comments WHERE post_id = $1 AND sender_id <> $2 AND sender_id IS NOT NULL`,
               [req.currentPost, userID]
             );
 
-            const recipientIds = [
-              ...new Set(
-                recipientsRes.rows.map((r) => r.sender_id).filter((id) => id) // filters out null/undefined/0
-              ),
-            ];
+            const recipientSet = new Set(
+              recipientsRes.rows.map((r) => r.sender_id) // no filter(id => id) so 0 is not dropped
+            );
 
-            // Add the post author too
-            if (postAuthorId) {
-              recipientIds.push(postAuthorId);
+            if (postAuthorId && postAuthorId !== userID) {
+              recipientSet.add(postAuthorId);
             }
 
-            for (const uid of recipientIds) {
+            const recipientIds = Array.from(recipientSet);
+
+            for (const recipientId of recipientIds) {
               await notifications.create({
                 message: `New comment from ${userRow.sender_username} in "${groupName}"`,
-                user_id: uid,
+                user_id: recipientId,
                 is_read: false,
                 created_at: currentDate.getTime(),
                 updated_at: currentDate.getTime(),
