@@ -616,60 +616,97 @@ io.on("connection", (socket) => {
 
           if (userID != postAuthorId) {
             const currentDate = new Date();
-            await notifications.create({
-              message: `You got a comment from ${userRow.sender_username} in "${groupName}"`,
-              user_id: postAuthorId,
-              is_read: false,
-              created_at: currentDate.getTime(),
-              updated_at: currentDate.getTime(),
-            });
 
-            // Fetch post author
-            const postAuthor = await users.findOne({
-              where: { id: postAuthorId },
-            });
+            // Collect recipients = post author + prior commenters (no duplicates, no current user)
+            const recipientsRes = await pool.query(
+              `SELECT DISTINCT sender_id FROM post_comments WHERE post_id = $1 AND sender_id <> $2`,
+              [req.currentPost, userID]
+            );
 
-            // Send push notification if token exists
-            if (postAuthor?.push_notification_token) {
-              const message = {
-                to: postAuthor.push_notification_token,
-                sound: "default",
-                title: "New Comment on Your Post",
-                body: `You got a comment from ${userRow.sender_username} in "${groupName}"`,
-                data: { postId: req.currentPost, groupId: postGroupId },
-                channelId: "default",
-              };
+            const recipientIds = [
+              ...new Set(
+                recipientsRes.rows.map((r) => r.sender_id).filter((id) => id) // filters out null/undefined/0
+              ),
+            ];
 
-              try {
-                const response = await fetch(
-                  "https://exp.host/--/api/v2/push/send",
-                  {
-                    method: "POST",
-                    headers: {
-                      Accept: "application/json",
-                      "Accept-encoding": "gzip, deflate",
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(message),
-                  }
-                );
+            // Add the post author too
+            if (postAuthorId) {
+              recipientIds.push(postAuthorId);
+            }
 
-                const responseData = await response.json();
+            for (const uid of recipientIds) {
+              await notifications.create({
+                message: `New comment from ${userRow.sender_username} in "${groupName}"`,
+                user_id: uid,
+                is_read: false,
+                created_at: currentDate.getTime(),
+                updated_at: currentDate.getTime(),
+              });
 
-                if (!response.ok) {
-                  console.error(
-                    "Failed to send push notification:",
-                    response.status,
-                    response.statusText
+              const recipient = await users.findOne({ where: { id: uid } });
+              // await notifications.create({
+              //   message: `New comment from ${userRow.sender_username} in "${groupName}"`,
+              //   user_id: postAuthorId,
+              //   is_read: false,
+              //   created_at: currentDate.getTime(),
+              //   updated_at: currentDate.getTime(),
+              // });
+
+              if (recipient?.push_notification_token) {
+                const message = {
+                  to: recipient.push_notification_token,
+                  sound: "default",
+                  title: "New Comment on Post",
+                  body: `New comment from ${userRow.sender_username} in "${groupName}"`,
+                  data: { postId: req.currentPost, groupId: postGroupId },
+                  channelId: "default",
+                };
+
+                // // Fetch post author
+                // const postAuthor = await users.findOne({
+                //   where: { id: postAuthorId },
+                // });
+
+                // // Send push notification if token exists
+                // if (postAuthor?.push_notification_token) {
+                //   const message = {
+                //     to: postAuthor.push_notification_token,
+                //     sound: "default",
+                //     title: "New Comment on Post",
+                //     body: `New Comment from ${userRow.sender_username} in "${groupName}"`,
+                //     data: { postId: req.currentPost, groupId: postGroupId },
+                //     channelId: "default",
+                //   };
+
+                try {
+                  const response = await fetch(
+                    "https://exp.host/--/api/v2/push/send",
+                    {
+                      method: "POST",
+                      headers: {
+                        Accept: "application/json",
+                        "Accept-encoding": "gzip, deflate",
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify(message),
+                    }
                   );
+
+                  const responseData = await response.json();
+
+                  if (!response.ok) {
+                    console.error(
+                      "Failed to send push notification:",
+                      response.status,
+                      response.statusText
+                    );
+                  }
+                } catch (error) {
+                  console.error("Error sending push notification:", error);
                 }
-              } catch (error) {
-                console.error("Error sending push notification:", error);
+              } else {
+                console.log(`No push notification token for user`);
               }
-            } else {
-              console.log(
-                `No push notification token for user ID: ${postAuthorId}`
-              );
             }
           }
           // B) Commenter (communication & reliability)
