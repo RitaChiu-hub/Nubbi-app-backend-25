@@ -1516,6 +1516,7 @@ module.exports.handleCreatePost = async (req, res) => {
           updated_at: currentDate.getTime(),
         });
 
+        const postId = newPost.id;
         // Fetch the group details to get the group name
         const group = await groups.findOne({
           where: { id: groupID },
@@ -1565,6 +1566,8 @@ module.exports.handleCreatePost = async (req, res) => {
               await notifications.create({
                 message: `New post was created by ${user.username} in "${group.name}"`,
                 user_id: memberId,
+                type: "post",
+                post_id: postId,
                 is_read: false,
                 created_at: currentDate.getTime(),
                 updated_at: currentDate.getTime(),

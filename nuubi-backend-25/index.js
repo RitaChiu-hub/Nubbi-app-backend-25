@@ -467,6 +467,8 @@ io.on("connection", (socket) => {
             message: `New message from ${userRes.rows[0].username} in ${groupName} message chat`,
             user_id: memberId,
             is_read: false,
+            type: "message",
+            message_id: insertRes.rows[0].messages_id,
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
@@ -630,6 +632,8 @@ io.on("connection", (socket) => {
             await notifications.create({
               message: `New comment from ${userRow.sender_username} in "${groupName}"`,
               user_id: recipientId,
+              type: "post_comment",
+              post_id: req.currentPost,
               is_read: false,
               created_at: currentDate.getTime(),
               updated_at: currentDate.getTime(),
@@ -637,13 +641,6 @@ io.on("connection", (socket) => {
             const recipient = await users.findOne({
               where: { id: recipientId },
             });
-            // await notifications.create({
-            //   message: `New comment from ${userRow.sender_username} in "${groupName}"`,
-            //   user_id: postAuthorId,
-            //   is_read: false,
-            //   created_at: currentDate.getTime(),
-            //   updated_at: currentDate.getTime(),
-            // });
 
             if (recipient?.push_notification_token) {
               const message = {
