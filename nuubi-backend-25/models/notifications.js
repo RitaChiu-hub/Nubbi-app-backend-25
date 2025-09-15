@@ -1,6 +1,8 @@
 const Sequelize = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-    const Notification = sequelize.define('notifications', {
+  const Notification = sequelize.define(
+    "notifications",
+    {
       id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
@@ -13,9 +15,24 @@ module.exports = (sequelize, DataTypes) => {
       user_id: {
         type: DataTypes.STRING,
         references: {
-          model: 'users', // name of Target model
-          key: 'id', // key in Target model
+          model: "users", // name of Target model
+          key: "id", // key in Target model
         },
+      },
+      type: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "type",
+      },
+      post_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "post_id",
+      },
+      message_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "message_id",
       },
       is_read: {
         type: DataTypes.BOOLEAN,
@@ -43,7 +60,7 @@ module.exports = (sequelize, DataTypes) => {
           fields: [{ name: "id" }],
         },
       ],
-    });
-    return Notification;
-  };
-  
+    }
+  );
+  return Notification;
+};
