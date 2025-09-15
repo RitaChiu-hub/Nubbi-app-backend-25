@@ -614,7 +614,7 @@ io.on("connection", (socket) => {
 
           // Collect recipients = post author + prior commenters (no duplicates, no current user)
           const recipientsRes = await pool.query(
-            `SELECT DISTINCT sender_id FROM post_comments WHERE post_id = $1 AND sender_id <> $2 AND sender_id IS NOT NULL`,
+            `SELECT DISTINCT sender_id FROM post_comments WHERE post_id = $1 AND sender_id <> $2 AND sender_id <> '205851f3-f034-4316-b278-9c962443a5d5' AND sender_id IS NOT NULL`,
             [req.currentPost, userID]
           );
 
