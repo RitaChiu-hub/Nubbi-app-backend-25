@@ -256,6 +256,15 @@ router.post("/session", async (req, res) => {
       user = userRes.rows[0];
     }
 
+    // Update last_signin for LTI session
+    try {
+      await pool.query("UPDATE users SET last_signin = NOW() WHERE id = $1", [
+        user.id,
+      ]);
+    } catch (e) {
+      console.error("Failed to update last_signin for LTI user", e);
+    }
+
     // Issue your Nuubi JWT
     const nuubiToken = jwt.sign(
       { id: user.id, email: user.email },

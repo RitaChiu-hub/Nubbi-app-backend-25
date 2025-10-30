@@ -106,6 +106,12 @@ module.exports.attemptLogin = async (req, res) => {
     );
 
     if (isSamePass) {
+      // Update last_signin timestamp on successful login
+      await users.update(
+        { last_signin: new Date() },
+        { where: { id: potentialLogin.id } }
+      );
+
       const token = await jwtSign(
         { id: potentialLogin.id },
         process.env.JWT_SECRET,
@@ -262,6 +268,12 @@ module.exports.attemptMobileLogin = async (req, res) => {
     );
 
     if (isSamePass) {
+      // Update last_signin timestamp on successful mobile login
+      await users.update(
+        { last_signin: new Date() },
+        { where: { id: potentialLogin.id } }
+      );
+
       const token = await jwtSign(
         { id: potentialLogin.id },
         process.env.JWT_SECRET,
