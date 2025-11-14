@@ -338,8 +338,8 @@ module.exports.attemptRegister = async (req, res) => {
       email: req.body.email,
       username: newUsername,
       passhash: hashedPass,
-      created_at: currentDate.getTime(),
-      updated_at: currentDate.getTime(),
+      created_at: new Date(),
+      updated_at: new Date(),
     });
 
     // 3 for prod with digitalocean db, 7 for localhost db
@@ -428,8 +428,8 @@ module.exports.attemptMobileRegister = async (req, res) => {
       email: req.body.email,
       username: newUsername,
       passhash: hashedPass,
-      created_at: currentDate.getTime(),
-      updated_at: currentDate.getTime(),
+      created_at: new Date(),
+      updated_at: new Date(),
     });
 
     // 3 for prod with digitalocean db, 7 for localhost db
