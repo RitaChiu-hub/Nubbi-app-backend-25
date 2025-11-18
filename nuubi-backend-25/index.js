@@ -791,6 +791,30 @@ io.on("connection", (socket) => {
       });
   });
 
+  socket.on("view logs", (req) => {
+
+    // extracts the token from the request
+    const token = req.token || webToken;
+
+    // verifies the token
+    jwtVerify(token, process.env.JWT_SECRET).then(async (decoded) => {
+
+    // user id from token
+    const userID = decoded.id;
+
+    // insert view log into the database
+    try {
+      const log = await pool.query(
+      "INSERT INTO view_logs(user_id, content_type, content_id, group_id, device_type) VALUES($1, $2, $3, $4, $5)",
+      [userID, req.contentType, req.contentId, req.groupId, req.deviceType]);
+    }
+      catch (err) {
+        console.error("Error viewing log:", err);
+    };
+    
+    });
+  });
+
   socket.on("disconnect", (reason) => {
     console.log("Socket disconnected because:", reason);
   });
