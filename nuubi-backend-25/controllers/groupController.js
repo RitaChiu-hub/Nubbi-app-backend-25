@@ -55,77 +55,77 @@ const currentDate = new Date();
 require("dotenv").config();
 
 module.exports.handleCreateGroup = async (req, res) => {
-    // Use getJwt to get the token from either cookies or the Authorization header
-    const token = getJwt(req);
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
 
   // Check if token is available
-    if (!token) {
-      return res.status(401).json({ error: "JWT token is required" });
-    }
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
 
   // Now verify the token
   jwtVerify(token, process.env.JWT_SECRET)
     // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
-    const userID = decoded.id;
+      const userID = decoded.id;
       try {
         var isPublic =
           req.body.privacySelection === "Public" ? "true" : "false";
         var invitePasscode = Math.random().toString(10).substring(2, 8);
 
-    const newGroup = await groups.create({
-      name: req.body.groupname,
-      description: req.body.description,
-      is_public: isPublic,
-      invite_passcode: invitePasscode,
+        const newGroup = await groups.create({
+          name: req.body.groupname,
+          description: req.body.description,
+          is_public: isPublic,
+          invite_passcode: invitePasscode,
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
         const seederMessage = await messages.create({
-      group_id: newGroup.id,
-      sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
-      text: "Welcome to your group’s Chat! This is your space for informal, ongoing conversations. Get to know your group members, ask quick questions, and keep the energy alive. Want to kick things off with a subject-related joke?",
+          group_id: newGroup.id,
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
+          text: "Welcome to your group’s Chat! This is your space for informal, ongoing conversations. Get to know your group members, ask quick questions, and keep the energy alive. Want to kick things off with a subject-related joke?",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
-    const seededPost = await posts.create({
-      sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-      group_id: newGroup.id,
-      title: "Welcome to Threads! Click here for more info",
-      body_text:
-        "This is a Post. Use this space to ask questions, share resources, or offer helpful tips. Posts are perfect for starting deeper conversations that everyone in the group can see and respond to. Try asking about a tricky concept from class or sharing a study strategy that’s working well for you!",
+        const seededPost = await posts.create({
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+          group_id: newGroup.id,
+          title: "Welcome to Threads! Click here for more info",
+          body_text:
+            "This is a Post. Use this space to ask questions, share resources, or offer helpful tips. Posts are perfect for starting deeper conversations that everyone in the group can see and respond to. Try asking about a tricky concept from class or sharing a study strategy that’s working well for you!",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
         const seededComment = await post_comments.create({
-      sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-      post_id: seededPost.id,
-      comment_text:
-        "This is a Post Comment. It can be an answer to the question in the Post or any other helpful response. See the plus signs next to Posts and Comments? You can click the + to reward helpful contributions with a point!",
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+          post_id: seededPost.id,
+          comment_text:
+            "This is a Post Comment. It can be an answer to the question in the Post or any other helpful response. See the plus signs next to Posts and Comments? You can click the + to reward helpful contributions with a point!",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
         const newParticipant = await participants.create({
-      user_id: userID,
-      group_id: newGroup.id,
-      is_admin: true,
+          user_id: userID,
+          group_id: newGroup.id,
+          is_admin: true,
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
-    res.json({
-      ...req.body,
+        res.json({
+          ...req.body,
           status:
             "Group successfully created & you are the admin of this group",
-    });
-  } catch (error) {
+        });
+      } catch (error) {
         console.error("Error creating group: ", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+        res.status(500).json({ error: "Internal server error" });
+      }
     })
     .catch(async () => {
       res.json({ token: null });
@@ -1842,7 +1842,6 @@ module.exports.handleGetPosts = async (req, res) => {
     "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
     [req.body.currentGroup]
   );
-
   res.send(getPostsQuery.rows);
 };
 

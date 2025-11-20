@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const jwtSign = (payload, secret, options) =>
   new Promise((resolve, reject) => {
     jwt.sign(payload, secret, options, (err, token) => {
-      if (err) return reject(err);
+      if (err) reject(err);
       resolve(token);
     });
   });
@@ -26,24 +26,32 @@ const getJwt = (req) => {
   if (req.headers.authorization) {
     return req.headers.authorization.split(" ")[1]; // Bearer <token>
   }
+
+  // Return null if no token is found
   return null;
 };
+// const getJwt = (req) => req.cookies.token; //req.headers["authorization"].split(" ")[1];
 
-// Middleware to verify JWT from cookies or headers
+// Middleware to verify JWT from cookies
 const jwtVerifyMiddleware = async (req, res, next) => {
   try {
+    // Extract token from cookies
     const token = getJwt(req);
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized: No token provided" });
+    }
+
+    // Verify the token
     const decoded = await jwtVerify(token, process.env.JWT_SECRET);
 
-    // add decoded user to request
+    // Attach the decoded token to the request object for further processing
     req.auth = decoded;
 
+    // Proceed to the next middleware
     next();
   } catch (err) {
-    if (err.name === "TokenExpiredError") { 
-      return res.status(401).json({ status: "expired", message: "Session expired, please log in again" }); } 
-      
-    return res.status(401).json({ error: "Invalid token" }); }
+    res.status(401).json({ error: "Unauthorized: Invalid token" });
+  }
 };
 
 module.exports = { jwtSign, jwtVerify, getJwt, jwtVerifyMiddleware };
