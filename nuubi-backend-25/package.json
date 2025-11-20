@@ -3,6 +3,7 @@
   "version": "1.0.1",
   "description": "",
   "main": "index.js",
+  "proxy": "http://localhost:8080",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js"
@@ -14,23 +15,22 @@
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.2",
     "cloudinary": "^2.2.0",
-    "cookie-parser": "^1.4.6",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csurf": "^1.11.0",
-    "dotenv": "^16.0.3",
+    "dotenv": "^16.6.1",
     "expo-server-sdk": "^3.10.0",
-    "express": "^4.18.2",
+    "express": "^4.21.2",
     "express-jwt": "^8.4.1",
-    "helmet": "^6.0.1",
+    "helmet": "^6.2.0",
     "jsonwebtoken": "^9.0.0",
     "mjml": "^4.15.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.1",
-    "nodemon": "^2.0.22",
     "openai": "^5.10.2",
-    "pg": "^8.10.0",
-    "sequelize": "^6.34.0",
-    "socket.io": "^4.6.1",
+    "pg": "^8.16.3",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.1",
     "stripe": "^17.7.0",
     "uuidv4": "^6.2.13",
     "ws": "^8.18.3",
@@ -38,6 +38,7 @@
     "yup-password": "^0.2.2"
   },
   "devDependencies": {
+    "nodemon": "^3.1.10",
     "sequelize-cli": "^6.6.3"
   }
 }
