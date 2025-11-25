@@ -723,17 +723,232 @@ module.exports.getGroupMembers = async (req, res) => {
   res.send(groupMembersQuery.rows);
 };
 
-module.exports.getWeeklyGroupInfo = async (req, res) => {
-  const { currentGroup, startDate, endDate } = req.body;
-  const token = getJwt(req);
-
-  if (!token) {
-    return res.status(401).json({ error: "JWT token is required" });
+module.exports.handleGetAnalytics = async (req, res) => {
+  // USE THE SAME AUTH MIDDLEWARE AS getWeeklyGroupInfo
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
+  const userId = req.user.id;
+  const { currentGroup, startDate, endDate } = req.body;
+
+    if (!currentGroup) {
+      return res.status(400).json({ error: "currentGroup is required" });
+    }
+
+    // ✅ Default date range if missing: last 28 days
+    const today = new Date();
+    if (!endDate) {
+      endDate = today.toISOString().split("T")[0];
+    }
+    if (!startDate) {
+      const d = new Date(endDate);
+      d.setDate(d.getDate() - 27);
+      startDate = d.toISOString().split("T")[0];
+    }
+
+    // ✅ Only allow participants (optionally: require admin)
+    const participantResult = await pool.query(
+      `SELECT is_admin 
+         FROM participants 
+        WHERE user_id = $1 AND group_id = $2`,
+      [userId, currentGroup]
+    );
+
+    if (participantResult.rows.length === 0) {
+      return res
+        .status(403)
+        .json({ error: "You are not a member of this group" });
+    }
+
+    // ---------- 1. Get all group members ----------
+    const { rows: memberRows } = await pool.query(
+      `
+      SELECT u.id, u.username
+      FROM users u
+      JOIN participants p ON p.user_id = u.id
+      WHERE p.group_id = $1
+      `,
+      [currentGroup]
+    );
+    const totalMembers = memberRows.length;
+
+    // ---------- 2. Get posts + replies in date window ----------
+    const { rows: postRows } = await pool.query(
+      `
+      SELECT 
+          p.id,
+          p.sender_id,
+          p.title,
+          p.body_text,
+          COUNT(pc.id) AS replies
+      FROM posts p
+      LEFT JOIN post_comments pc
+        ON pc.post_id = p.id
+       AND pc.created_at >= $2::timestamp
+       AND pc.created_at < ($3::date + interval '1 day')
+      WHERE 
+          p.group_id = $1
+      AND   p.created_at >= $2::timestamp
+      AND   p.created_at < ($3::date + interval '1 day')
+      GROUP BY p.id
+      `,
+      [currentGroup, startDate, endDate]
+    );
+
+    // ---------- 3. Question coverage: % of students who posted ----------
+    const usersWhoPosted = new Set(postRows.map((r) => r.sender_id));
+    const questionsPercentage =
+      totalMembers === 0
+        ? 0
+        : Math.round((usersWhoPosted.size / totalMembers) * 100);
+
+    // ---------- 4. Peer reply %: posts that have at least one comment ----------
+    const postsWithReplies = postRows.filter(
+      (r) => Number(r.replies || 0) > 0
+    ).length;
+
+    const peerReplyPercentage =
+      postRows.length === 0
+        ? 0
+        : Math.round((postsWithReplies / postRows.length) * 100);
+
+    // ---------- 5. At-risk students: no posts & no comments ----------
+    const { rows: activityRows } = await pool.query(
+      `
+      SELECT
+        u.id AS user_id,
+        u.username,
+        COUNT(DISTINCT po.id)  AS posts,
+        COUNT(DISTINCT pc.id)  AS comments
+      FROM users u
+      JOIN participants pa 
+        ON pa.user_id = u.id
+       AND pa.group_id = $1
+      LEFT JOIN posts po
+        ON po.sender_id = u.id
+       AND po.group_id   = $1
+       AND po.created_at >= $2::timestamp
+       AND po.created_at <  ($3::date + interval '1 day')
+      LEFT JOIN post_comments pc
+        ON pc.sender_id  = u.id
+       AND pc.created_at >= $2::timestamp
+       AND pc.created_at <  ($3::date + interval '1 day')
+      LEFT JOIN posts p2
+        ON p2.id        = pc.post_id
+       AND p2.group_id  = $1
+      GROUP BY u.id, u.username
+      ORDER BY u.username;
+      `,
+      [currentGroup, startDate, endDate]
+    );
+
+    const atRiskStudents = activityRows
+      .filter(
+        (row) =>
+          Number(row.posts || 0) === 0 && Number(row.comments || 0) === 0
+      )
+      .map((row) => ({
+        id: row.user_id,
+        username: row.username,
+      }));
+
+    // ---------- 6. “Most common word” in questions ----------
+    const stopwords = new Set([
+      "the",
+      "and",
+      "a",
+      "an",
+      "is",
+      "are",
+      "of",
+      "for",
+      "to",
+      "in",
+      "on",
+      "about",
+      "with",
+      "this",
+      "that",
+      "it",
+      "i",
+      "we",
+      "you",
+      "our",
+      "my",
+      "be",
+      "was",
+      "were",
+      "or",
+      "as",
+      "from",
+      "at",
+      "by",
+      "can",
+      "could",
+      "would",
+      "should",
+    ]);
+
+    const wordCounts = {};
+
+    for (const row of postRows) {
+      const text = `${row.title || ""} ${row.body_text || ""}`.toLowerCase();
+      const words = text.match(/[a-z]+/g) || [];
+
+      // Count per-post presence of a word (not every repeat)
+      const uniqueWords = new Set(words);
+      for (const w of uniqueWords) {
+        if (stopwords.has(w)) continue;
+        wordCounts[w] = (wordCounts[w] || 0) + 1;
+      }
+    }
+
+    let topKeyword = null;
+    let topKeywordCount = 0;
+    for (const [word, count] of Object.entries(wordCounts)) {
+      if (count > topKeywordCount) {
+        topKeyword = word;
+        topKeywordCount = count;
+      }
+    }
+
+    const topicPercentage =
+      postRows.length === 0 || topKeywordCount === 0
+        ? 0
+        : Math.round((topKeywordCount / postRows.length) * 100);
+
+    // ---------- 7. Send JSON back to frontend ----------
+    res.json({
+      startDate,
+      endDate,
+      totalMembers,
+      questions: {
+        percentage: questionsPercentage,
+        topicKeyword: topKeyword || null,
+        topicPercentage,
+      },
+      peerReplies: {
+        percentage: peerReplyPercentage,
+        totalPosts: postRows.length,
+      },
+      atRisk: {
+        count: atRiskStudents.length,
+        students: atRiskStudents,
+      },
+    });
+  } catch (err) {
+    console.error("handleGetAnalytics error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+module.exports.getWeeklyGroupInfo = async (req, res) => {
+  const { currentGroup, startDate, endDate } = req.body;
+
   try {
-    const decoded = await jwtVerify(token, process.env.JWT_SECRET);
-    const userId = decoded.id;
+    const userId = req.user.id;
 
     const isAdminQuery = await pool.query(
       `SELECT is_admin FROM participants WHERE user_id = $1 AND group_id = $2`,

@@ -46,6 +46,7 @@ const {
   getWeeklyGroupInfo,
   handleInviteLink,
   getWonCertificates,
+  handleGetAnalytics,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -59,7 +60,8 @@ router.get("/getgroups", getAllGroups);
 router.get("/getpublicgroups", getAllPublicGroups);
 router.post("/joingroup", handleJoinGroup);
 router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);
-
+// add these if they’re not already present or correct
+// add these if they’re not already present or correct
 // Apply JWT middleware to verify the token and decode it
 // router.use(jwtVerifyMiddleware);
 
@@ -104,8 +106,9 @@ router.post("/taskapproved", handleTaskApproved);
 router.post("/mytasks", handleGetMyTasks);
 router.post("/myleaderboards", getMyLeaderboards);
 router.post("/mygroupanalytics", getMyGroupAnalytics);
-router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
 router.post("/invite/:token", handleInviteLink);
 router.post("/getwoncertificates", getWonCertificates);
+router.post("/analytics", jwtVerifyMiddleware, handleGetAnalytics);
+router.post("/getweeklygroupinfo", jwtVerifyMiddleware, getWeeklyGroupInfo);
 
 module.exports = router;
