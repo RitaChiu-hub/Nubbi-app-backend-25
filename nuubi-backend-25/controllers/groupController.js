@@ -713,41 +713,34 @@ module.exports.getMyGroups = async (req, res) => {
     });
 };
 
-module.exports.getGroupMembers = async (req, res) => {
-  const groupMembersQuery = await pool.query(
-    "WITH RankedMonths AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, DENSE_RANK() OVER (ORDER BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)) AS month_rank FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at)), MonthlyPoints AS (SELECT EXTRACT(YEAR FROM p.updated_at) AS year, EXTRACT(MONTH FROM p.updated_at) AS month, p.recipient_id, SUM(p.point_value) AS group_total_points FROM points p WHERE p.group_id = $1 GROUP BY EXTRACT(YEAR FROM p.updated_at), EXTRACT(MONTH FROM p.updated_at), p.recipient_id), UserDetails AS (SELECT u.id AS user_id, u.username, u.email FROM users u JOIN participants p ON u.id = p.user_id WHERE p.group_id = $1) SELECT ud.user_id, ud.username, ud.email, MAX(CASE WHEN rm.month_rank = 1 THEN mp.group_total_points ELSE 0 END) AS Unit_1, MAX(CASE WHEN rm.month_rank = 2 THEN mp.group_total_points ELSE 0 END) AS Unit_2, MAX(CASE WHEN rm.month_rank = 3 THEN mp.group_total_points ELSE 0 END) AS Unit_3, MAX(CASE WHEN rm.month_rank = 4 THEN mp.group_total_points ELSE 0 END) AS Unit_4, MAX(CASE WHEN rm.month_rank = 5 THEN mp.group_total_points ELSE 0 END) AS Unit_5, MAX(CASE WHEN rm.month_rank = 6 THEN mp.group_total_points ELSE 0 END) AS Unit_6, MAX(CASE WHEN rm.month_rank = 7 THEN mp.group_total_points ELSE 0 END) AS Unit_7, MAX(CASE WHEN rm.month_rank = 8 THEN mp.group_total_points ELSE 0 END) AS Unit_8, COALESCE(SUM(mp.group_total_points), 0) AS group_total_points FROM RankedMonths rm CROSS JOIN UserDetails ud LEFT JOIN MonthlyPoints mp ON mp.year = rm.year AND mp.month = rm.month AND mp.recipient_id = ud.user_id GROUP BY ud.user_id, ud.username, ud.email ORDER BY ud.username;  ",
-    //  "SELECT c.user_id as user_id, username, email, is_admin, coalesce(group_total_points,0) group_total_points FROM (  SELECT users.id user_id, users.username username, users.email email, participants.is_admin is_admin FROM participants INNER JOIN users ON participants.user_id = users.id WHERE participants.group_id = $1) c FULL OUTER JOIN ( SELECT user_id, recipient_id, count as group_total_points FROM (SELECT DISTINCT participants.user_id FROM participants INNER JOIN points ON participants.user_id = points.recipient_id WHERE participants.group_id = $1) a LEFT JOIN (SELECT recipient_id, count(point_value) FROM points WHERE group_id = $1 GROUP BY recipient_id) b ON a.user_id = b.recipient_id) d ON c.user_id = d.user_id ORDER BY group_total_points DESC;",
-    [req.body.currentGroup]
-  );
-
-  res.send(groupMembersQuery.rows);
-};
-
 module.exports.handleGetAnalytics = async (req, res) => {
-  // USE THE SAME AUTH MIDDLEWARE AS getWeeklyGroupInfo
-  if (!req.user) {
-    return res.status(401).json({ error: "Unauthorized" });
+  // 1) Get token from cookies or Authorization header
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
   }
 
-  const userId = req.user.id;
-  const { currentGroup, startDate, endDate } = req.body;
+  try {
+    // 2) Verify token and extract user id
+    const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    const { currentGroup, startDate, endDate } = req.body;
 
     if (!currentGroup) {
       return res.status(400).json({ error: "currentGroup is required" });
     }
-
-    // ✅ Default date range if missing: last 28 days
-    const today = new Date();
-    if (!endDate) {
-      endDate = today.toISOString().split("T")[0];
-    }
-    if (!startDate) {
-      const d = new Date(endDate);
-      d.setDate(d.getDate() - 27);
-      startDate = d.toISOString().split("T")[0];
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        error: "startDate and endDate are required (YYYY-MM-DD)",
+      });
     }
 
-    // ✅ Only allow participants (optionally: require admin)
+    const startDateFinal = startDate;
+    const endDateFinal = endDate;
+
+    // ---------- Ensure user is a participant ----------
     const participantResult = await pool.query(
       `SELECT is_admin 
          FROM participants 
@@ -793,17 +786,17 @@ module.exports.handleGetAnalytics = async (req, res) => {
       AND   p.created_at < ($3::date + interval '1 day')
       GROUP BY p.id
       `,
-      [currentGroup, startDate, endDate]
+      [currentGroup, startDateFinal, endDateFinal]
     );
 
-    // ---------- 3. Question coverage: % of students who posted ----------
+    // ---------- 3. Question coverage (% of members who posted at least once) ----------
     const usersWhoPosted = new Set(postRows.map((r) => r.sender_id));
     const questionsPercentage =
       totalMembers === 0
         ? 0
         : Math.round((usersWhoPosted.size / totalMembers) * 100);
 
-    // ---------- 4. Peer reply %: posts that have at least one comment ----------
+    // ---------- 4. Peer reply % (posts that got at least one reply) ----------
     const postsWithReplies = postRows.filter(
       (r) => Number(r.replies || 0) > 0
     ).length;
@@ -813,7 +806,7 @@ module.exports.handleGetAnalytics = async (req, res) => {
         ? 0
         : Math.round((postsWithReplies / postRows.length) * 100);
 
-    // ---------- 5. At-risk students: no posts & no comments ----------
+    // ---------- 5. At-risk students (no posts, no comments) ----------
     const { rows: activityRows } = await pool.query(
       `
       SELECT
@@ -840,7 +833,7 @@ module.exports.handleGetAnalytics = async (req, res) => {
       GROUP BY u.id, u.username
       ORDER BY u.username;
       `,
-      [currentGroup, startDate, endDate]
+      [currentGroup, startDateFinal, endDateFinal]
     );
 
     const atRiskStudents = activityRows
@@ -895,8 +888,7 @@ module.exports.handleGetAnalytics = async (req, res) => {
     for (const row of postRows) {
       const text = `${row.title || ""} ${row.body_text || ""}`.toLowerCase();
       const words = text.match(/[a-z]+/g) || [];
-
-      // Count per-post presence of a word (not every repeat)
+      // count each word once per post so we're measuring "how many posts mention this word"
       const uniqueWords = new Set(words);
       for (const w of uniqueWords) {
         if (stopwords.has(w)) continue;
@@ -918,10 +910,16 @@ module.exports.handleGetAnalytics = async (req, res) => {
         ? 0
         : Math.round((topKeywordCount / postRows.length) * 100);
 
+    console.log("📊 handleGetAnalytics:");
+    console.log("  posts:", postRows.length);
+    console.log("  wordCounts:", wordCounts);
+    console.log("  topKeyword:", topKeyword, "count:", topKeywordCount);
+    console.log("  topicPercentage:", topicPercentage);
+
     // ---------- 7. Send JSON back to frontend ----------
     res.json({
-      startDate,
-      endDate,
+      startDate: startDateFinal,
+      endDate: endDateFinal,
       totalMembers,
       questions: {
         percentage: questionsPercentage,
@@ -943,12 +941,17 @@ module.exports.handleGetAnalytics = async (req, res) => {
   }
 };
 
-
 module.exports.getWeeklyGroupInfo = async (req, res) => {
   const { currentGroup, startDate, endDate } = req.body;
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
 
   try {
-    const userId = req.user.id;
+    const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
 
     const isAdminQuery = await pool.query(
       `SELECT is_admin FROM participants WHERE user_id = $1 AND group_id = $2`,
@@ -1105,6 +1108,7 @@ module.exports.getWeeklyGroupInfo = async (req, res) => {
     };
 
     const formattedData = formatUserData(groupMembersQuery.rows);
+    console.log("DEBUG weekly formattedData:", JSON.stringify(formattedData, null, 2));
     res.send(formattedData);
   } catch (error) {
     console.error("getWeeklyGroupInfo error:", error);
