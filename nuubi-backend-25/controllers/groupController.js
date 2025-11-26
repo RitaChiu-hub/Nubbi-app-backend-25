@@ -713,8 +713,12 @@ module.exports.getMyGroups = async (req, res) => {
     });
 };
 
+// Make sure you have these imports at the top of your groupController.js file:
+// const pool = require("../db.js");
+// const { jwtVerify } = require("./jwt/jwtAuth");
+// const { getJwt } = require("./jwt/getJwt");
+
 module.exports.handleGetAnalytics = async (req, res) => {
-  // 1) Get token from cookies or Authorization header
   const token = getJwt(req);
 
   if (!token) {
@@ -722,7 +726,6 @@ module.exports.handleGetAnalytics = async (req, res) => {
   }
 
   try {
-    // 2) Verify token and extract user id
     const decoded = await jwtVerify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
@@ -740,7 +743,7 @@ module.exports.handleGetAnalytics = async (req, res) => {
     const startDateFinal = startDate;
     const endDateFinal = endDate;
 
-    // ---------- Ensure user is a participant ----------
+    // Ensure user is a participant
     const participantResult = await pool.query(
       `SELECT is_admin 
          FROM participants 
@@ -754,49 +757,47 @@ module.exports.handleGetAnalytics = async (req, res) => {
         .json({ error: "You are not a member of this group" });
     }
 
-    // ---------- 1. Get all group members ----------
+    // 1. Get all group members
     const { rows: memberRows } = await pool.query(
-      `
-      SELECT u.id, u.username
-      FROM users u
-      JOIN participants p ON p.user_id = u.id
-      WHERE p.group_id = $1
-      `,
+      `SELECT u.id, u.username
+       FROM users u
+       JOIN participants p ON p.user_id = u.id
+       WHERE p.group_id = $1`,
       [currentGroup]
     );
     const totalMembers = memberRows.length;
 
-    // ---------- 2. Get posts + replies in date window ----------
+    // 2. Get posts + replies in date window
     const { rows: postRows } = await pool.query(
-      `
-      SELECT 
+      `SELECT 
           p.id,
           p.sender_id,
           p.title,
           p.body_text,
           COUNT(pc.id) AS replies
-      FROM posts p
-      LEFT JOIN post_comments pc
-        ON pc.post_id = p.id
-       AND pc.created_at >= $2::timestamp
-       AND pc.created_at < ($3::date + interval '1 day')
-      WHERE 
-          p.group_id = $1
-      AND   p.created_at >= $2::timestamp
-      AND   p.created_at < ($3::date + interval '1 day')
-      GROUP BY p.id
-      `,
+       FROM posts p
+       LEFT JOIN post_comments pc
+         ON pc.post_id = p.id
+        AND pc.created_at >= $2::timestamp
+        AND pc.created_at < ($3::date + interval '1 day')
+       WHERE 
+           p.group_id = $1
+       AND p.created_at >= $2::timestamp
+       AND p.created_at < ($3::date + interval '1 day')
+       GROUP BY p.id`,
       [currentGroup, startDateFinal, endDateFinal]
     );
 
-    // ---------- 3. Question coverage (% of members who posted at least once) ----------
+    console.log(`📊 Found ${postRows.length} posts for analytics`);
+
+    // 3. Question coverage (% of members who posted at least once)
     const usersWhoPosted = new Set(postRows.map((r) => r.sender_id));
     const questionsPercentage =
       totalMembers === 0
         ? 0
         : Math.round((usersWhoPosted.size / totalMembers) * 100);
 
-    // ---------- 4. Peer reply % (posts that got at least one reply) ----------
+    // 4. Peer reply % (posts that got at least one reply)
     const postsWithReplies = postRows.filter(
       (r) => Number(r.replies || 0) > 0
     ).length;
@@ -806,33 +807,31 @@ module.exports.handleGetAnalytics = async (req, res) => {
         ? 0
         : Math.round((postsWithReplies / postRows.length) * 100);
 
-    // ---------- 5. At-risk students (no posts, no comments) ----------
+    // 5. At-risk students (no posts, no comments)
     const { rows: activityRows } = await pool.query(
-      `
-      SELECT
+      `SELECT
         u.id AS user_id,
         u.username,
         COUNT(DISTINCT po.id)  AS posts,
         COUNT(DISTINCT pc.id)  AS comments
-      FROM users u
-      JOIN participants pa 
-        ON pa.user_id = u.id
-       AND pa.group_id = $1
-      LEFT JOIN posts po
-        ON po.sender_id = u.id
-       AND po.group_id   = $1
-       AND po.created_at >= $2::timestamp
-       AND po.created_at <  ($3::date + interval '1 day')
-      LEFT JOIN post_comments pc
-        ON pc.sender_id  = u.id
-       AND pc.created_at >= $2::timestamp
-       AND pc.created_at <  ($3::date + interval '1 day')
-      LEFT JOIN posts p2
-        ON p2.id        = pc.post_id
-       AND p2.group_id  = $1
-      GROUP BY u.id, u.username
-      ORDER BY u.username;
-      `,
+       FROM users u
+       JOIN participants pa 
+         ON pa.user_id = u.id
+        AND pa.group_id = $1
+       LEFT JOIN posts po
+         ON po.sender_id = u.id
+        AND po.group_id = $1
+        AND po.created_at >= $2::timestamp
+        AND po.created_at < ($3::date + interval '1 day')
+       LEFT JOIN post_comments pc
+         ON pc.sender_id = u.id
+        AND pc.created_at >= $2::timestamp
+        AND pc.created_at < ($3::date + interval '1 day')
+       LEFT JOIN posts p2
+         ON p2.id = pc.post_id
+        AND p2.group_id = $1
+       GROUP BY u.id, u.username
+       ORDER BY u.username`,
       [currentGroup, startDateFinal, endDateFinal]
     );
 
@@ -846,58 +845,36 @@ module.exports.handleGetAnalytics = async (req, res) => {
         username: row.username,
       }));
 
-    // ---------- 6. “Most common word” in questions ----------
+    // 6. Most common word in posts
     const stopwords = new Set([
-      "the",
-      "and",
-      "a",
-      "an",
-      "is",
-      "are",
-      "of",
-      "for",
-      "to",
-      "in",
-      "on",
-      "about",
-      "with",
-      "this",
-      "that",
-      "it",
-      "i",
-      "we",
-      "you",
-      "our",
-      "my",
-      "be",
-      "was",
-      "were",
-      "or",
-      "as",
-      "from",
-      "at",
-      "by",
-      "can",
-      "could",
-      "would",
-      "should",
+      "the", "and", "a", "an", "is", "are", "of", "for", "to", "in", "on",
+      "about", "with", "this", "that", "it", "i", "we", "you", "our", "my",
+      "be", "was", "were", "or", "as", "from", "at", "by", "can", "could",
+      "would", "should", "what", "when", "where", "who", "how", "do", "does",
+      "did", "will", "have", "has", "had", "been", "being"
     ]);
 
     const wordCounts = {};
+    let totalWords = 0;
 
+    // Count ALL word occurrences (not unique per post)
     for (const row of postRows) {
       const text = `${row.title || ""} ${row.body_text || ""}`.toLowerCase();
       const words = text.match(/[a-z]+/g) || [];
-      // count each word once per post so we're measuring "how many posts mention this word"
-      const uniqueWords = new Set(words);
-      for (const w of uniqueWords) {
-        if (stopwords.has(w)) continue;
-        wordCounts[w] = (wordCounts[w] || 0) + 1;
+
+      for (const word of words) {
+        if (word.length < 3) continue;
+        if (stopwords.has(word)) continue;
+        
+        wordCounts[word] = (wordCounts[word] || 0) + 1;
+        totalWords++;
       }
     }
 
+    // Find the most common word
     let topKeyword = null;
     let topKeywordCount = 0;
+
     for (const [word, count] of Object.entries(wordCounts)) {
       if (count > topKeywordCount) {
         topKeyword = word;
@@ -905,25 +882,44 @@ module.exports.handleGetAnalytics = async (req, res) => {
       }
     }
 
+    // Calculate what % of posts contain the top keyword
+    let postsWithTopKeyword = 0;
+    if (topKeyword) {
+      for (const row of postRows) {
+        const text = `${row.title || ""} ${row.body_text || ""}`.toLowerCase();
+        if (text.includes(topKeyword)) {
+          postsWithTopKeyword++;
+        }
+      }
+    }
+
     const topicPercentage =
-      postRows.length === 0 || topKeywordCount === 0
+      postRows.length === 0 || !topKeyword
         ? 0
-        : Math.round((topKeywordCount / postRows.length) * 100);
+        : Math.round((postsWithTopKeyword / postRows.length) * 100);
 
-    console.log("📊 handleGetAnalytics:");
-    console.log("  posts:", postRows.length);
-    console.log("  wordCounts:", wordCounts);
-    console.log("  topKeyword:", topKeyword, "count:", topKeywordCount);
-    console.log("  topicPercentage:", topicPercentage);
+    // Detailed logging
+    const topWords = Object.entries(wordCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
 
-    // ---------- 7. Send JSON back to frontend ----------
-    res.json({
+    console.log("📊 Analytics Summary:");
+    console.log(`  Total posts: ${postRows.length}`);
+    console.log(`  Total words analyzed: ${totalWords}`);
+    console.log(`  Unique words found: ${Object.keys(wordCounts).length}`);
+    console.log(`  Top 10 words:`, topWords);
+    console.log(`  Top keyword: "${topKeyword}" (${topKeywordCount} mentions)`);
+    console.log(`  Posts containing "${topKeyword}": ${postsWithTopKeyword}`);
+    console.log(`  Topic percentage: ${topicPercentage}%`);
+
+    // 7. Send response
+    return res.json({
       startDate: startDateFinal,
       endDate: endDateFinal,
       totalMembers,
       questions: {
         percentage: questionsPercentage,
-        topicKeyword: topKeyword || null,
+        topicKeyword: topKeyword,
         topicPercentage,
       },
       peerReplies: {
@@ -936,8 +932,8 @@ module.exports.handleGetAnalytics = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("handleGetAnalytics error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ handleGetAnalytics error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
