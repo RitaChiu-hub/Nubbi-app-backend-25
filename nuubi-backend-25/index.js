@@ -367,6 +367,7 @@ const settingsRouter = require("./routers/settingsRouter");
 const groupRouter = require("./routers/groupRouter");
 const groupchatRouter = require("./routers/groupchatRouter");
 const fileRouter = require("./routers/fileRouter");
+const logsRouter = require("./routers/logsRouter");
 
 ///// auth middleware
 // const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
@@ -388,6 +389,7 @@ app.use("/groups", groupRouter);
 app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/backend", myRouter);
+app.use("/logs", logsRouter);
 
 io.on("connection", (socket) => {
   console.log("a user connected");
