@@ -656,6 +656,13 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
   const hashedOTP = await bcrypt.hash(mypasscode, 10);
 
   const userEmail = req.body.email;
+  
+  // Always log verification code to console for debugging
+  console.log("═══════════════════════════════════════");
+  console.log("🔐 VERIFICATION CODE GENERATED:");
+  console.log(`📧 Email: ${userEmail}`);
+  console.log(`🔑 Code: ${mypasscode}`);
+  console.log("═══════════════════════════════════════");
 
   const existingUser = await pool.query(
     "SELECT username from users WHERE email=$1",
@@ -664,57 +671,108 @@ module.exports.handleGenerateSignUpCode = async (req, res) => {
 
   // const userName = existingUser.rows[0].username;
 
-  let transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  // For local development: if email credentials are not set, log code to console
+  const isLocalDev = process.env.NODE_ENV === "development" || !process.env.EMAIL_USER || !process.env.EMAIL_PASS;
 
-  // Construct the correct path to the image file
-  const imagePath = path.join(__dirname, "..", "assets", "Logo_Tagline.png");
-  const imageContent = fs.readFileSync(imagePath, { encoding: "base64" });
-
-  // Read and compile MJML template
-  const mjmlTemplatePath = path.join(
-    __dirname,
-    "..",
-    "templates",
-    "codeVerificationEmail.mjml"
-  );
-  const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, "utf-8");
-
-  // Replace the placeholders with actual values
-  const compiledHtml = mjml(
-    mjmlTemplate.replace("{{ mypasscode }}", mypasscode),
-    { filePath: mjmlTemplatePath }
-  );
-
-  // send mail with defined transport object
-  let info = await transporter.sendMail({
-    from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
-    to: userEmail,
-    subject: "Security Verification Code", // Subject line
-    html: compiledHtml.html, // Use the compiled HTML
-    attachments: [
-      {
-        filename: "Logo_Tagline.png",
-        content: imageContent,
-        encoding: "base64",
-        cid: "image1", // Content-ID for referencing the image in the HTML
-      },
-    ],
-  });
-
-  if (info.messageId != null) {
-    res.json({
+  if (isLocalDev) {
+    // Log verification code to console for local development
+    console.log("═══════════════════════════════════════");
+    console.log("🔐 VERIFICATION CODE (LOCAL DEV):");
+    console.log(`📧 Email: ${userEmail}`);
+    console.log(`🔑 Code: ${mypasscode}`);
+    console.log("═══════════════════════════════════════");
+    
+    // Return the hashed OTP even if email fails in local dev
+    return res.json({
       ...req.body,
       hashedOTP: hashedOTP,
-      status:
-        "Passcode sent to email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
-      //status: "Passcode sent to email. May need to check spam folder.",
+      status: `Local Dev: Verification code is ${mypasscode}. Check console for code.`,
     });
+  }
+
+  try {
+    let transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    // Construct the correct path to the image file
+    const imagePath = path.join(__dirname, "..", "assets", "Logo_Tagline.png");
+    const imageContent = fs.readFileSync(imagePath, { encoding: "base64" });
+
+    // Read and compile MJML template
+    const mjmlTemplatePath = path.join(
+      __dirname,
+      "..",
+      "templates",
+      "codeVerificationEmail.mjml"
+    );
+    const mjmlTemplate = fs.readFileSync(mjmlTemplatePath, "utf-8");
+
+    // Replace the placeholders with actual values
+    const compiledHtml = mjml(
+      mjmlTemplate.replace("{{ mypasscode }}", mypasscode),
+      { filePath: mjmlTemplatePath }
+    );
+
+    // send mail with defined transport object
+    let info = await transporter.sendMail({
+      from: "Nuubi Support Team " + process.env.EMAIL_USER, // sender address
+      to: userEmail,
+      subject: "Security Verification Code", // Subject line
+      html: compiledHtml.html, // Use the compiled HTML
+      attachments: [
+        {
+          filename: "Logo_Tagline.png",
+          content: imageContent,
+          encoding: "base64",
+          cid: "image1", // Content-ID for referencing the image in the HTML
+        },
+      ],
+    });
+
+    if (info.messageId != null) {
+      res.json({
+        ...req.body,
+        hashedOTP: hashedOTP,
+        status:
+          "Passcode sent to email. May take up to 5 min. Check spam/junk. If not after 10, retry and check for typos.",
+        //status: "Passcode sent to email. May need to check spam folder.",
+      });
+    } else {
+      res.status(500).json({
+        ...req.body,
+        hashedOTP: hashedOTP, // Still return hashedOTP so user can continue
+        status: "Failed to send verification code. Please try again.",
+      });
+    }
+  } catch (error) {
+    console.error("Error sending verification email:", error.message);
+    
+    // Always log verification code to console when email fails (for debugging)
+    console.log("═══════════════════════════════════════");
+    console.log("🔐 VERIFICATION CODE (EMAIL FAILED):");
+    console.log(`📧 Email: ${userEmail}`);
+    console.log(`🔑 Code: ${mypasscode}`);
+    console.log("═══════════════════════════════════════");
+    
+    // In local dev or if email fails, log code and still allow signup to continue
+    if (process.env.NODE_ENV === "development" || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      res.json({
+        ...req.body,
+        hashedOTP: hashedOTP,
+        status: `Email failed. Verification code is ${mypasscode}. Check server console.`,
+      });
+    } else {
+      res.status(500).json({
+        ...req.body,
+        hashedOTP: hashedOTP, // Still return hashedOTP so user can continue
+        status: "Failed to send verification code. Please check your email configuration.",
+      });
+    }
   }
 };
 

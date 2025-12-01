@@ -23,10 +23,9 @@ const sequelize = new Sequelize({
   port: process.env.DATABASE_PORT,
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
+  // Disable SSL for local development
   dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
+    ssl: false,
   },
   config: config,
 });

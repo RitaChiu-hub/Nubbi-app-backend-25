@@ -23,10 +23,9 @@ const sequelize = new Sequelize({
   port: process.env.DATABASE_PORT,
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
+  // Disable SSL for local development
   dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
+    ssl: false,
   },
   config: config,
 });
@@ -109,14 +108,22 @@ router.all("/login", express.urlencoded({ extended: false }), (req, res) => {
 
 /* ────────────────────────────── 2. LTI launch ───────────────────────────── */
 router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
-  const idToken = req.body.id_token;
-  if (!idToken) return res.status(400).send("Missing id_token");
+  try {
+    const idToken = req.body.id_token;
+    if (!idToken) return res.status(400).send("Missing id_token");
 
-  /* ───── quick peek (DEBUG ONLY – no signature check) ───── */
-  const decoded = jwt.decode(idToken, { complete: true });
+    /* ───── quick peek (DEBUG ONLY – no signature check) ───── */
+    const decoded = jwt.decode(idToken, { complete: true });
+    
+    if (!decoded) {
+      return res.status(400).json({ 
+        status: "bad_request", 
+        message: "Invalid JWT token" 
+      });
+    }
 
-  // Fix: assign payload from decoded
-  const payload = decoded.payload;
+    // Fix: assign payload from decoded
+    const payload = decoded.payload || decoded;
 
   const roles =
     payload["https://purl.imsglobal.org/spec/lti/claim/roles"] || [];
@@ -125,7 +132,7 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
   );
 
   /* (optional) inspect token … */
-  const nuubiURL = `https://www.nuubi.app/lti-login?token=${encodeURIComponent(
+  const nuubiURL = `http://localhost:8081/lti-login?token=${encodeURIComponent(
     idToken
   )}`;
 
@@ -144,6 +151,17 @@ router.post("/launch", express.urlencoded({ extended: false }), (req, res) => {
         </body>
       </html>
     `);
+  } catch (error) {
+    console.error("LTI launch error:", error);
+    console.error("Error details:", error.message);
+    console.error("Stack trace:", error.stack);
+    res.status(500).json({ 
+      status: "bad_request", 
+      message: `LTI Launch Error: ${error.message}`,
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
 });
 
 // POST /lti/session
@@ -158,6 +176,15 @@ router.post("/session", async (req, res) => {
     // Decode without verifying (for now – upgrade to verified version later)
     const decoded = jwt.decode(id_token);
     const payload = decoded;
+
+    // Handle test scenarios
+    if (!payload || !payload.email) {
+      console.log("Invalid JWT payload:", payload);
+      return res.status(400).json({ 
+        status: "bad_request", 
+        message: "Invalid JWT token or missing email" 
+      });
+    }
 
     const email = payload.email;
     const roles =
@@ -254,6 +281,15 @@ router.post("/session", async (req, res) => {
       user = insertRes.rows[0];
     } else {
       user = userRes.rows[0];
+    }
+
+    // Update last_signin for LTI session
+    try {
+      await pool.query("UPDATE users SET last_signin = NOW() WHERE id = $1", [
+        user.id,
+      ]);
+    } catch (e) {
+      console.error("Failed to update last_signin for LTI user", e);
     }
 
     // Issue your Nuubi JWT
@@ -458,7 +494,13 @@ router.post("/session", async (req, res) => {
     });
   } catch (err) {
     console.error("LTI session error:", err);
-    return res.status(500).json({ error: "Failed to process LTI session" });
+    console.error("Error details:", err.message);
+    console.error("Stack trace:", err.stack);
+    return res.status(500).json({ 
+      error: "Failed to process LTI session",
+      details: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 

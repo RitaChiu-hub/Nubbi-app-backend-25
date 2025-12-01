@@ -32,10 +32,9 @@ const sequelize = new Sequelize({
   port: process.env.DATABASE_PORT,
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
+  // Disable SSL for local development
   dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
+    ssl: false,
   },
   config: config,
 });
@@ -106,6 +105,12 @@ module.exports.attemptLogin = async (req, res) => {
     );
 
     if (isSamePass) {
+      // Update last_signin timestamp on successful login
+      await users.update(
+        { last_signin: new Date() },
+        { where: { id: potentialLogin.id } }
+      );
+
       const token = await jwtSign(
         { id: potentialLogin.id },
         process.env.JWT_SECRET,
@@ -262,6 +267,12 @@ module.exports.attemptMobileLogin = async (req, res) => {
     );
 
     if (isSamePass) {
+      // Update last_signin timestamp on successful mobile login
+      await users.update(
+        { last_signin: new Date() },
+        { where: { id: potentialLogin.id } }
+      );
+
       const token = await jwtSign(
         { id: potentialLogin.id },
         process.env.JWT_SECRET,
@@ -326,16 +337,56 @@ module.exports.attemptRegister = async (req, res) => {
       email: req.body.email,
       username: newUsername,
       passhash: hashedPass,
-      created_at: currentDate.getTime(),
-      updated_at: currentDate.getTime(),
     });
 
-    // 3 for prod with digitalocean db, 7 for localhost db
-    // adding to the default group
-    const joinNuubiGroupQuery = await pool.query(
-      "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
-      [newUserQuery.id]
-    );
+    // Try to add user to default group (3 for prod, 7 for localhost, or find first available)
+    try {
+      // First, try to find a default group by ID (check both 3 and 7)
+      const defaultGroupId = process.env.DEFAULT_GROUP_ID 
+        ? parseInt(process.env.DEFAULT_GROUP_ID) 
+        : (process.env.NODE_ENV === "production" ? 3 : 7);
+      
+      // Check if the group exists
+      const groupCheck = await pool.query(
+        "SELECT id FROM groups WHERE id = $1",
+        [defaultGroupId]
+      );
+
+      let groupIdToUse = defaultGroupId;
+      
+      // If group doesn't exist, try to find any public group or the first group
+      if (groupCheck.rows.length === 0) {
+        const anyGroup = await pool.query(
+          "SELECT id FROM groups ORDER BY id ASC LIMIT 1"
+        );
+        
+        if (anyGroup.rows.length > 0) {
+          groupIdToUse = anyGroup.rows[0].id;
+        } else {
+          // No groups exist, create a default welcome group
+          const invitePasscode = parseInt(Math.random().toString(10).substring(2, 8));
+          const newDefaultGroup = await groups.create({
+            name: "Welcome to Nuubi",
+            description: "Default group for new users",
+            is_public: true,
+            invite_passcode: invitePasscode,
+            created_at: currentDate,
+            updated_at: currentDate,
+          });
+          groupIdToUse = newDefaultGroup.id;
+        }
+      }
+
+      // Add user to the group
+      await pool.query(
+        "INSERT INTO participants(user_id, group_id, is_admin) values ($1, $2, false) RETURNING id, user_id, group_id",
+        [newUserQuery.id, groupIdToUse]
+      );
+    } catch (groupError) {
+      // Log the error but don't fail signup if group joining fails
+      console.error("Warning: Could not add user to default group:", groupError.message);
+      // Continue with signup even if group join fails
+    }
     jwtSign(
       {
         id: newUserQuery.id,
@@ -416,16 +467,56 @@ module.exports.attemptMobileRegister = async (req, res) => {
       email: req.body.email,
       username: newUsername,
       passhash: hashedPass,
-      created_at: currentDate.getTime(),
-      updated_at: currentDate.getTime(),
     });
 
-    // 3 for prod with digitalocean db, 7 for localhost db
-    // adding to the default group
-    const joinNuubiGroupQuery = await pool.query(
-      "INSERT INTO participants(user_id, group_id, is_admin) values ($1, 3, false) RETURNING id, user_id, group_id",
-      [newUserQuery.id]
-    );
+    // Try to add user to default group (3 for prod, 7 for localhost, or find first available)
+    try {
+      // First, try to find a default group by ID (check both 3 and 7)
+      const defaultGroupId = process.env.DEFAULT_GROUP_ID 
+        ? parseInt(process.env.DEFAULT_GROUP_ID) 
+        : (process.env.NODE_ENV === "production" ? 3 : 7);
+      
+      // Check if the group exists
+      const groupCheck = await pool.query(
+        "SELECT id FROM groups WHERE id = $1",
+        [defaultGroupId]
+      );
+
+      let groupIdToUse = defaultGroupId;
+      
+      // If group doesn't exist, try to find any public group or the first group
+      if (groupCheck.rows.length === 0) {
+        const anyGroup = await pool.query(
+          "SELECT id FROM groups ORDER BY id ASC LIMIT 1"
+        );
+        
+        if (anyGroup.rows.length > 0) {
+          groupIdToUse = anyGroup.rows[0].id;
+        } else {
+          // No groups exist, create a default welcome group
+          const invitePasscode = parseInt(Math.random().toString(10).substring(2, 8));
+          const newDefaultGroup = await groups.create({
+            name: "Welcome to Nuubi",
+            description: "Default group for new users",
+            is_public: true,
+            invite_passcode: invitePasscode,
+            created_at: currentDate,
+            updated_at: currentDate,
+          });
+          groupIdToUse = newDefaultGroup.id;
+        }
+      }
+
+      // Add user to the group
+      await pool.query(
+        "INSERT INTO participants(user_id, group_id, is_admin) values ($1, $2, false) RETURNING id, user_id, group_id",
+        [newUserQuery.id, groupIdToUse]
+      );
+    } catch (groupError) {
+      // Log the error but don't fail signup if group joining fails
+      console.error("Warning: Could not add user to default group:", groupError.message);
+      // Continue with signup even if group join fails
+    }
 
     const token = await jwtSign(
       { id: newUserQuery.id },

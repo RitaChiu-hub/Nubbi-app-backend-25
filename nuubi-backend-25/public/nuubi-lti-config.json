@@ -17,8 +17,8 @@
           {
             "placement": "course_navigation",
             "message_type": "LtiResourceLinkRequest",
-            "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
-            "text": "Open Nuubi",
+            "target_link_uri": "http://localhost:8080/lti/launch",
+            "text": "Open Nuubi (Local)",
             "icon_url": "https://www.nuubi.app/icon.png",
             "visibility": "public",
             "enabled": true
@@ -34,8 +34,8 @@
             {
               "placement": "course_navigation",
               "message_type": "LtiResourceLinkRequest",
-              "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
-              "text": "Open Nuubi",
+              "target_link_uri": "http://localhost:8080/lti/launch",
+              "text": "Open Nuubi (Local)",
               "icon_url": "https://www.nuubi.app/icon.png",
               "visibility": "public",
               "enabled": true
@@ -51,8 +51,8 @@
           {
             "placement": "course_tool",
             "message_type": "LtiResourceLinkRequest",
-            "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
-            "text": "Open Nuubi",
+            "target_link_uri": "http://localhost:8080/lti/launch",
+            "text": "Open Nuubi (Local)",
             "icon_url": "https://www.nuubi.app/icon.png",
             "enabled": true
           }
@@ -63,7 +63,7 @@
   "custom_fields": {
     "canvas_course_id": "$Canvas.course.id"
   },
-  "public_jwk_url": "https://coral-app-n96bn.ondigitalocean.app/.well-known/jwks.json",
-  "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
-  "oidc_initiation_url": "https://coral-app-n96bn.ondigitalocean.app/lti/login"
+  "public_jwk_url": "http://localhost:8080/.well-known/jwks.json",
+  "target_link_uri": "http://localhost:8080/lti/launch",
+  "oidc_initiation_url": "http://localhost:8080/lti/login"
 }

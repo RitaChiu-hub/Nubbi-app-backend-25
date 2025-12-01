@@ -13,6 +13,10 @@ const pool = require("./db");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
+//new line
+
+
+
 app.use(cookieParser());
 
 app.use(
@@ -25,6 +29,10 @@ app.use(
 );
 
 app.use(express.json());
+
+const pushTokenService = require("./utils/pushTokenService");
+const pushTokenRouter = require("./routers/pushTokens");
+app.use(pushTokenRouter);
 
 // Load the private key from .env
 const privateKey = process.env.NUUBI_PRIVATE_KEY.replace(/\\n/g, "\n");
@@ -57,10 +65,9 @@ const sequelize = new Sequelize({
   port: process.env.DATABASE_PORT,
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
+  // Disable SSL for local development
   dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
+    ssl: false,
   },
 });
 
@@ -484,35 +491,29 @@ io.on("connection", (socket) => {
           .filter((memberId) => memberId !== userID)
           .map(async (memberId) => {
             // get the recipient's push token
-            const tokRes = await pool.query(
-              "SELECT push_notification_token FROM users WHERE id = $1",
-              [memberId]
-            );
-            const token = tokRes.rows[0]?.push_notification_token;
+            // fetch all tokens for the member from push_tokens table
+            const tokens = await pushTokenService.getPushTokens(memberId);
 
-            if (!token) {
-              console.log(
-                `No push notification token for user ID: ${memberId}`
-              );
+            if (!tokens || tokens.length === 0) {
+              console.log(`No push tokens for user ID: ${memberId}`);
               return;
             }
 
-            const message = {
-              to: token,
-              sound: "default",
-              title: "New Group Message",
-              body: `New message from ${senderUsername} in "${groupName}"`,
-              data: {
-                groupId: req.currentGroup,
-                messageId: newMsg.messages_id,
-              },
-              channelId: "default",
-            };
+            for (const token of tokens) {
+              const message = {
+                to: token,
+                sound: "default",
+                title: "New Group Message",
+                body: `New message from ${senderUsername} in "${groupName}"`,
+                data: {
+                  groupId: req.currentGroup,
+                  messageId: newMsg.messages_id,
+                },
+                channelId: "default",
+              };
 
-            try {
-              const response = await fetch(
-                "https://exp.host/--/api/v2/push/send",
-                {
+              try {
+                const response = await fetch("https://exp.host/--/api/v2/push/send", {
                   method: "POST",
                   headers: {
                     Accept: "application/json",
@@ -520,20 +521,29 @@ io.on("connection", (socket) => {
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify(message),
-                }
-              );
+                });
 
-              const responseData = await response.json();
-              if (!response.ok) {
-                console.error(
-                  "Failed to send push notification:",
-                  response.status,
-                  response.statusText,
-                  responseData
-                );
+                const responseData = await response.json();
+                if (!response.ok) {
+                  console.error(
+                    "Failed to send push notification:",
+                    response.status,
+                    response.statusText,
+                    responseData
+                  );
+                  // If Expo reports the token is invalid (410/404), remove it from DB
+                  if (response.status === 410 || response.status === 404) {
+                    try {
+                      await pushTokenService.removePushToken(token);
+                      console.log(`Removed invalid push token: ${token}`);
+                    } catch (e) {
+                      console.error("Failed to remove invalid push token:", e);
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error("Error sending push notification:", error);
               }
-            } catch (error) {
-              console.error("Error sending push notification:", error);
             }
           })
       );
@@ -579,7 +589,7 @@ io.on("connection", (socket) => {
             [req.mycomment, userID, req.currentPost]
           );
 
-          // 2) Fetch the author’s username
+          // 2) Fetch the author's username
           const {
             rows: [userRow],
           } = await pool.query(
@@ -596,7 +606,7 @@ io.on("connection", (socket) => {
             sender_avatar_url: userRow.sender_avatar_url,
           });
 
-          // A) Get the post’s author and group
+          // A) Get the post's author and group
           const postRes = await pool.query(
             `SELECT sender_id, group_id FROM posts WHERE id = $1`,
             [req.currentPost]
@@ -638,40 +648,24 @@ io.on("connection", (socket) => {
               created_at: currentDate.getTime(),
               updated_at: currentDate.getTime(),
             });
-            const recipient = await users.findOne({
-              where: { id: recipientId },
-            });
+            // fetch tokens for recipient from push_tokens table
+            const tokens = await pushTokenService.getPushTokens(recipientId);
 
-            if (recipient?.push_notification_token) {
-              const message = {
-                to: recipient.push_notification_token,
-                sound: "default",
-                title: "New Comment on Post",
-                body: `New comment from ${userRow.sender_username} in "${groupName}"`,
-                data: { postId: req.currentPost, groupId: postGroupId },
-                channelId: "default",
-              };
+            if (!tokens || tokens.length === 0) {
+              console.log(`No push tokens for user ${recipientId}`);
+            } else {
+              for (const token of tokens) {
+                const message = {
+                  to: token,
+                  sound: "default",
+                  title: "New Comment on Post",
+                  body: `New comment from ${userRow.sender_username} in "${groupName}"`,
+                  data: { postId: req.currentPost, groupId: postGroupId },
+                  channelId: "default",
+                };
 
-              // // Fetch post author
-              // const postAuthor = await users.findOne({
-              //   where: { id: postAuthorId },
-              // });
-
-              // // Send push notification if token exists
-              // if (postAuthor?.push_notification_token) {
-              //   const message = {
-              //     to: postAuthor.push_notification_token,
-              //     sound: "default",
-              //     title: "New Comment on Post",
-              //     body: `New Comment from ${userRow.sender_username} in "${groupName}"`,
-              //     data: { postId: req.currentPost, groupId: postGroupId },
-              //     channelId: "default",
-              //   };
-
-              try {
-                const response = await fetch(
-                  "https://exp.host/--/api/v2/push/send",
-                  {
+                try {
+                  const response = await fetch("https://exp.host/--/api/v2/push/send", {
                     method: "POST",
                     headers: {
                       Accept: "application/json",
@@ -679,39 +673,38 @@ io.on("connection", (socket) => {
                       "Content-Type": "application/json",
                     },
                     body: JSON.stringify(message),
+                  });
+
+                  const responseData = await response.json();
+                  if (!response.ok) {
+                    console.error(
+                      "Failed to send push notification:",
+                      response.status,
+                      response.statusText,
+                      responseData
+                    );
+                    if (response.status === 410 || response.status === 404) {
+                      try {
+                        await pushTokenService.removePushToken(token);
+                        console.log(`Removed invalid push token: ${token}`);
+                      } catch (e) {
+                        console.error("Failed to remove invalid push token:", e);
+                      }
+                    }
                   }
-                );
-
-                const responseData = await response.json();
-
-                if (!response.ok) {
-                  console.error(
-                    "Failed to send push notification:",
-                    response.status,
-                    response.statusText
-                  );
+                } catch (error) {
+                  console.error("Error sending push notification:", error);
                 }
-              } catch (error) {
-                console.error("Error sending push notification:", error);
               }
-            } else {
-              console.log(`No push notification token for user`);
             }
           }
-          // B) Commenter (communication & reliability)
-          checkAwardsForUser(userID, postGroupId).catch(console.error);
-
-          // C) Post’s author (leadership)
-          checkAwardsForUser(postAuthorId, postGroupId).catch(console.error);
-        } catch (err) {
-          console.error("Error inserting comment:", err);
-          socket.emit("insert comment error", {
-            error: "Internal server error",
-          });
+        } catch (error) {
+          console.error("Error inserting comment:", error);
+          socket.emit("insert comment error", { error: "Internal server error" });
         }
       })
-      .catch((err) => {
-        console.error("JWT verification failed:", err);
+      .catch((error) => {
+        console.error("JWT verification error:", error);
         socket.emit("insert comment error", { error: "Invalid token" });
       });
   });
@@ -800,6 +793,83 @@ io.on("connection", (socket) => {
 
 //   });
 // });
+
+// TEMP DEBUG ROUTE — safe to delete later
+app.get("/debug/push-tokens/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const tokens = await getPushTokens(userId);
+    console.log("[DEBUG] Tokens found:", tokens);
+
+    res.json({
+      userId,
+      tokens,
+    });
+  } catch (err) {
+    console.error("DEBUG ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch tokens" });
+  }
+});
+
+// ----------------------------------
+// Push Token Routes (for testing)
+// ----------------------------------
+
+app.post("/savePushToken", async (req, res) => {
+  try {
+    const { userId, token, platform, isSimulator } = req.body;
+
+    console.log("[DEBUG] Saving token", req.body);
+
+    if (!userId || !token) {
+      return res.status(400).json({ error: "userId and token required" });
+    }
+
+    const result = await pushTokenService.addPushToken(
+      userId,
+      token,
+      platform,
+      isSimulator
+    );
+
+    return res.json({ status: "ok", saved: result });
+  } catch (err) {
+    console.error("Save Token Error:", err);
+    return res.status(500).json({ error: "Failed to save token" });
+  }
+});
+
+app.get("/getPushTokens/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const tokens = await pushTokenService.getPushTokens(userId);
+
+    console.log("[DEBUG] Tokens found:", tokens);
+
+    return res.json({ userId, tokens });
+  } catch (err) {
+    console.error("Get Tokens Error:", err);
+    return res.status(500).json({ error: "Failed to fetch tokens" });
+  }
+});
+
+app.post("/removePushToken", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) return res.status(400).json({ error: "token required" });
+
+    await pushTokenService.removePushToken(token);
+
+    return res.json({ status: "removed" });
+  } catch (err) {
+    console.error("Remove Token Error:", err);
+    return res.status(500).json({ error: "Failed to remove token" });
+  }
+});
+
 
 server.listen(8080, () => {
   console.log("server listening on port 8080");

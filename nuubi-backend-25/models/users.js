@@ -27,21 +27,17 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      last_signin: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       created_at: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true,
       },
       updated_at: {
         type: DataTypes.DATE,
-        allowNull: false,
-      },
-      createdAt: {
-        type: DataTypes.DATE,
-        field: "created_at",
-      },
-      updatedAt: {
-        type: DataTypes.DATE,
-        field: "updated_at",
+        allowNull: true,
       },
       push_notification_token: {
         type: DataTypes.STRING(255),
