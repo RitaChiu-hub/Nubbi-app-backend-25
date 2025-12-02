@@ -7,6 +7,7 @@ const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
 const Sequelize = require("sequelize");
 const { Op } = require("sequelize");
+const CUUBI_USER_ID = "205851f3-f034-4316-b278-9c962443a5d5";
 
 
 var config = {
@@ -764,14 +765,20 @@ module.exports.handleGetAnalytics = async (req, res) => {
     );
     const totalMembers = memberRows.length;
 
-    // ---- 2. Get posts + replies in date window ----
+    // ---- 2. Get posts + replies in date window (excluding Cuubi replies) ----
     const { rows: postRows } = await pool.query(
       `SELECT 
           p.id,
           p.sender_id,
           p.title,
           p.body_text,
-          COUNT(pc.id) AS replies
+          COUNT(
+            CASE 
+              WHEN pc.sender_id IS NOT NULL 
+               AND pc.sender_id <> $4   -- exclude Cuubi replies
+              THEN 1 
+            END
+          ) AS peer_replies
        FROM posts p
        LEFT JOIN post_comments pc
          ON pc.post_id = p.id
@@ -782,7 +789,7 @@ module.exports.handleGetAnalytics = async (req, res) => {
        AND p.created_at >= $2::timestamp
        AND p.created_at < ($3::date + interval '1 day')
        GROUP BY p.id`,
-      [currentGroup, startDateFinal, endDateFinal]
+      [currentGroup, startDateFinal, endDateFinal, CUUBI_USER_ID]
     );
 
     // ---- 2b. Get messages in date window ----
@@ -811,14 +818,20 @@ module.exports.handleGetAnalytics = async (req, res) => {
         : Math.round((usersWhoPosted.size / totalMembers) * 100);
 
     // ---- 4. Peer reply %: posts that got at least one reply ----
-    const postsWithReplies = postRows.filter(
-      (r) => Number(r.replies || 0) > 0
+    // Only count posts from *peers* (not Cuubi)
+    const peerPosts = postRows.filter(
+      (p) => p.sender_id !== CUUBI_USER_ID
+    );
+
+    // Among those posts, count how many got >= 1 *peer* reply
+    const postsWithPeerReplies = peerPosts.filter(
+      (r) => Number(r.peer_replies || 0) > 0
     ).length;
 
     const peerReplyPercentage =
-      postRows.length === 0
+      peerPosts.length === 0
         ? 0
-        : Math.round((postsWithReplies / postRows.length) * 100);
+        : Math.round((postsWithPeerReplies / peerPosts.length) * 100);
 
     // ---- 5. At-risk students (no posts, no comments) ----
     // (Still only posts + comments — if you want messages included too,
@@ -991,7 +1004,7 @@ module.exports.handleGetAnalytics = async (req, res) => {
       },
       peerReplies: {
         percentage: peerReplyPercentage,
-        totalPosts: postRows.length,
+        totalPosts: peerPosts.length,
       },
       atRisk: {
         count: atRiskStudents.length,
