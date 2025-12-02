@@ -1,4 +1,5 @@
 // server/utils/llamaClient.js
+require("dotenv").config();
 const OpenAI = require("openai");
 
 module.exports.openai = new OpenAI({

@@ -6,6 +6,8 @@ const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
 const Sequelize = require("sequelize");
+const { Op } = require("sequelize");
+
 
 var config = {
   define: {
@@ -861,6 +863,8 @@ module.exports.handleGetAnalytics = async (req, res) => {
     // ---- 6. Top keyword in posts + messages (simple word frequency) ----
     const stopwords = new Set([
       "the",
+      "questions",
+      "question",
       "and",
       "a",
       "an",
@@ -1888,84 +1892,199 @@ module.exports.handleCreatePost = async (req, res) => {
             }
           }
         }
+if (user.username !== "Cuubi") {
+  let similarPosts = [];
 
-        if (user.username !== "Cuubi") {
-          const messages = [
+  try {
+    const bodyTerm = (req.body.body_text || "").trim();
+    const titleTerm = (req.body.title || "").trim();
+
+    if (bodyTerm || titleTerm) {
+      const whereClause = {
+        group_id: groupID,
+        id: { [Op.ne]: newPost.id }, // exclude the new post
+      };
+
+      const orConditions = [];
+
+      const makeKeywords = (text) =>
+        text
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length >= 4)
+          .slice(0, 5);
+
+      const bodyKeywords = bodyTerm ? makeKeywords(bodyTerm) : [];
+      const titleKeywords = titleTerm ? makeKeywords(titleTerm) : [];
+
+      // Looser: match if ANY keyword appears in body OR title
+      const allKeywords = [...new Set([...bodyKeywords, ...titleKeywords])];
+      if (allKeywords.length > 0) {
+        orConditions.push(
+          ...allKeywords.map((w) => ({
+            [Op.or]: [
+              { body_text: { [Op.iLike]: `%${w}%` } },
+              { title: { [Op.iLike]: `%${w}%` } },
+            ],
+          }))
+        );
+      }
+
+      if (orConditions.length > 0) {
+        whereClause[Op.or] = orConditions;
+
+        // 1) broad candidate set
+        const candidates = await posts.findAll({
+          where: whereClause,
+          order: [["created_at", "DESC"]],
+          limit: 8,
+        });
+
+        if (candidates.length > 0) {
+          // 2) semantic filter with the LLM
+          const questionText = `${titleTerm}\n\n${bodyTerm}`;
+
+          const simMessages = [
             {
               role: "system",
               content:
-                "You are **Cuubi**, a friendly, concise peer‑help assistant. " +
-                "Answer like a helpful classmate: short, clear, actionable." +
-                `Please keep your reply under 800 characters.`,
+                "You are a semantic deduper for a Q&A forum. " +
+                "Given one NEW question and a list of PREVIOUS questions, " +
+                "decide which previous ones are essentially the same question " +
+                "(even if the wording is different). Respond ONLY with a JSON array " +
+                "of the matching post_ids, e.g. [12, 54].",
             },
             {
               role: "user",
-              // note the back‑ticks preserve line‑breaks exactly as the model sees them
-              content: `Title: ${req.body.title}
-
-            Question:
-              ${req.body.body_text}`,
+              content:
+                `NEW QUESTION:\n${questionText}\n\n` +
+                `PREVIOUS POSTS:\n` +
+                candidates
+                  .map(
+                    (p) =>
+                      `post_id=${p.id}\nTitle: ${p.title || "(no title)"}\nBody: ${
+                        p.body_text || ""
+                      }\n---`
+                  )
+                  .join("\n"),
             },
           ];
 
-          let answer;
           try {
-            const resp = await openai.chat.completions.create({
-              model: "o4-mini",
-              messages,
-              max_completion_tokens: 1500,
+            const simResp = await openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages: simMessages,
+              max_tokens: 200,
             });
 
-            const choice = resp.choices[0] ?? {};
-            if (!choice.message?.content?.trim()) {
-              console.warn(
-                "Cuubi empty reply → finish_reason:",
-                choice.finish_reason,
-                "│ prompt_tokens:",
-                resp.usage?.prompt_tokens,
-                "│ completion_tokens:",
-                resp.usage?.completion_tokens
-              );
+            let ids = [];
+            const raw = simResp.choices[0]?.message?.content?.trim() || "[]";
+            try {
+              ids = JSON.parse(raw);
+            } catch {
+              console.warn("Cuubi similarity JSON parse failed, raw:", raw);
             }
 
-            // const resp = await llama.chat.completions.create({
-            //   // model: "mistralai/Mistral-7B-Instruct-v0.2",
-            //   model: "gpt-3.5-turbo",
-            //   messages,
-            //   temperature: 0.7,
-            //   max_tokens: 256,
-            //   stop: ["</SYS>"],
-            // });
-            answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
+            const idSet = new Set(
+              Array.isArray(ids) ? ids.map((x) => Number(x)) : []
+            );
 
-            // 5)  Persist as a comment
-            await post_comments.create({
-              post_id: newPost.id,
-              sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Cuubi’s user‑id
-              comment_text: answer,
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            });
-          } catch (err) {
-            // 6)  Always log the full HTTP response for traceability
-            console.error(" Cuubi OpenAI error:", err);
-
-            await post_comments.create({
-              post_id: newPost.id,
-              sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-              comment_text: "Cuubi tried to answer but hit a snag.",
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            });
+            similarPosts = candidates.filter((p) => idSet.has(Number(p.id)));
           }
-        } else {
-          //skip reply
+          catch (err) {
+            console.error("Cuubi semantic similarity error:", err);
+            // fall back to just showing the keyword candidates
+            similarPosts = candidates;
+          }
         }
-        // //
-        res.json({
-          ...req.body,
-          status: "Post successfully created",
+      }
+    }
+  } catch (e) {
+    console.error("Cuubi similar post lookup failed:", e);
+  }
+
+  // ----- Cuubi answers the question -----
+  const messages = [
+    {
+      role: "system",
+      content:
+        "You are Cuubi, a friendly, concise peer-help assistant. " +
+        "Answer like a helpful classmate: short, clear, actionable. " +
+        "Please keep your reply under 800 characters.",
+    },
+    {
+      role: "user",
+      content: `Title: ${req.body.title}\n\nQuestion:\n${req.body.body_text}`,
+    },
+  ];
+
+  try {
+    const resp = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages,
+      max_tokens: 1500,
+    });
+
+    const choice = resp.choices[0] ?? {};
+    if (!choice.message?.content?.trim()) {
+      console.warn(
+        "Cuubi empty reply → finish_reason:",
+        choice.finish_reason,
+        "│ prompt_tokens:",
+        resp.usage?.prompt_tokens,
+        "│ completion_tokens:",
+        resp.usage?.completion_tokens
+      );
+    }
+
+    let answer = choice.message?.content?.trim() || "(no reply)";
+
+    if (similarPosts.length > 0) {
+      const topSimilar = similarPosts.slice(0, 3);
+
+      const bulletLines = topSimilar.map((p) => {
+        const created = new Date(p.created_at).toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
         });
+
+        const title = (p.title || "").trim() || "View post";
+        const url = `http://localhost:8080/groups/${groupID}/posts/${p.id}`;
+
+        return `• ${created} – "${title}" — ${url}`;
+      });
+
+      answer +=
+        `\n\nSimilar questions already asked in this group:\n` +
+        bulletLines.join("\n");
+    }
+
+    await post_comments.create({
+      post_id: newPost.id,
+      sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+      comment_text: answer,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  } catch (err) {
+    console.error("Cuubi OpenAI error:", err);
+
+    await post_comments.create({
+      post_id: newPost.id,
+      sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+      comment_text: "Cuubi tried to answer but hit a snag.",
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  }
+} else {
+  // skip reply if the author is Cuubi
+}
+res.json({
+  ...req.body,
+  status: "Post successfully created",
+});
       } catch (error) {
         console.error("Error creating post: ", error);
         res.status(500).json({ error: "Internal server error" });
