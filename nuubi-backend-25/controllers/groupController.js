@@ -878,6 +878,9 @@ module.exports.handleGetAnalytics = async (req, res) => {
       "the",
       "questions",
       "question",
+      "your",
+      "support",
+      "help",
       "and",
       "a",
       "an",
@@ -924,6 +927,9 @@ module.exports.handleGetAnalytics = async (req, res) => {
       "had",
       "been",
       "being",
+      "group",
+      "post",
+      "here",
     ]);
 
     const wordCounts = {};
@@ -977,7 +983,7 @@ module.exports.handleGetAnalytics = async (req, res) => {
     // Optional logging so you can see what it’s doing
     const topWords = Object.entries(wordCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
+      .slice(0, 20);
 
     console.log("📊 Analytics Summary:");
     console.log(`  Total posts: ${postRows.length}`);
