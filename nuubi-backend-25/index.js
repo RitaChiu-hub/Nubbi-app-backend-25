@@ -174,6 +174,8 @@ var _user_tasks = require("./models/user_tasks");
 var _notifications = require("./models/notifications");
 var _awards = require("./models/awards");
 var _user_awards = require("./models/user_awards");
+var _user_sessions = require("./models/user_sessions");
+var _user_session_totals = require("./models/user_session_totals");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -190,6 +192,8 @@ function initModels(sequelize) {
   var notifications = _notifications(sequelize, DataTypes);
   var awards = _awards(sequelize, DataTypes);
   var user_awards = _user_awards(sequelize, DataTypes);
+  var user_sessions = _user_sessions(sequelize, DataTypes);
+  var user_session_totals = _user_session_totals(sequelize, DataTypes);
 
   messages.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(messages, { as: "messages", foreignKey: "group_id" });
@@ -264,6 +268,13 @@ function initModels(sequelize) {
   user_awards.belongsTo(groups, { foreignKey: "group_id" });
   groups.hasMany(user_awards, { foreignKey: "group_id" });
 
+  // Session tracking relationships
+  user_sessions.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(user_sessions, { foreignKey: "user_id" });
+
+  user_session_totals.belongsTo(users, { foreignKey: "user_id" });
+  users.hasOne(user_session_totals, { foreignKey: "user_id" });
+
   return {
     groups,
     messages,
@@ -279,12 +290,14 @@ function initModels(sequelize) {
     notifications,
     awards,
     user_awards,
+    user_sessions,
+    user_session_totals,
   };
 }
 
 // var initModels = require("./models/init-models");
 const models = initModels(sequelize);
-const { notifications, users } = models;
+const { notifications, users, user_sessions, user_session_totals } = models;
 
 var User = require("./models/users.js")(sequelize, DataTypes);
 var Participant = require("./models/participants.js")(sequelize, DataTypes);
@@ -300,6 +313,8 @@ var UserTask = require("./models/user_tasks")(sequelize, DataTypes);
 var Notification = require("./models/notifications")(sequelize, DataTypes);
 var Award = require("./models/awards")(sequelize, DataTypes);
 var UserAward = require("./models/user_awards")(sequelize, DataTypes);
+var UserSession = require("./models/user_sessions")(sequelize, DataTypes);
+var UserSessionTotal = require("./models/user_session_totals")(sequelize, DataTypes);
 
 // Find all users
 
@@ -320,6 +335,8 @@ const exportsObject = {
   Notification: Notification,
   Award: Award,
   UserAward: UserAward,
+  UserSession: UserSession,
+  UserSessionTotal: UserSessionTotal,
 };
 
 // Export the object containing both sequelize and User
@@ -367,6 +384,7 @@ const settingsRouter = require("./routers/settingsRouter");
 const groupRouter = require("./routers/groupRouter");
 const groupchatRouter = require("./routers/groupchatRouter");
 const fileRouter = require("./routers/fileRouter");
+const activityRouter = require("./routers/activityRouter");
 
 ///// auth middleware
 // const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
@@ -387,6 +405,7 @@ app.use("/settings", settingsRouter);
 app.use("/groups", groupRouter);
 app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
+app.use("/activity", activityRouter);
 app.use("/backend", myRouter);
 
 io.on("connection", (socket) => {

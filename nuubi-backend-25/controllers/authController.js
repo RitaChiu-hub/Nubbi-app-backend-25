@@ -13,6 +13,7 @@ const currentDate = new Date();
 const { v4: uuidv4 } = require("uuid");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
+const sessionController = require("./sessionController");
 
 const Sequelize = require("sequelize");
 
@@ -129,10 +130,31 @@ module.exports.attemptLogin = async (req, res) => {
         path: "/",
       });
 
-      // Respond with success
+      // Start session tracking
+      let sessionId = null;
+      try {
+        const session = await sessionController.startSession(potentialLogin.id, req);
+        sessionId = session.session_id;
+      } catch (sessionError) {
+        console.error("Session start error (non-blocking):", sessionError);
+        // Don't fail login if session tracking fails
+      }
+
+      // Get user data for response
+      const userData = await users.findOne({
+        attributes: ["id", "username", "email", "avatar_url"],
+        where: { id: potentialLogin.id },
+      });
+
+      // Return session info with login response
       return res.json({
         successMessage: "Login successful",
         token: token,
+        session_id: sessionId,
+        id: userData.id,
+        username: userData.username,
+        email: userData.email,
+        avatar_url: userData.avatar_url,
         //add token or soemthing here? Need to allow login to be read from the views
       });
     } else {
@@ -169,6 +191,24 @@ module.exports.checkWebLogin = async (req, res) => {
 
 // Logout function to clear the HttpOnly token cookie
 module.exports.logout = async (req, res) => {
+  // End session before logging out
+  try {
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+    if (token) {
+      const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+      const userId = decoded.id;
+      
+      // End active session
+      const activeSession = await sessionController.getActiveSession(userId);
+      if (activeSession) {
+        await sessionController.endSession(activeSession.session_id);
+      }
+    }
+  } catch (sessionError) {
+    console.error("Session end error (non-blocking):", sessionError);
+    // Don't fail logout if session tracking fails
+  }
+
   // Clear the HttpOnly cookie by setting it with an empty value and expiry in the past
   res.clearCookie("token", {
     httpOnly: true,
@@ -245,51 +285,93 @@ module.exports.freebieSignup = async (req, res) => {
 };
 
 module.exports.attemptMobileLogin = async (req, res) => {
-  // Perform credential validation (similar to your existing logic)
-  const potentialLogin = await users.findOne({
-    attributes: ["id", "username", "passhash"],
-    where: {
-      [Op.or]: [
-        {
-          username: req.body.username,
-        },
-        sequelize.where(
-          sequelize.fn("LOWER", sequelize.col("email")),
-          sequelize.fn("LOWER", req.body.username)
-        ),
-      ],
-    },
-  });
+  try {
+    console.log("📱 Mobile login attempt:", {
+      username: req.body.username,
+      ip: req.headers["x-forwarded-for"] || req.connection?.remoteAddress || req.socket?.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    });
+    
+    // Perform credential validation (similar to your existing logic)
+    const potentialLogin = await users.findOne({
+      attributes: ["id", "username", "passhash"],
+      where: {
+        [Op.or]: [
+          {
+            username: req.body.username,
+          },
+          sequelize.where(
+            sequelize.fn("LOWER", sequelize.col("email")),
+            sequelize.fn("LOWER", req.body.username)
+          ),
+        ],
+      },
+    });
 
-  if (potentialLogin) {
-    const isSamePass = await bcrypt.compare(
-      req.body.password,
-      potentialLogin.passhash
-    );
-
-    if (isSamePass) {
-      // Update last_signin timestamp on successful mobile login
-      await users.update(
-        { last_signin: new Date() },
-        { where: { id: potentialLogin.id } }
+    if (potentialLogin) {
+      const isSamePass = await bcrypt.compare(
+        req.body.password,
+        potentialLogin.passhash
       );
 
-      const token = await jwtSign(
-        { id: potentialLogin.id },
-        process.env.JWT_SECRET,
-        { expiresIn: "365d" }
-      );
+      if (isSamePass) {
+        // Update last_signin timestamp on successful mobile login
+        await users.update(
+          { last_signin: new Date() },
+          { where: { id: potentialLogin.id } }
+        );
 
-      // Respond with success
-      return res.json({
-        successMessage: "Login successful",
-        token: token,
-      });
+        const token = await jwtSign(
+          { id: potentialLogin.id },
+          process.env.JWT_SECRET,
+          { expiresIn: "365d" }
+        );
+
+        // Start session tracking
+        let sessionId = null;
+        try {
+          console.log("📱 Starting session for mobile login, user:", potentialLogin.id);
+          const session = await sessionController.startSession(potentialLogin.id, req);
+          sessionId = session.session_id;
+          console.log("✅ Mobile session started:", sessionId);
+        } catch (sessionError) {
+          console.error("❌ Session start error (non-blocking):", sessionError);
+          // Don't fail login if session tracking fails
+        }
+
+        // Get user data for response
+        const userData = await users.findOne({
+          attributes: ["id", "username", "email", "avatar_url"],
+          where: { id: potentialLogin.id },
+        });
+
+        if (!userData) {
+          console.error("User data not found after login for user:", potentialLogin.id);
+          return res.status(500).json({ message: "Error retrieving user data" });
+        }
+
+        // Return session info with login response
+        return res.json({
+          successMessage: "Login successful",
+          token: token,
+          session_id: sessionId,
+          id: userData.id,
+          username: userData.username,
+          email: userData.email,
+          avatar_url: userData.avatar_url,
+        });
+      } else {
+        return res.status(401).json({ message: "Wrong username or password!" });
+      }
     } else {
-      return res.status(401).json({ message: "Wrong username or password!" });
+      return res.status(404).json({ message: "User not found!" });
     }
-  } else {
-    return res.status(404).json({ message: "User not found!" });
+  } catch (error) {
+    console.error("Error in attemptMobileLogin:", error);
+    return res.status(500).json({ 
+      message: "Internal server error during login",
+      error: error.message 
+    });
   }
 };
 
@@ -355,7 +437,7 @@ module.exports.attemptRegister = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "365d" }
     )
-      .then((token) => {
+      .then(async (token) => {
         res.cookie("token", token, {
           httpOnly: true,
           secure: true,
@@ -367,9 +449,21 @@ module.exports.attemptRegister = async (req, res) => {
           path: "/",
         });
 
+        // Start session tracking for new user registration
+        let sessionId = null;
+        try {
+          const session = await sessionController.startSession(newUserQuery.id, req);
+          sessionId = session.session_id;
+        } catch (sessionError) {
+          console.error("Session start error for registration (non-blocking):", sessionError);
+          // Don't fail registration if session tracking fails
+        }
+
         res.json({
           username: newUsername,
           firstSignIn: true,
+          token: token,
+          session_id: sessionId,
         });
       })
       .catch((err) => {
@@ -445,9 +539,20 @@ module.exports.attemptMobileRegister = async (req, res) => {
       { expiresIn: "365d" }
     );
 
+    // Start session tracking for new user registration
+    let sessionId = null;
+    try {
+      const session = await sessionController.startSession(newUserQuery.id, req);
+      sessionId = session.session_id;
+    } catch (sessionError) {
+      console.error("Session start error for mobile registration (non-blocking):", sessionError);
+      // Don't fail registration if session tracking fails
+    }
+
     return res.json({
       successMessage: "Signup successful",
       token: token,
+      session_id: sessionId,
       username: newUsername,
       firstSignIn: true,
     });

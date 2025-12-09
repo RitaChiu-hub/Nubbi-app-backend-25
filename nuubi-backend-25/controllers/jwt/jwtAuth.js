@@ -46,6 +46,7 @@ const jwtVerifyMiddleware = async (req, res, next) => {
 
     // Attach the decoded token to the request object for further processing
     req.auth = decoded;
+    req.user = decoded; // Also set req.user for consistency with other code
 
     // Proceed to the next middleware
     next();
