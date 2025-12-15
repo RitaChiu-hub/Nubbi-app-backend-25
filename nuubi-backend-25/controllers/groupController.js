@@ -474,9 +474,10 @@ module.exports.handleTaskApproved = async (req, res) => {
     // Fetch the user's push token from your database (assuming you have a users table with expo_push_token)
     const user = await users.findOne({
       where: { id: task.user_id },
+      attributes: ["push_notification_token", "push_notifications_enabled"]
     });
 
-    if (user.push_notification_token) {
+    if (user.push_notification_token && user.push_notifications_enabled === true) {
       //if (req.body.expoPushToken) {
       // Send a push notification
       const message = {
@@ -1581,7 +1582,7 @@ module.exports.handleCreatePost = async (req, res) => {
             try {
               recipient = await users.findOne({
                 where: { id: memberId },
-                attributes: ["push_notification_token"],
+                attributes: ["push_notification_token", "push_notifications_enabled"],
               });
             } catch (e) {
               console.error(`[push] failed to fetch recipient ${memberId}:`, e);
@@ -1594,7 +1595,7 @@ module.exports.handleCreatePost = async (req, res) => {
               continue;
             }
 
-            if (pushToken && isExpoPushToken(pushToken)) {
+            if (pushToken && recipient.push_notifications_enabled === true && isExpoPushToken(pushToken)) {
               await sendExpoPush({
                 to: pushToken,
                 sound: "default",
@@ -2050,13 +2051,15 @@ module.exports.handleAddPostPoint = async (req, res) => {
             try {
               const recipient = await users.findOne({
                 where: { id: recipient_id },
-                attributes: ["push_notification_token"],
+                attributes: ["push_notification_token", "push_notifications_enabled"],
               });
 
               const pushToken = recipient?.push_notification_token;
 
               if (!pushToken) {
                 console.warn(`[push] no push token for user`);
+              } else if (recipient.push_notifications_enabled !== true) {
+                console.warn("[push] notifications disabled for user");
               } else if (!isExpoPushToken(pushToken)) {
                 console.warn(`[push] invalid Expo token for user`);
               } else {
@@ -2179,13 +2182,15 @@ module.exports.handleAddMessagePoint = async (req, res) => {
           try {
             const recipient = await users.findOne({
               where: { id: recipient_id },
-              attributes: ["push_notification_token"],
+              attributes: ["push_notification_token", "push_notifications_enabled"],
             });
 
             const pushToken = recipient?.push_notification_token;
 
             if (!pushToken) {
               console.warn(`[push] no push token for user`);
+            } else if (recipient.push_notifications_enabled !== true) {
+              console.warn("[push] notifications disabled for user");
             } else if (!isExpoPushToken(pushToken)) {
               console.warn(`[push] invalid Expo token for user`);
             } else {
