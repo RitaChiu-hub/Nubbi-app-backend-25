@@ -462,4 +462,26 @@ router.post("/session", async (req, res) => {
   }
 });
 
+router.get("/canvas-analytics/:courseId", async (req, res) => {
+  const { courseId } = req.params;
+  const { idToken } = req.headers;
+
+  const decoded = jwt.decode(idToken);
+  const canvasDomain =
+    decoded["https://purl.imsglobal.org/spec/lti/claim/ext"]?.canvas_domain;
+
+  // Call Canvas API
+  try {
+    const response = await fetch(
+      `https://${canvasDomain}/api/v1/courses/${courseId}/analytics/data`,
+      {
+        headers: { Authorization: `Bearer ${decoded.access_token}` },
+      }
+    );
+    res.json(await response.json());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

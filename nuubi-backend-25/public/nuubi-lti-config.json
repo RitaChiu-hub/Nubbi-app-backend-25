@@ -22,7 +22,18 @@
             "icon_url": "https://www.nuubi.app/icon.png",
             "visibility": "public",
             "enabled": true
-          }
+          },
+
+          {
+            "placement": "course_analytics",
+            "message_type": "LtiResourceLinkRequest",
+            "target_link_uri": "https://coral-app-n96bn.ondigitalocean.app/lti/launch",
+            "text": "Nuubi Analytics",
+            "icon_url": "https://www.nuubi.app/icon.png",
+            "visibility": "public",
+            "enabled": true
+         }
+         
         ]
       }
     },
