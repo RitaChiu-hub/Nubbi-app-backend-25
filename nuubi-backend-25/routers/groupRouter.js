@@ -55,8 +55,8 @@ const { UnauthorizedError } = require("express-jwt");
 const { verifyUserID } = require("../controllers/jwt/verifyUserId");
 const { jwtVerifyMiddleware } = require("../controllers/jwt/jwtAuth");
 
-router.post("/creategroup", validateCreateGroup, handleCreateGroup);
-router.get("/getgroups", getAllGroups);
+router.post("/creategroup", jwtVerifyMiddleware, validateCreateGroup, handleCreateGroup);
+router.get("/getgroups", jwtVerifyMiddleware, getAllGroups);
 router.get("/getpublicgroups", getAllPublicGroups);
 router.post("/joingroup", handleJoinGroup);
 router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);

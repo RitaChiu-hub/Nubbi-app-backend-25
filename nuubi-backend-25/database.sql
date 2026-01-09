@@ -73,6 +73,16 @@ CREATE TABLE posts(
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE view_logs(
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR REFERENCES users(id),
+    content_type VARCHAR(20) NOT NULL, -- either message or post
+    content_id INTEGER NOT NULL,
+    group_id INTEGER REFERENCES groups(id),
+    device_type VARCHAR(20) NOT NULL,
+    viewed_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE post_comments(
     id SERIAL PRIMARY KEY,
     sender_id INTEGER REFERENCES users(id),

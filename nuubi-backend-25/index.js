@@ -349,7 +349,7 @@ const ltiRoutes = require("./routes/lti");
 function addLaunchHeaders(req, res, next) {
   res.setHeader(
     "Content-Security-Policy",
-    "frame-ancestors 'self' https://*.instructure.com https://*.blackboard.com https://*.ondigitalocean.app http://localhost:8080 https://canvas.northeastern.edu https://canvas.merrimack.edu"
+    "frame-ancestors 'self' http://localhost:8081 https://*.instructure.com https://*.blackboard.com https://*.ondigitalocean.app http://localhost:8080 https://canvas.northeastern.edu https://canvas.merrimack.edu"
   );
   res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
@@ -407,6 +407,7 @@ app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/activity", activityRouter);
 app.use("/backend", myRouter);
+app.use("/logs", logsRouter);
 
 io.on("connection", (socket) => {
   console.log("a user connected");

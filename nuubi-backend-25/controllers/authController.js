@@ -3,8 +3,6 @@ const bcrypt = require("bcrypt");
 const {
   jwtSign,
   jwtVerify,
-  getJwt,
-  jwtVerifyMiddleware,
 } = require("./jwt/jwtAuth");
 const { adjectives } = require("../adjectives");
 const { nouns } = require("../nouns");
@@ -69,6 +67,7 @@ module.exports.handleLogin = async (req, res) => {
     try {
       const decoded = await jwtVerify(token, process.env.JWT_SECRET);
       // Respond with user info or status that they are already logged in
+
       return res.json({
         message: "User already logged in",
       });
@@ -116,7 +115,7 @@ module.exports.attemptLogin = async (req, res) => {
       const token = await jwtSign(
         { id: potentialLogin.id },
         process.env.JWT_SECRET,
-        { expiresIn: "365d" }
+        { expiresIn: "1d" } // Token Experation
       );
 
       // Set the cookie for web-based authentication
@@ -126,7 +125,7 @@ module.exports.attemptLogin = async (req, res) => {
         secure: true,
         sameSite: "None",
         // sameSite: "None",
-        maxAge: 24 * 60 * 60 * 1000 * 365, // 1 year expiration
+        maxAge: 24 * 60 * 60 * 1000, // 1 day expiration
         path: "/",
       });
 
@@ -171,22 +170,19 @@ module.exports.checkWebLogin = async (req, res) => {
     // Verify the token and respond accordingly
     try {
       const decoded = await jwtVerify(token, process.env.JWT_SECRET);
-      // Respond with user info or status that they are already logged in
+
       return res.json({
         isLoggedIn: true,
       });
+
     } catch (err) {
-      console.error("Invalid token:", err);
-      // Handle invalid token scenario (optional)
+      if (err.name === "TokenExpiredError") { console.log("Session expired, please log in again")}
+      else {console.log(err.name)}
       return res.json({
         isLoggedIn: false,
       });
     }
   }
-
-  // If no valid token is found, continue to the login attempt
-  // This could be a redirect or just a simple response to indicate the user needs to log in
-  return res.json({ message: "No valid session, please log in" });
 };
 
 // Logout function to clear the HttpOnly token cookie
@@ -213,16 +209,10 @@ module.exports.logout = async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: true,
-    // secure: process.env.NODE_ENV === "production",
-    // sameSite: "Strict",
     sameSite: "None",
     path: "/",
   });
-  return res.json({
-    successMessage: "Logout successful",
-    // token: token,
-    //add token or soemthing here? Need to allow login to be read from the views
-  });
+  return res.json({ successMessage: "Logout successful" });
 };
 
 module.exports.freebieSignup = async (req, res) => {
