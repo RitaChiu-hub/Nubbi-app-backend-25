@@ -14,6 +14,8 @@ var _notifications = require("./notifications");
 // ← Add these two lines
 var _awards = require("./awards");
 var _user_awards = require("./user_awards");
+var _user_sessions = require("./user_sessions");
+var _user_session_totals = require("./user_session_totals");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -31,6 +33,8 @@ function initModels(sequelize) {
   // ← Initialize your new tables here
   var awards = _awards(sequelize, DataTypes);
   var user_awards = _user_awards(sequelize, DataTypes);
+  var user_sessions = _user_sessions(sequelize, DataTypes);
+  var user_session_totals = _user_session_totals(sequelize, DataTypes);
 
   messages.belongsTo(groups, { foreignKey: "group_id" });
   groups.hasMany(messages, { foreignKey: "group_id" });
@@ -106,6 +110,13 @@ function initModels(sequelize) {
   user_awards.belongsTo(groups, { foreignKey: "group_id" });
   groups.hasMany(user_awards, { foreignKey: "group_id" });
 
+  // Session tracking relationships
+  user_sessions.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(user_sessions, { foreignKey: "user_id" });
+
+  user_session_totals.belongsTo(users, { foreignKey: "user_id" });
+  users.hasOne(user_session_totals, { foreignKey: "user_id" });
+
   return {
     groups,
     messages,
@@ -121,6 +132,8 @@ function initModels(sequelize) {
     notifications,
     awards,
     user_awards,
+    user_sessions,
+    user_session_totals,
   };
 }
 module.exports = initModels;

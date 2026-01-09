@@ -5,33 +5,9 @@ const { checkAwardsForUser } = require("./awardService");
 const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
-const Sequelize = require("sequelize");
-
-var config = {
-  define: {
-    underscored: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at",
-  },
-};
-
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  logging: false,
-  database: process.env.DATABASE_NAME,
-  host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
-  username: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
-  },
-  config: config,
-});
-
-const DataTypes = require("sequelize").DataTypes;
+// Use shared database connection from config
+const { sequelize, DataTypes } = require("../config/database");
+const { Sequelize } = require("sequelize");
 
 const {
   participants,
@@ -48,6 +24,8 @@ const {
   notifications,
   awards,
   user_awards,
+  user_sessions,
+  user_session_totals,
 } = require("../models/init-models")(sequelize, DataTypes);
 
 const bcrypt = require("bcrypt");
@@ -1839,7 +1817,7 @@ module.exports.handleEditGroup = async (req, res) => {
 
 module.exports.handleGetPosts = async (req, res) => {
   const getPostsQuery = await pool.query(
-    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
+    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments, COALESCE(c.view_count, 0) view_count FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total, a.view_count FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at, COALESCE(posts.view_count, 0) view_count FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
     [req.body.currentGroup]
   );
 
@@ -1860,7 +1838,7 @@ module.exports.handleGetPostInfo = async (req, res) => {
   //   [req.body.currentPost]
   // );
   const getPostInfoQuery = await pool.query(
-    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
+    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent, COALESCE(posts.view_count, 0) AS view_count FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
     [req.body.currentPost]
   );
 
@@ -2460,5 +2438,442 @@ module.exports.getPostLiked = async (req, res) => {
     })
     .catch(async () => {
       res.json({ token: null });
+    });
+};
+
+/**
+ * Get deep student participation analytics with session data
+ * Only accessible to admins (professors/TAs)
+ */
+module.exports.getStudentParticipationAnalytics = async (req, res) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  jwtVerify(token, process.env.JWT_SECRET)
+    .then(async (decoded) => {
+      const userId = decoded.id;
+      const { currentGroup, startDate, endDate } = req.body;
+
+      try {
+        // Verify user is admin
+        const adminCheck = await participants.findOne({
+          where: {
+            user_id: userId,
+            group_id: currentGroup,
+            is_admin: true,
+          },
+        });
+
+        if (!adminCheck) {
+          return res.status(403).json({ 
+            error: "Access denied. Only professors and TAs can view this analytics." 
+          });
+        }
+
+        // Get all students in the group (excluding admins)
+        const groupStudents = await pool.query(
+          `
+          SELECT 
+            u.id as user_id,
+            u.username,
+            u.email,
+            p.is_admin
+          FROM users u
+          INNER JOIN participants p ON u.id = p.user_id
+          WHERE p.group_id = $1
+          ORDER BY u.username
+          `,
+          [currentGroup]
+        );
+
+        // Get session analytics for each student
+        const analyticsPromises = groupStudents.rows.map(async (student) => {
+          // Get session totals
+          const sessionTotals = await user_session_totals.findOne({
+            where: { user_id: student.user_id },
+            attributes: [
+              'total_sessions',
+              'total_active_seconds',
+              'total_pages_viewed',
+              'total_posts_viewed',
+              'total_actions',
+              'total_errors',
+              'last_active_at'
+            ],
+          });
+
+          // Get recent sessions with date filter
+          const whereClause = {
+            user_id: student.user_id,
+          };
+
+          if (startDate && endDate) {
+            whereClause.started_at = {
+              [Sequelize.Op.between]: [new Date(startDate), new Date(endDate)],
+            };
+          }
+
+          const recentSessions = await user_sessions.findAll({
+            where: whereClause,
+            attributes: [
+              'session_id',
+              'started_at',
+              'ended_at',
+              'active_seconds',
+              'device_type',
+              'platform',
+              'pages_viewed',
+              'posts_viewed_count',
+              'actions_count',
+              'errors_encountered',
+            ],
+            order: [['started_at', 'DESC']],
+            limit: 50, // Last 50 sessions
+          });
+
+          // Calculate engagement metrics
+          const totalSessions = recentSessions.length;
+          const totalActiveTime = recentSessions.reduce(
+            (sum, s) => sum + (s.active_seconds || 0),
+            0
+          );
+          const avgSessionDuration = totalSessions > 0 
+            ? Math.round(totalActiveTime / totalSessions) 
+            : 0;
+          
+          const deviceBreakdown = recentSessions.reduce((acc, session) => {
+            const device = session.device_type || 'unknown';
+            acc[device] = (acc[device] || 0) + 1;
+            return acc;
+          }, {});
+
+          const platformBreakdown = recentSessions.reduce((acc, session) => {
+            const platform = session.platform || 'unknown';
+            acc[platform] = (acc[platform] || 0) + 1;
+            return acc;
+          }, {});
+
+          // Get participation metrics from group
+          const participationData = await pool.query(
+            `
+            SELECT 
+              COUNT(DISTINCT po.id) as total_posts,
+              COUNT(DISTINCT pc.id) as total_comments,
+              COUNT(DISTINCT m.id) as total_messages,
+              COALESCE(SUM(p.point_value), 0) as total_points
+            FROM users u
+            LEFT JOIN posts po ON po.sender_id = u.id AND po.group_id = $1
+            LEFT JOIN post_comments pc ON pc.sender_id = u.id 
+              AND EXISTS (SELECT 1 FROM posts p WHERE p.id = pc.post_id AND p.group_id = $1)
+            LEFT JOIN messages m ON m.sender_id = u.id AND m.group_id = $1
+            LEFT JOIN points p ON p.recipient_id = u.id AND p.group_id = $1
+            WHERE u.id = $2
+            GROUP BY u.id
+            `,
+            [currentGroup, student.user_id]
+          );
+
+          const participation = participationData.rows[0] || {
+            total_posts: 0,
+            total_comments: 0,
+            total_messages: 0,
+            total_points: 0,
+          };
+
+          return {
+            user_id: student.user_id,
+            username: student.username,
+            email: student.email,
+            is_admin: student.is_admin,
+            session_analytics: {
+              total_sessions: sessionTotals?.total_sessions || 0,
+              total_active_seconds: sessionTotals?.total_active_seconds || 0,
+              total_active_hours: Math.round((sessionTotals?.total_active_seconds || 0) / 3600 * 10) / 10,
+              total_pages_viewed: sessionTotals?.total_pages_viewed || 0,
+              total_posts_viewed: sessionTotals?.total_posts_viewed || 0,
+              total_actions: sessionTotals?.total_actions || 0,
+              total_errors: sessionTotals?.total_errors || 0,
+              last_active_at: sessionTotals?.last_active_at || null,
+              recent_sessions_count: totalSessions,
+              avg_session_duration_seconds: avgSessionDuration,
+              avg_session_duration_minutes: Math.round(avgSessionDuration / 60 * 10) / 10,
+              device_breakdown: deviceBreakdown,
+              platform_breakdown: platformBreakdown,
+            },
+            participation: {
+              total_posts: parseInt(participation.total_posts) || 0,
+              total_comments: parseInt(participation.total_comments) || 0,
+              total_messages: parseInt(participation.total_messages) || 0,
+              total_points: parseInt(participation.total_points) || 0,
+            },
+            recent_sessions: recentSessions.map(s => ({
+              session_id: s.session_id,
+              started_at: s.started_at,
+              ended_at: s.ended_at,
+              active_seconds: s.active_seconds,
+              device_type: s.device_type,
+              platform: s.platform,
+              pages_viewed: s.pages_viewed,
+              posts_viewed: s.posts_viewed_count,
+              actions_count: s.actions_count,
+              errors_count: s.errors_encountered,
+            })),
+          };
+        });
+
+        const analytics = await Promise.all(analyticsPromises);
+
+        // Calculate class-wide statistics for comparisons
+        const classStats = {
+          total_students: analytics.filter(a => !a.is_admin).length,
+          avg_sessions: 0,
+          avg_active_hours: 0,
+          avg_posts: 0,
+          avg_comments: 0,
+          avg_messages: 0,
+          avg_points: 0,
+          avg_pages_viewed: 0,
+          avg_posts_viewed: 0,
+          avg_session_duration: 0,
+          median_sessions: 0,
+          median_points: 0,
+          top_performer: null,
+          needs_attention: [],
+        };
+
+        const studentsOnly = analytics.filter(a => !a.is_admin);
+        
+        if (studentsOnly.length > 0) {
+          // Calculate averages
+          classStats.avg_sessions = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.session_analytics?.total_sessions || 0), 0) / studentsOnly.length
+          );
+          classStats.avg_active_hours = Math.round(
+            (studentsOnly.reduce((sum, s) => sum + (s.session_analytics?.total_active_seconds || 0), 0) / studentsOnly.length) / 3600 * 10
+          ) / 10;
+          classStats.avg_posts = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.participation?.total_posts || 0), 0) / studentsOnly.length
+          );
+          classStats.avg_comments = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.participation?.total_comments || 0), 0) / studentsOnly.length
+          );
+          classStats.avg_messages = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.participation?.total_messages || 0), 0) / studentsOnly.length
+          );
+          classStats.avg_points = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.participation?.total_points || 0), 0) / studentsOnly.length
+          );
+          classStats.avg_pages_viewed = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.session_analytics?.total_pages_viewed || 0), 0) / studentsOnly.length
+          );
+          classStats.avg_posts_viewed = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.session_analytics?.total_posts_viewed || 0), 0) / studentsOnly.length
+          );
+          classStats.avg_session_duration = Math.round(
+            studentsOnly.reduce((sum, s) => sum + (s.session_analytics?.avg_session_duration_seconds || 0), 0) / studentsOnly.length
+          );
+
+          // Calculate medians
+          const sessionsSorted = studentsOnly
+            .map(s => s.session_analytics?.total_sessions || 0)
+            .sort((a, b) => a - b);
+          classStats.median_sessions = sessionsSorted.length > 0
+            ? sessionsSorted[Math.floor(sessionsSorted.length / 2)]
+            : 0;
+
+          const pointsSorted = studentsOnly
+            .map(s => s.participation?.total_points || 0)
+            .sort((a, b) => a - b);
+          classStats.median_points = pointsSorted.length > 0
+            ? pointsSorted[Math.floor(pointsSorted.length / 2)]
+            : 0;
+
+          // Find top performer (highest engagement score)
+          const topPerformer = studentsOnly.reduce((top, current) => {
+            const currentScore = (current.participation?.total_points || 0) + 
+                                (current.participation?.total_posts || 0) * 5 +
+                                (current.participation?.total_comments || 0) * 3 +
+                                (current.participation?.total_messages || 0) * 2;
+            const topScore = (top.participation?.total_points || 0) + 
+                            (top.participation?.total_posts || 0) * 5 +
+                            (top.participation?.total_comments || 0) * 3 +
+                            (top.participation?.total_messages || 0) * 2;
+            return currentScore > topScore ? current : top;
+          }, studentsOnly[0]);
+          classStats.top_performer = {
+            username: topPerformer.username,
+            user_id: topPerformer.user_id,
+            engagement_score: (topPerformer.participation?.total_points || 0) + 
+                             (topPerformer.participation?.total_posts || 0) * 5 +
+                             (topPerformer.participation?.total_comments || 0) * 3 +
+                             (topPerformer.participation?.total_messages || 0) * 2,
+          };
+
+          // Find students needing attention (below average in multiple metrics)
+          classStats.needs_attention = studentsOnly
+            .filter(s => {
+              const belowAvgSessions = (s.session_analytics?.total_sessions || 0) < classStats.avg_sessions * 0.5;
+              const belowAvgPoints = (s.participation?.total_points || 0) < classStats.avg_points * 0.5;
+              const belowAvgPosts = (s.participation?.total_posts || 0) < classStats.avg_posts * 0.5;
+              return (belowAvgSessions && belowAvgPoints) || (belowAvgPoints && belowAvgPosts);
+            })
+            .map(s => ({
+              username: s.username,
+              user_id: s.user_id,
+              issues: [
+                (s.session_analytics?.total_sessions || 0) < classStats.avg_sessions * 0.5 ? 'Low session count' : null,
+                (s.participation?.total_points || 0) < classStats.avg_points * 0.5 ? 'Low points' : null,
+                (s.participation?.total_posts || 0) < classStats.avg_posts * 0.5 ? 'Low posts' : null,
+                (s.session_analytics?.total_active_hours || 0) < classStats.avg_active_hours * 0.5 ? 'Low active time' : null,
+              ].filter(Boolean),
+            }));
+        }
+
+        // Add percentile rankings and comparisons for each student
+        const analyticsWithRankings = analytics.map(student => {
+          if (student.is_admin) return student;
+
+          const studentSessions = student.session_analytics?.total_sessions || 0;
+          const studentPoints = student.participation?.total_points || 0;
+          const studentPosts = student.participation?.total_posts || 0;
+          const studentActiveHours = student.session_analytics?.total_active_hours || 0;
+
+          // Calculate percentile rankings
+          const sessionsRank = studentsOnly.filter(s => 
+            (s.session_analytics?.total_sessions || 0) <= studentSessions
+          ).length;
+          const pointsRank = studentsOnly.filter(s => 
+            (s.participation?.total_points || 0) <= studentPoints
+          ).length;
+          const postsRank = studentsOnly.filter(s => 
+            (s.participation?.total_posts || 0) <= studentPosts
+          ).length;
+
+          const percentileSessions = studentsOnly.length > 0 
+            ? Math.round((sessionsRank / studentsOnly.length) * 100)
+            : 0;
+          const percentilePoints = studentsOnly.length > 0 
+            ? Math.round((pointsRank / studentsOnly.length) * 100)
+            : 0;
+          const percentilePosts = studentsOnly.length > 0 
+            ? Math.round((postsRank / studentsOnly.length) * 100)
+            : 0;
+
+          // Calculate vs class average
+          const vsClass = {
+            sessions: {
+              value: studentSessions,
+              avg: classStats.avg_sessions,
+              diff: studentSessions - classStats.avg_sessions,
+              percent_diff: classStats.avg_sessions > 0 
+                ? Math.round(((studentSessions - classStats.avg_sessions) / classStats.avg_sessions) * 100)
+                : 0,
+              status: studentSessions >= classStats.avg_sessions ? 'above' : 'below',
+            },
+            active_hours: {
+              value: studentActiveHours,
+              avg: classStats.avg_active_hours,
+              diff: Math.round((studentActiveHours - classStats.avg_active_hours) * 10) / 10,
+              percent_diff: classStats.avg_active_hours > 0
+                ? Math.round(((studentActiveHours - classStats.avg_active_hours) / classStats.avg_active_hours) * 100)
+                : 0,
+              status: studentActiveHours >= classStats.avg_active_hours ? 'above' : 'below',
+            },
+            posts: {
+              value: studentPosts,
+              avg: classStats.avg_posts,
+              diff: studentPosts - classStats.avg_posts,
+              percent_diff: classStats.avg_posts > 0
+                ? Math.round(((studentPosts - classStats.avg_posts) / classStats.avg_posts) * 100)
+                : 0,
+              status: studentPosts >= classStats.avg_posts ? 'above' : 'below',
+            },
+            comments: {
+              value: student.participation?.total_comments || 0,
+              avg: classStats.avg_comments,
+              diff: (student.participation?.total_comments || 0) - classStats.avg_comments,
+              percent_diff: classStats.avg_comments > 0
+                ? Math.round(((student.participation?.total_comments || 0) - classStats.avg_comments) / classStats.avg_comments * 100)
+                : 0,
+              status: (student.participation?.total_comments || 0) >= classStats.avg_comments ? 'above' : 'below',
+            },
+            messages: {
+              value: student.participation?.total_messages || 0,
+              avg: classStats.avg_messages,
+              diff: (student.participation?.total_messages || 0) - classStats.avg_messages,
+              percent_diff: classStats.avg_messages > 0
+                ? Math.round(((student.participation?.total_messages || 0) - classStats.avg_messages) / classStats.avg_messages * 100)
+                : 0,
+              status: (student.participation?.total_messages || 0) >= classStats.avg_messages ? 'above' : 'below',
+            },
+            points: {
+              value: studentPoints,
+              avg: classStats.avg_points,
+              diff: studentPoints - classStats.avg_points,
+              percent_diff: classStats.avg_points > 0
+                ? Math.round(((studentPoints - classStats.avg_points) / classStats.avg_points) * 100)
+                : 0,
+              status: studentPoints >= classStats.avg_points ? 'above' : 'below',
+            },
+            pages_viewed: {
+              value: student.session_analytics?.total_pages_viewed || 0,
+              avg: classStats.avg_pages_viewed,
+              diff: (student.session_analytics?.total_pages_viewed || 0) - classStats.avg_pages_viewed,
+              percent_diff: classStats.avg_pages_viewed > 0
+                ? Math.round(((student.session_analytics?.total_pages_viewed || 0) - classStats.avg_pages_viewed) / classStats.avg_pages_viewed * 100)
+                : 0,
+              status: (student.session_analytics?.total_pages_viewed || 0) >= classStats.avg_pages_viewed ? 'above' : 'below',
+            },
+          };
+
+          // Calculate engagement score
+          const engagementScore = (studentPoints || 0) + 
+                                 (studentPosts || 0) * 5 +
+                                 (student.participation?.total_comments || 0) * 3 +
+                                 (student.participation?.total_messages || 0) * 2;
+
+          // Calculate overall rank
+          const allScores = studentsOnly.map(s => 
+            (s.participation?.total_points || 0) + 
+            (s.participation?.total_posts || 0) * 5 +
+            (s.participation?.total_comments || 0) * 3 +
+            (s.participation?.total_messages || 0) * 2
+          ).sort((a, b) => b - a);
+          const overallRank = allScores.indexOf(engagementScore) + 1;
+
+          return {
+            ...student,
+            rankings: {
+              sessions_percentile: percentileSessions,
+              points_percentile: percentilePoints,
+              posts_percentile: percentilePosts,
+              overall_rank: overallRank,
+              total_students: studentsOnly.length,
+            },
+            vs_class: vsClass,
+            engagement_score: engagementScore,
+          };
+        });
+
+        res.json({
+          success: true,
+          analytics: analyticsWithRankings,
+          class_statistics: classStats,
+          group_id: currentGroup,
+          date_range: {
+            start: startDate || null,
+            end: endDate || null,
+          },
+        });
+      } catch (error) {
+        console.error("Error getting student participation analytics:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    })
+    .catch(() => {
+      res.status(401).json({ error: "Invalid token" });
     });
 };

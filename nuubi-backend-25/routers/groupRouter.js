@@ -46,6 +46,7 @@ const {
   getWeeklyGroupInfo,
   handleInviteLink,
   getWonCertificates,
+  getStudentParticipationAnalytics,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -107,5 +108,6 @@ router.post("/mygroupanalytics", getMyGroupAnalytics);
 router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
 router.post("/invite/:token", handleInviteLink);
 router.post("/getwoncertificates", getWonCertificates);
+router.post("/studentparticipationanalytics", jwtVerifyMiddleware, getStudentParticipationAnalytics);
 
 module.exports = router;

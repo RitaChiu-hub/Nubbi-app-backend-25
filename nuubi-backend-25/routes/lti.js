@@ -256,6 +256,26 @@ router.post("/session", async (req, res) => {
       user = userRes.rows[0];
     }
 
+    // Update last_signin for LTI session
+    try {
+      await pool.query("UPDATE users SET last_signin = NOW() WHERE id = $1", [
+        user.id,
+      ]);
+    } catch (e) {
+      console.error("Failed to update last_signin for LTI user", e);
+    }
+
+    // Start session tracking for LTI login
+    let sessionId = null;
+    try {
+      const sessionController = require("../controllers/sessionController");
+      const session = await sessionController.startSession(user.id, req);
+      sessionId = session.session_id;
+    } catch (sessionError) {
+      console.error("Session start error for LTI (non-blocking):", sessionError);
+      // Don't fail LTI login if session tracking fails
+    }
+
     // Issue your Nuubi JWT
     const nuubiToken = jwt.sign(
       { id: user.id, email: user.email },
@@ -450,6 +470,7 @@ router.post("/session", async (req, res) => {
     return res.json({
       success: true,
       token: nuubiToken,
+      session_id: sessionId, // Include session ID for frontend
       isAdmin,
       email: user.email,
       groupId,

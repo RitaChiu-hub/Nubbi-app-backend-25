@@ -37,6 +37,7 @@ const jwtVerifyMiddleware = async (req, res, next) => {
 
     // add decoded user to request
     req.auth = decoded;
+    req.user = decoded; // Also set req.user for consistency with other code
 
     next();
   } catch (err) {
