@@ -9,6 +9,8 @@
  * NOTE: Business aggregation (SQL) will live in service layer, not here.
  */
 
+const adminAnalyticsService = require("../services/adminAnalyticsService");
+
 function parseIsoDateOrUndefined(value) {
   if (value == null || value === "") return undefined;
   const d = new Date(value);
@@ -31,11 +33,15 @@ function notImplemented(res, feature) {
 }
 
 async function overview(req, res) {
-  // groupId is guaranteed by router path + loadGroupRole
-  const groupId = req.groupId || req.params.groupId;
-  const window = parseTimeWindow(req.body);
-  // service.getOverview(...) will be added in next step
-  return notImplemented(res, { route: "overview", groupId, window });
+  try {
+    const groupId = req.groupId || req.params.groupId;
+    const window = parseTimeWindow(req.body);
+    const result = await adminAnalyticsService.getOverview({ groupId, ...window });
+    return res.json(result);
+  } catch (err) {
+    console.error("adminAnalyticsController.overview error:", err);
+    return res.status(err.statusCode || 500).json({ error: err.message || "Internal server error" });
+  }
 }
 
 async function students(req, res) {
@@ -64,9 +70,15 @@ async function activityTimeline(req, res) {
 }
 
 async function contentStats(req, res) {
-  const groupId = req.groupId || req.params.groupId;
-  const window = parseTimeWindow(req.body);
-  return notImplemented(res, { route: "content/stats", groupId, window });
+  try {
+    const groupId = req.groupId || req.params.groupId;
+    const window = parseTimeWindow(req.body);
+    const result = await adminAnalyticsService.getContentStats({ groupId, ...window });
+    return res.json(result);
+  } catch (err) {
+    console.error("adminAnalyticsController.contentStats error:", err);
+    return res.status(err.statusCode || 500).json({ error: err.message || "Internal server error" });
+  }
 }
 
 async function exportAnalytics(req, res) {
