@@ -45,15 +45,44 @@ async function overview(req, res) {
 }
 
 async function students(req, res) {
-  const groupId = req.groupId || req.params.groupId;
-  const window = parseTimeWindow(req.body);
-  return notImplemented(res, { route: "students", groupId, window });
+  try {
+    const groupId = req.groupId || req.params.groupId;
+    const window = parseTimeWindow(req.body);
+    const result = await adminAnalyticsService.getStudentsAnalytics({
+      groupId,
+      ...window,
+      sortBy: req.body?.sortBy,
+      sortDir: req.body?.sortDir,
+      limit: req.body?.limit,
+      offset: req.body?.offset,
+      includeAdmins: req.body?.includeAdmins,
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error("adminAnalyticsController.students error:", err);
+    return res.status(err.statusCode || 500).json({ error: err.message || "Internal server error" });
+  }
 }
 
 async function posts(req, res) {
-  const groupId = req.groupId || req.params.groupId;
-  const window = parseTimeWindow(req.body);
-  return notImplemented(res, { route: "posts", groupId, window });
+  try {
+    const groupId = req.groupId || req.params.groupId;
+    const window = parseTimeWindow(req.body);
+    const result = await adminAnalyticsService.getPostHealth({
+      groupId,
+      ...window,
+      mode: req.body?.mode,
+      sortBy: req.body?.sortBy,
+      sortDir: req.body?.sortDir,
+      unansweredOlderThanHours: req.body?.unansweredOlderThanHours,
+      limit: req.body?.limit,
+      offset: req.body?.offset,
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error("adminAnalyticsController.posts error:", err);
+    return res.status(err.statusCode || 500).json({ error: err.message || "Internal server error" });
+  }
 }
 
 async function topicDistribution(req, res) {
@@ -63,10 +92,16 @@ async function topicDistribution(req, res) {
 }
 
 async function activityTimeline(req, res) {
-  const groupId = req.groupId || req.params.groupId;
-  const window = parseTimeWindow(req.body);
-  const bucket = req.body?.bucket;
-  return notImplemented(res, { route: "activity/timeline", groupId, window, bucket });
+  try {
+    const groupId = req.groupId || req.params.groupId;
+    const window = parseTimeWindow(req.body);
+    const bucket = req.body?.bucket;
+    const result = await adminAnalyticsService.getActivityTimeline({ groupId, ...window, bucket });
+    return res.json(result);
+  } catch (err) {
+    console.error("adminAnalyticsController.activityTimeline error:", err);
+    return res.status(err.statusCode || 500).json({ error: err.message || "Internal server error" });
+  }
 }
 
 async function contentStats(req, res) {
@@ -82,11 +117,17 @@ async function contentStats(req, res) {
 }
 
 async function exportAnalytics(req, res) {
-  const groupId = req.groupId || req.params.groupId;
-  const window = parseTimeWindow(req.body);
-  const format = req.body?.format;
-  const include = req.body?.include;
-  return notImplemented(res, { route: "export", groupId, window, format, include });
+  try {
+    const groupId = req.groupId || req.params.groupId;
+    const window = parseTimeWindow(req.body);
+    const format = req.body?.format;
+    const include = req.body?.include;
+    const result = await adminAnalyticsService.buildExportPayload({ groupId, ...window, format, include });
+    return res.json(result);
+  } catch (err) {
+    console.error("adminAnalyticsController.exportAnalytics error:", err);
+    return res.status(err.statusCode || 500).json({ error: err.message || "Internal server error" });
+  }
 }
 
 module.exports = {
