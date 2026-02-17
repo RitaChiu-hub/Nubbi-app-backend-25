@@ -386,6 +386,7 @@ const groupchatRouter = require("./routers/groupchatRouter");
 const fileRouter = require("./routers/fileRouter");
 const activityRouter = require("./routers/activityRouter");
 const adminAnalyticsRouter = require("./routers/teacherAnalyticsRouter");
+const logsRouter = require("./routers/logsRouter");
 
 ///// auth middleware
 // const { expressjwt: jwt, UnauthorizedError } = require("express-jwt");
@@ -407,7 +408,6 @@ app.use("/groups", groupRouter);
 app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/activity", activityRouter);
-// NEW: admin analytics (kept separate from legacy groupController analytics)
 app.use("/analytics/admin", adminAnalyticsRouter);
 app.use("/backend", myRouter);
 app.use("/logs", logsRouter);

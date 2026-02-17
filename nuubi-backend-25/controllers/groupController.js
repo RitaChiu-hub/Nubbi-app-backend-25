@@ -5,9 +5,34 @@ const { checkAwardsForUser } = require("./awardService");
 const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
-// Use shared database connection from config
-const { sequelize, DataTypes } = require("../config/database");
-const { Sequelize } = require("sequelize");
+const Sequelize = require("sequelize");
+const { Op } = require("sequelize");
+
+var config = {
+  define: {
+    underscored: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+};
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  logging: false,
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  dialectOptions: {
+    ssl: process.env.DATABASE_HOST === "localhost" ? false : {
+      rejectUnauthorized: false,
+    },
+  },
+  config: config,
+});
+
+const DataTypes = require("sequelize").DataTypes;
 
 const {
   participants,
@@ -1817,7 +1842,7 @@ module.exports.handleEditGroup = async (req, res) => {
 
 module.exports.handleGetPosts = async (req, res) => {
   const getPostsQuery = await pool.query(
-    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments, COALESCE(c.view_count, 0) view_count FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total, a.view_count FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at, COALESCE(posts.view_count, 0) view_count FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
+    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
     [req.body.currentGroup]
   );
 
@@ -1838,7 +1863,7 @@ module.exports.handleGetPostInfo = async (req, res) => {
   //   [req.body.currentPost]
   // );
   const getPostInfoQuery = await pool.query(
-    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent, COALESCE(posts.view_count, 0) AS view_count FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
+    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
     [req.body.currentPost]
   );
 
@@ -2512,7 +2537,7 @@ module.exports.getStudentParticipationAnalytics = async (req, res) => {
 
           if (startDate && endDate) {
             whereClause.started_at = {
-              [Sequelize.Op.between]: [new Date(startDate), new Date(endDate)],
+              [Op.between]: [new Date(startDate), new Date(endDate)],
             };
           }
 
