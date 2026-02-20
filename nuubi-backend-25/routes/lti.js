@@ -427,6 +427,8 @@ router.post("/session", async (req, res) => {
           updated_at: currentDate.getTime(),
         });
 
+        console.log("🚀 LTI COMMENT FUNCTION EXECUTED");
+
         const seededComment = await post_comments.create({
           sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
           post_id: seededPost.id,

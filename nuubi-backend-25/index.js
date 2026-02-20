@@ -14,6 +14,8 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 //new line
+const { sendEmail } = require("./utils/emailService");
+
 
 
 
@@ -564,7 +566,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("insert comment return updated list", (req) => {
+  socket.on("insert comment return updated list", async (req) => {
     const token = req.token || webToken;
     if (!token) {
       socket.emit("insert comment error", { error: "JWT token is required" });
@@ -612,6 +614,12 @@ io.on("connection", (socket) => {
             [req.currentPost]
           );
           const postAuthorId = postRes.rows[0].sender_id;
+          // 🚨 If the commenter is the post author, do nothing
+          if (userID === postAuthorId) {
+            console.log("Post author commented on their own post — no notifications sent.");
+            return;
+          }
+
           const postGroupId = postRes.rows[0].group_id;
 
           const groupRes = await pool.query(
@@ -639,6 +647,7 @@ io.on("connection", (socket) => {
           const recipientIds = Array.from(recipientSet);
 
           for (const recipientId of recipientIds) {
+            if (recipientId === userID) continue;
             await notifications.create({
               message: `New comment from ${userRow.sender_username} in "${groupName}"`,
               user_id: recipientId,
@@ -648,6 +657,30 @@ io.on("connection", (socket) => {
               created_at: currentDate.getTime(),
               updated_at: currentDate.getTime(),
             });
+
+            //For email generation
+
+            try {
+              const {
+                rows: [recipientUser],
+              } = await pool.query(
+                `SELECT email FROM users WHERE id = $1`,
+                [recipientId]
+              );
+            
+              if (recipientUser?.email) {
+                await sendEmail({
+                  to: recipientUser.email,
+                  subject: "New comment on your post",
+                  text: `${userRow.sender_username} commented on a post in "${groupName}".`,
+                });
+            
+                console.log("📧 Email sent to:", recipientUser.email);
+              }
+            } catch (emailErr) {
+              console.error("Email sending failed:", emailErr);
+            }
+            
             // fetch tokens for recipient from push_tokens table
             const tokens = await pushTokenService.getPushTokens(recipientId);
 

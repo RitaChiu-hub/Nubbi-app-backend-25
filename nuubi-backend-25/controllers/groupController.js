@@ -4,6 +4,8 @@ const cloudinary = require("cloudinary").v2;
 const { checkAwardsForUser } = require("./awardService");
 const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
+const { sendEmail } = require("../utils/emailService");
+
 
 const Sequelize = require("sequelize");
 
@@ -98,6 +100,8 @@ module.exports.handleCreateGroup = async (req, res) => {
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
+
+        console.log("🚀 groupController COMMENT FUNCTION EXECUTED");
 
         const seededComment = await post_comments.create({
           sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
@@ -1629,56 +1633,37 @@ module.exports.handleCreatePost = async (req, res) => {
             },
           ];
 
-          let answer;
-          try {
-            const resp = await openai.chat.completions.create({
-              model: "o4-mini",
-              messages,
-              max_completion_tokens: 1500,
-            });
-
-            const choice = resp.choices[0] ?? {};
-            if (!choice.message?.content?.trim()) {
-              console.warn(
-                "Cuubi empty reply → finish_reason:",
-                choice.finish_reason,
-                "│ prompt_tokens:",
-                resp.usage?.prompt_tokens,
-                "│ completion_tokens:",
-                resp.usage?.completion_tokens
-              );
+          if (process.env.ENABLE_AI === "true") {
+            let answer;
+            try {
+              const resp = await openai.chat.completions.create({
+                model: "o4-mini",
+                messages,
+                max_completion_tokens: 1500,
+              });
+          
+              answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
+          
+              await post_comments.create({
+                post_id: newPost.id,
+                sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+                comment_text: answer,
+                created_at: Date.now(),
+                updated_at: Date.now(),
+              });
+            } catch (err) {
+              console.error(" Cuubi OpenAI error:", err);
+          
+              await post_comments.create({
+                post_id: newPost.id,
+                sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+                comment_text: "Cuubi tried to answer but hit a snag.",
+                created_at: Date.now(),
+                updated_at: Date.now(),
+              });
             }
-
-            // const resp = await llama.chat.completions.create({
-            //   // model: "mistralai/Mistral-7B-Instruct-v0.2",
-            //   model: "gpt-3.5-turbo",
-            //   messages,
-            //   temperature: 0.7,
-            //   max_tokens: 256,
-            //   stop: ["</SYS>"],
-            // });
-            answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
-
-            // 5)  Persist as a comment
-            await post_comments.create({
-              post_id: newPost.id,
-              sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Cuubi’s user‑id
-              comment_text: answer,
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            });
-          } catch (err) {
-            // 6)  Always log the full HTTP response for traceability
-            console.error(" Cuubi OpenAI error:", err);
-
-            await post_comments.create({
-              post_id: newPost.id,
-              sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-              comment_text: "Cuubi tried to answer but hit a snag.",
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            });
           }
+          
         } else {
           //skip reply
         }
@@ -1927,6 +1912,9 @@ module.exports.handleGetGroupInfo = async (req, res) => {
 module.exports.handleCreateComment = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
+
+      console.log("🚀 REAL USER COMMENT ENDPOINT EXECUTED");
+      
       const userID = decoded.id;
       const postId = req.body.currentPost;
       try {
@@ -1944,6 +1932,37 @@ module.exports.handleCreateComment = async (req, res) => {
             WHERE id = $1`,
           [postId]
         );
+
+        // Only send email if commenter is not the post owner
+        if (userID !== postRow.sender_id) {
+          try {
+            // Get post owner email
+            const { rows: [postOwner] } = await pool.query(
+              "SELECT email, username FROM users WHERE id = $1",
+              [postRow.sender_id]
+            );
+
+            const { rows: [commenter] } = await pool.query(
+              "SELECT username FROM users WHERE id = $1",
+              [userID]
+            );
+
+            if (postOwner?.email) {
+              console.log("✅ Email condition passed");
+              console.log("Post Owner Email:", postOwner.email);
+              console.log("Commenter:", commenter.username);
+              console.log("Post Owner ID:", postRow.sender_id);
+              console.log("Commenter ID:", userID);
+              await sendEmail({
+                to: postOwner.email,
+                subject: "New comment on your post",
+                text: `${commenter.username} commented on your post.`,
+              });
+            }
+          } catch (err) {
+            console.error("Error sending comment notification:", err);
+          }
+        }
 
         // 1. get the id of the post author
 
