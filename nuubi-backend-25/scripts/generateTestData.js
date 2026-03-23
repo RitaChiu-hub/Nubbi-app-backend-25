@@ -161,6 +161,42 @@ async function seed() {
         last_active_at = EXCLUDED.last_active_at;
     `);
 
+    // 7. NEW: Update user_group_daily_stats (Performance Cache)
+    console.log("📈 Refreshing high-performance daily analytics cache...");
+    await client.query(`
+      INSERT INTO user_group_daily_stats (
+          user_id, group_id, stat_date, 
+          posts_count, comments_count, messages_count, 
+          points_earned, active_seconds, sessions_count
+      )
+      WITH all_activities AS (
+          SELECT sender_id as user_id, group_id, created_at::date as s_date, 1 as posts, 0 as comments, 0 as msgs, 0 as pts, 0 as secs, 0 as sess FROM posts
+          UNION ALL
+          SELECT pc.sender_id, p.group_id, pc.created_at::date, 0, 1, 0, 0, 0, 0 FROM post_comments pc JOIN posts p ON pc.post_id = p.id
+          UNION ALL
+          SELECT sender_id, group_id, created_at::date, 0, 0, 1, 0, 0, 0 FROM messages
+          UNION ALL
+          SELECT recipient_id, group_id, created_at::date, 0, 0, 0, point_value, 0, 0 FROM points
+          UNION ALL
+          -- For sessions in test data, we assume they belong to the specific group being tested
+          SELECT user_id, $1 as group_id, started_at::date, 0, 0, 0, 0, active_seconds, 1 FROM user_sessions
+      )
+      SELECT 
+          user_id, group_id, s_date,
+          SUM(posts)::int, SUM(comments)::int, SUM(msgs)::int, 
+          SUM(pts)::int, SUM(secs)::int, SUM(sess)::int
+      FROM all_activities
+      WHERE user_id IS NOT NULL AND group_id IS NOT NULL AND s_date IS NOT NULL
+      GROUP BY user_id, group_id, s_date
+      ON CONFLICT (user_id, group_id, stat_date) DO UPDATE SET
+          posts_count = EXCLUDED.posts_count,
+          comments_count = EXCLUDED.comments_count,
+          messages_count = EXCLUDED.messages_count,
+          points_earned = EXCLUDED.points_earned,
+          active_seconds = EXCLUDED.active_seconds,
+          sessions_count = EXCLUDED.sessions_count;
+    `, [groupId]);
+
     await client.query("COMMIT");
     console.log("✅ Seeding completed! Database is ready for Analytics testing.");
   } catch (e) {

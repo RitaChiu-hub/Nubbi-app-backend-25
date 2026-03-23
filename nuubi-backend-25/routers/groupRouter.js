@@ -20,7 +20,6 @@ const {
   handleLeaveGroup,
   handleIsAdmin,
   handleDeleteGroup,
-  getGroupMembers,
   handleJoinGroupWithPasscode,
   handleEditPost,
   handleEditGroup,
@@ -30,7 +29,6 @@ const {
   getCommentLikes,
   handleAddCommentPoint,
   getPostLiked,
-  getLeaderboard,
   getNotifications,
   getWonBadges,
   getNotificationsUnread,
@@ -41,12 +39,8 @@ const {
   handleGetAllGroupTasks,
   handleTaskApproved,
   handleGetMyTasks,
-  getMyLeaderboards,
-  getMyGroupAnalytics,
-  getWeeklyGroupInfo,
   handleInviteLink,
   getWonCertificates,
-  getStudentParticipationAnalytics,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -54,6 +48,8 @@ const validateCreateComment = require("../controllers/validation/validateCreateC
 const { UnauthorizedError } = require("express-jwt");
 const { verifyUserID } = require("../controllers/jwt/verifyUserId");
 const { jwtVerifyMiddleware } = require("../controllers/jwt/jwtAuth");
+const { loadGroupRole } = require("../middlewares/loadGroupRole");
+const adminAnalyticsController = require("../controllers/adminAnalyticsController");
 
 router.post("/creategroup", jwtVerifyMiddleware, validateCreateGroup, handleCreateGroup);
 router.get("/getgroups", jwtVerifyMiddleware, getAllGroups);
@@ -83,8 +79,8 @@ router.post("/getmembercount", getMemberCount);
 router.post("/leavegroup", handleLeaveGroup);
 router.post("/isadmin", handleIsAdmin);
 router.post("/deletegroup", handleDeleteGroup);
-router.post("/getmembers", jwtVerifyMiddleware, getGroupMembers);
-router.post("/getleaderboard", getLeaderboard);
+router.post("/getmembers", jwtVerifyMiddleware, adminAnalyticsController.students);
+router.post("/getleaderboard", adminAnalyticsController.getLeaderboard);
 router.post("/editpost", handleEditPost);
 router.post("/editgroup", jwtVerifyMiddleware, handleEditGroup);
 router.post("/getpostinfo", jwtVerifyMiddleware, handleGetPostInfo);
@@ -103,11 +99,11 @@ router.post("/taskcompleted", handleTaskCompleted);
 router.post("/allgrouptasks", handleGetAllGroupTasks);
 router.post("/taskapproved", handleTaskApproved);
 router.post("/mytasks", handleGetMyTasks);
-router.post("/myleaderboards", getMyLeaderboards);
-router.post("/mygroupanalytics", getMyGroupAnalytics);
-router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
+router.post("/myleaderboards", jwtVerifyMiddleware, adminAnalyticsController.getMyLeaderboards);
+router.post("/mygroupanalytics", jwtVerifyMiddleware, adminAnalyticsController.getMyGroupAnalytics);
+router.post("/getweeklygroupinfo", jwtVerifyMiddleware, loadGroupRole, adminAnalyticsController.getWeeklyTrend);
 router.post("/invite/:token", handleInviteLink);
 router.post("/getwoncertificates", getWonCertificates);
-router.post("/studentparticipationanalytics", jwtVerifyMiddleware, getStudentParticipationAnalytics);
+router.post("/studentparticipationanalytics", jwtVerifyMiddleware, adminAnalyticsController.getDeepParticipation);
 
 module.exports = router;

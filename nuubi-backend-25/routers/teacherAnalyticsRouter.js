@@ -260,5 +260,27 @@ router.post(
   adminAnalyticsController.exportAnalytics
 );
 
+/**
+ * Migration: deep participation analytics (all-in-one)
+ */
+router.post(
+  "/groups/:groupId/participation/deep",
+  loadGroupRole,
+  requireGroupAdmin,
+  adminAnalyticsController.getDeepParticipation
+);
+
+/**
+ * Migration: weekly trend analytics
+ */
+router.post(
+  "/groups/:groupId/trends/weekly",
+  loadGroupRole,
+  // This one can be admin or self, so we use loadGroupRole but maybe not strictly requireGroupAdmin
+  // But for the TEACHER dashboard, it is admin-only.
+  requireGroupAdmin,
+  adminAnalyticsController.getWeeklyTrend
+);
+
 module.exports = router;
 
