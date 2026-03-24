@@ -4,6 +4,7 @@ const express = require("express");
 const app = express();
 app.use(express.static("public"));
 const { checkAwardsForUser } = require("./controllers/awardService");
+const { recordActivity, syncStatsToPostgres } = require("./services/statsUpdateService");
 
 const helmet = require("helmet");
 const { Sequelize } = require("sequelize");
@@ -563,6 +564,14 @@ io.on("connection", (socket) => {
 
       checkAwardsForUser(userID, req.currentGroup).catch(console.error);
 
+      // 📈 Record message in Redis for analytics
+      recordActivity({
+        userId: userID,
+        groupId: req.currentGroup,
+        statDate: new Date().toISOString().split('T')[0],
+        increments: { messages: 1 }
+      }).catch(err => console.error("Redis analytics error (message):", err));
+
       io.emit(
         "insert msg return updated list",
         Object.assign(newMsg, {
@@ -726,6 +735,14 @@ io.on("connection", (socket) => {
 
           // C) Post’s author (leadership)
           checkAwardsForUser(postAuthorId, postGroupId).catch(console.error);
+
+          // 📈 Record comment in Redis for analytics
+          recordActivity({
+            userId: userID,
+            groupId: postGroupId,
+            statDate: new Date().toISOString().split('T')[0],
+            increments: { comments: 1 }
+          }).catch(err => console.error("Redis analytics error (comment):", err));
         } catch (err) {
           console.error("Error inserting comment:", err);
           socket.emit("insert comment error", {
@@ -771,6 +788,14 @@ io.on("connection", (socket) => {
               "INSERT INTO points(recipient_id, giver_id, posts_id, group_id) values($1,$2,$3,$4);",
               [recipient_id, userID, req.currentPost, req.currentGroup]
             );
+
+            // 📈 Record points in Redis for analytics (Only when positive point is given)
+            recordActivity({
+              userId: recipient_id,
+              groupId: req.currentGroup,
+              statDate: new Date().toISOString().split('T')[0],
+              increments: { points: 1 } // Assuming default point value is 1
+            }).catch(err => console.error("Redis analytics error (point):", err));
 
             pool.query(
               "SELECT SUM(point_value) FROM points WHERE posts_id = $1;",
@@ -824,6 +849,19 @@ io.on("connection", (socket) => {
 //   });
 // });
 
-server.listen(8080, () => {
-  console.log("server listening on port 8080");
-});
+if (require.main === module) {
+  server.listen(8080, () => {
+    console.log("server listening on port 8080");
+  });
+
+  // 🔄 Start Background Worker: Sync Redis stats to Postgres every 5 minutes
+  const SYNC_INTERVAL = 5 * 60 * 1000;
+  setInterval(() => {
+    syncStatsToPostgres().catch(err => console.error("Worker Error:", err));
+  }, SYNC_INTERVAL);
+
+  // Optional: Initial sync on startup
+  setTimeout(() => syncStatsToPostgres().catch(err => console.error("Initial Worker Error:", err)), 10000);
+}
+
+module.exports = { app, server };

@@ -1,5 +1,6 @@
 const pool = require("../db");
 const { v4: uuidv4 } = require("uuid");
+const { recordActivity } = require("../services/statsUpdateService");
 
 const Sequelize = require("sequelize");
 
@@ -97,10 +98,12 @@ function getIpAddress(req) {
 /**
  * Start a new session
  * @param {string} userId - User ID
+ * @param {string} userId - User UUID
  * @param {Object} req - Express request object
+ * @param {number} [groupId] - Optional group context
  * @returns {Promise<Object>} Session object
  */
-module.exports.startSession = async (userId, req) => {
+module.exports.startSession = async (userId, req, groupId = null) => {
   try {
     const { deviceType, platform } = extractDeviceInfo(req);
     const ipAddress = getIpAddress(req);
@@ -111,6 +114,7 @@ module.exports.startSession = async (userId, req) => {
       platform,
       ipAddress,
       userAgent: req.headers["user-agent"]?.substring(0, 50),
+      groupId
     });
 
     // Create new session
@@ -148,6 +152,16 @@ module.exports.startSession = async (userId, req) => {
 
     // Increment total sessions count
     await totals.increment("total_sessions");
+
+    // 📈 Record session in Redis for analytics if groupId is provided
+    if (groupId) {
+      recordActivity({
+        userId,
+        groupId,
+        statDate: new Date().toISOString().split('T')[0],
+        increments: { sessions: 1 }
+      }).catch(err => console.error("Redis analytics error (session):", err));
+    }
 
     return session;
   } catch (error) {
@@ -188,9 +202,10 @@ module.exports.endSession = async (sessionId) => {
  * Update heartbeat - increment active seconds
  * @param {string} sessionId - Session ID
  * @param {number} activeSeconds - Seconds to add
+ * @param {number} [groupId] - Optional group context
  * @returns {Promise<Object>} Updated session object
  */
-module.exports.updateHeartbeat = async (sessionId, activeSeconds = 60) => {
+module.exports.updateHeartbeat = async (sessionId, activeSeconds = 60, groupId = null) => {
   try {
     const session = await user_sessions.findByPk(sessionId);
 
@@ -206,6 +221,16 @@ module.exports.updateHeartbeat = async (sessionId, activeSeconds = 60) => {
       { last_active_at: new Date() },
       { where: { user_id: session.user_id } }
     );
+
+    // 📈 Record active time in Redis if groupId is provided
+    if (groupId) {
+      recordActivity({
+        userId: session.user_id,
+        groupId: groupId,
+        statDate: new Date().toISOString().split('T')[0],
+        increments: { active_seconds: activeSeconds }
+      }).catch(err => console.error("Redis analytics error (active_seconds):", err));
+    }
 
     return session;
   } catch (error) {
@@ -372,15 +397,17 @@ module.exports.getActiveSession = async (userId) => {
 /**
  * Get or create active session for a user
  * @param {string} userId - User ID
+ * @param {string} userId - User UUID
  * @param {Object} req - Express request object
+ * @param {number} [groupId] - Optional group context
  * @returns {Promise<Object>} Active session
  */
-module.exports.getOrCreateSession = async (userId, req) => {
+module.exports.getOrCreateSession = async (userId, req, groupId = null) => {
   try {
     let session = await module.exports.getActiveSession(userId);
 
     if (!session) {
-      session = await module.exports.startSession(userId, req);
+      session = await module.exports.startSession(userId, req, groupId);
     }
 
     return session;

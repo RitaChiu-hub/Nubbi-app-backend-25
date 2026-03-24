@@ -103,18 +103,18 @@ router.post("/session/end", async (req, res) => {
 router.post("/heartbeat", async (req, res) => {
   try {
     const userId = req.user.id;
-    const { session_id, active_seconds = 60 } = req.body;
+    const { session_id, active_seconds = 60, groupId } = req.body;
 
     let sessionId = session_id;
 
     // If no session_id provided, get or create active session
     if (!sessionId) {
-      const session = await sessionController.getOrCreateSession(userId, req);
+      const session = await sessionController.getOrCreateSession(userId, req, groupId);
       sessionId = session.session_id;
     }
 
-    // Update heartbeat
-    await sessionController.updateHeartbeat(sessionId, active_seconds);
+    // Update heartbeat with optional groupId
+    await sessionController.updateHeartbeat(sessionId, active_seconds, groupId);
 
     res.json({
       success: true,
@@ -144,7 +144,7 @@ router.post("/page-view", async (req, res) => {
 
     // If no session_id provided, get or create active session
     if (!sessionId) {
-      const session = await sessionController.getOrCreateSession(userId, req);
+      const session = await sessionController.getOrCreateSession(userId, req, groupId);
       sessionId = session.session_id;
     }
 
@@ -181,7 +181,7 @@ router.post("/action", async (req, res) => {
 
     // If no session_id provided, get or create active session
     if (!sessionId) {
-      const session = await sessionController.getOrCreateSession(userId, req);
+      const session = await sessionController.getOrCreateSession(userId, req, groupId);
       sessionId = session.session_id;
     }
 
@@ -218,7 +218,7 @@ router.post("/error", async (req, res) => {
 
     // If no session_id provided, get or create active session
     if (!sessionId) {
-      const session = await sessionController.getOrCreateSession(userId, req);
+      const session = await sessionController.getOrCreateSession(userId, req, groupId);
       sessionId = session.session_id;
     }
 
@@ -254,7 +254,7 @@ router.post("/posts/:id/view", async (req, res) => {
 
     // If no session_id provided, get or create active session
     if (!sessionId) {
-      const session = await sessionController.getOrCreateSession(userId, req);
+      const session = await sessionController.getOrCreateSession(userId, req, groupId);
       sessionId = session.session_id;
     }
 

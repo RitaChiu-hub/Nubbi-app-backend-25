@@ -2,6 +2,7 @@ const pool = require("../db");
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 const { checkAwardsForUser } = require("./awardService");
+const { recordActivity } = require("../services/statsUpdateService");
 const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
@@ -459,6 +460,14 @@ module.exports.handleTaskApproved = async (req, res) => {
       updated_at: currentDate.getTime(),
       group_id: task.group_id,
     });
+
+    // 📈 Record points in Redis for analytics
+    recordActivity({
+      userId: task.user_id,
+      groupId: task.group_id,
+      statDate: new Date().toISOString().split('T')[0],
+      increments: { points: parseInt(taskPoints.point_value) }
+    }).catch(err => console.error("Redis analytics error (task points):", err));
 
     // Fetch the group details to get the group name
     const group = await groups.findOne({
@@ -1068,6 +1077,14 @@ module.exports.handleCreatePost = async (req, res) => {
           updated_at: currentDate.getTime(),
         });
 
+        // 📈 Record post in Redis for analytics
+        recordActivity({
+          userId: userID,
+          groupId: groupID,
+          statDate: new Date().toISOString().split('T')[0],
+          increments: { posts: 1 }
+        }).catch(err => console.error("Redis analytics error (post):", err));
+
         const postId = newPost.id;
         // Fetch the group details to get the group name
         const group = await groups.findOne({
@@ -1574,6 +1591,14 @@ module.exports.handleAddPostPoint = async (req, res) => {
             updated_at: currentDate.getTime(),
           });
 
+          // 📈 Record points in Redis for analytics
+          recordActivity({
+            userId: recipient_id,
+            groupId: req.body.currentGroup,
+            statDate: new Date().toISOString().split('T')[0],
+            increments: { points: 1 }
+          }).catch(err => console.error("Redis analytics error (post point):", err));
+
           if (
             recipient_id !== userID &&
             (pointGiven === null || pointGiven === 0)
@@ -1703,6 +1728,14 @@ module.exports.handleAddMessagePoint = async (req, res) => {
             created_at: currentDate.getTime(),
             updated_at: currentDate.getTime(),
           });
+
+          // 📈 Record points in Redis for analytics
+          recordActivity({
+            userId: recipient_id,
+            groupId: req.body.currentGroup,
+            statDate: new Date().toISOString().split('T')[0],
+            increments: { points: 1 }
+          }).catch(err => console.error("Redis analytics error (message point):", err));
         }
         if (
           recipient_id !== userID &&
