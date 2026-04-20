@@ -1815,30 +1815,38 @@ module.exports.handleEditGroup = async (req, res) => {
   }
 };
 
+// Lists posts for a group with points, comment counts, and whether there is new activity since the client last saw each post.
 module.exports.handleGetPosts = async (req, res) => {
+  // Client sends { [postId]: lastSeenAt }. Missing entry => user has never opened that thread => treat as new.
+  const lastViewed = req.body.lastViewedPosts;
+  const lastViewedJson = lastViewed && typeof lastViewed === "object" && !Array.isArray(lastViewed) ? JSON.stringify(lastViewed) : "{}";
+  const currentUserId = req.user?.id ?? null;
+
+  // Unread post authored by someone else (no lastViewed entry): NEW.
+  // Newest comment from someone other than the current user is after the user's last seen time: NEW.
   const getPostsQuery = await pool.query(
-    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments, COALESCE(c.view_count, 0) view_count FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total, a.view_count FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at, COALESCE(posts.view_count, 0) view_count FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
-    [req.body.currentGroup]
+    `SELECT c.post_id post_id, c.sender_id sender_id, c.title title, c.body_text body_text, c.post_author post_author, c.created_at created_at, COALESCE(c.point_total, 0) point_total, COALESCE(d.number_comments, 0) number_comments,
+      CASE
+        WHEN ($2::jsonb)->>(c.post_id::text) IS NULL AND ($3::text IS NULL OR c.sender_id::text IS DISTINCT FROM $3::text) THEN true
+        WHEN MAX(pc.created_at) FILTER (WHERE $3::text IS NULL OR pc.sender_id::text IS DISTINCT FROM $3::text)
+               > COALESCE((($2::jsonb)->>(c.post_id::text))::timestamptz, c.created_at) THEN true
+        ELSE false
+      END AS has_new_activity
+     FROM (SELECT a.post_id post_id, a.sender_id sender_id, a.title title, a.body_text body_text, a.post_author post_author, a.created_at created_at, point_total FROM (SELECT posts.id post_id, posts.sender_id sender_id, posts.title title, posts.body_text body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id::text = users.id::text WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id LEFT JOIN posts p ON c.post_id = p.id LEFT JOIN post_comments pc ON c.post_id = pc.post_id GROUP BY c.post_id, c.sender_id, c.title, c.body_text, c.post_author, c.created_at, c.point_total, d.number_comments, p.created_at ORDER BY c.created_at DESC;`,
+    [req.body.currentGroup, lastViewedJson, currentUserId]
   );
 
   res.send(getPostsQuery.rows);
 };
 
-// module.exports.handleGetPosts = async (req, res) => {
-//   const getPostsQuery = await pool.query(
-//     "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, coalesce(point_total,0) point_total, coalesce(number_comments,0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (select post_id, count(id) number_comments from post_comments group by post_id) d on c.post_id = d.post_id;",
-//     [req.body.currentGroup]
-//   );
-//   res.send(getPostsQuery.rows);
-// };
-
+// Single post for the thread view: author, text, media URLs, timestamps (view counts are tracked elsewhere).
 module.exports.handleGetPostInfo = async (req, res) => {
   // const getPostInfoQuery = await pool.query(
   //   "SELECT title post_title, body_text, username post_author, image_url, file_url, file_name, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
   //   [req.body.currentPost]
   // );
   const getPostInfoQuery = await pool.query(
-    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent, COALESCE(posts.view_count, 0) AS view_count FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
+    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
     [req.body.currentPost]
   );
 
