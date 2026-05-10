@@ -30,6 +30,10 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: false,
         defaultValue: false,
       },
+      posts_feed_last_seen_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       created_at: {
         type: DataTypes.DATE,
         allowNull: false,
