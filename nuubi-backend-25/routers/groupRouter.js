@@ -47,6 +47,8 @@ const {
   handleInviteLink,
   getWonCertificates,
   getStudentParticipationAnalytics,
+  markPostRead,
+  markPostsFeedSeen,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -67,6 +69,8 @@ router.post("/joingroupwithpasscode", handleJoinGroupWithPasscode);
 // router.use(verifyUserID); /// auth middleware
 
 router.post("/mygroups", jwtVerifyMiddleware, getMyGroups);
+
+router.post("/posts/markread", jwtVerifyMiddleware, markPostRead);
 
 // router.post("/mygroups",getMyGroups);
 
@@ -109,5 +113,7 @@ router.post("/getweeklygroupinfo", getWeeklyGroupInfo);
 router.post("/invite/:token", handleInviteLink);
 router.post("/getwoncertificates", getWonCertificates);
 router.post("/studentparticipationanalytics", jwtVerifyMiddleware, getStudentParticipationAnalytics);
+
+router.post("/postsfeed/markseen", jwtVerifyMiddleware, markPostsFeedSeen);
 
 module.exports = router;

@@ -32,6 +32,70 @@ const bcrypt = require("bcrypt");
 const currentDate = new Date();
 require("dotenv").config();
 
+function mergeLastViewedPostsPayload(clientObj, dbRows) {
+  const merged =
+    clientObj && typeof clientObj === "object" && !Array.isArray(clientObj)
+      ? { ...clientObj }
+      : {};
+  for (const r of dbRows || []) {
+    const k = String(r.post_id);
+    const dbTs = new Date(r.last_read_at).getTime();
+    const c = merged[k];
+    let cTs = NaN;
+    if (c != null && c !== "") {
+      const parsed = Date.parse(typeof c === "string" ? c : String(c));
+      if (Number.isFinite(parsed)) cTs = parsed;
+    }
+    if (!Number.isFinite(cTs) || dbTs > cTs) {
+      merged[k] = new Date(r.last_read_at).toISOString();
+    }
+  }
+  return merged;
+}
+
+/**
+ * Builds JSON string for sql jsonb consumed by unread queries — merges client
+ * lastViewedPosts with user_post_read_state rows (scoped by group when given).
+ */
+async function buildMergedLastViewedJson(poolConn, userId, lastViewedPostsBody, opts = {}) {
+  const baseMerged = mergeLastViewedPostsPayload(lastViewedPostsBody, []);
+
+  let rows = [];
+  if (userId) {
+    try {
+      let result;
+      if (opts.groupId !== undefined && opts.groupId !== null) {
+        result = await poolConn.query(
+          `SELECT ups.post_id, ups.last_read_at
+             FROM user_post_read_state ups
+            INNER JOIN posts p ON p.id = ups.post_id
+            WHERE ups.user_id::text = $1::text
+              AND p.group_id = $2::int`,
+          [String(userId), opts.groupId]
+        );
+      } else {
+        result = await poolConn.query(
+          `SELECT ups.post_id, ups.last_read_at
+             FROM user_post_read_state ups
+            INNER JOIN posts p ON p.id = ups.post_id
+            INNER JOIN participants pt ON pt.group_id = p.group_id
+               AND pt.user_id::text = ups.user_id::text
+            WHERE ups.user_id::text = $1::text`,
+          [String(userId)]
+        );
+      }
+      rows = result.rows;
+    } catch (e) {
+      if (e.code === "42P01" || e.code === "42703") {
+        return JSON.stringify(baseMerged);
+      }
+      throw e;
+    }
+  }
+
+  return JSON.stringify(mergeLastViewedPostsPayload(lastViewedPostsBody, rows));
+}
+
 module.exports.handleCreateGroup = async (req, res) => {
     // Use getJwt to get the token from either cookies or the Authorization header
     const token = getJwt(req);
@@ -672,7 +736,7 @@ module.exports.getMyGroups = async (req, res) => {
             {
               model: participants,
               where: { user_id: userID },
-              attributes: ["user_id"],
+              attributes: ["user_id", "posts_feed_last_seen_at"],
               required: true,
             },
           ],
@@ -680,7 +744,133 @@ module.exports.getMyGroups = async (req, res) => {
           //    order: [[Sequelize.literal("participants.created_at"), "DESC"]],
         });
 
-        res.json(myGroups);
+        // Convert the groups to a plain object
+        const plainGroups = myGroups.map((row) =>
+          typeof row?.get === "function" ? row.get({ plain: true }) : row
+        );
+
+        for (const row of plainGroups) {
+          const part = row.participants?.[0];
+          row.posts_feed_last_seen_at = part?.posts_feed_last_seen_at ?? null;
+        }
+
+      
+        const lastViewed = req.body.lastViewedPosts;
+        const lastViewedObj =
+          lastViewed !== undefined &&
+          lastViewed !== null &&
+          typeof lastViewed === "object" &&
+          !Array.isArray(lastViewed)
+            ? lastViewed
+            : {};
+        const lastViewedJson = await buildMergedLastViewedJson(
+          pool,
+          userID,
+          lastViewedObj,
+          {}
+        );
+
+        const unreadQuery = await pool.query(
+          `WITH ug AS (
+               SELECT DISTINCT g.id AS group_id
+                 FROM groups g
+                 INNER JOIN participants pt ON pt.group_id = g.id
+                WHERE pt.user_id::text = $1::text
+             ),
+             post_signals AS (
+               SELECT p.group_id,
+                      p.id AS post_id,
+                      p.sender_id,
+                      p.created_at AS post_created_at,
+                      MAX(pc.created_at)
+                        FILTER (
+                          WHERE $1::text IS NULL OR pc.sender_id::text IS DISTINCT FROM $1::text
+                        ) AS max_other_comment_at
+                 FROM posts p
+                 INNER JOIN ug ON ug.group_id = p.group_id
+                 LEFT JOIN post_comments pc ON pc.post_id = p.id
+                GROUP BY p.group_id, p.id, p.sender_id, p.created_at
+             ),
+             post_unread AS (
+               SELECT ps.group_id,
+                      ps.post_id,
+                      CASE
+                        WHEN ($2::jsonb)->>(ps.post_id::text) IS NULL
+                             AND (
+                               $1::text IS NULL
+                               OR ps.sender_id::text IS DISTINCT FROM $1::text
+                             )
+                          THEN TRUE
+                        WHEN COALESCE(
+                               ps.max_other_comment_at,
+                               '-infinity'::timestamptz
+                             )
+                             > COALESCE(
+                                  (($2::jsonb)->>(ps.post_id::text))::timestamptz,
+                                  ps.post_created_at
+                                )
+                          THEN TRUE
+                        ELSE FALSE
+                      END AS is_unread
+                 FROM post_signals ps
+             ),
+             group_unread AS (
+               SELECT group_id,
+                      COALESCE(bool_or(is_unread), FALSE) AS has_unread_activity
+                 FROM post_unread
+                GROUP BY group_id
+             )
+             SELECT ug.group_id,
+                    COALESCE(gu.has_unread_activity, FALSE) AS has_unread_activity
+               FROM ug
+               LEFT JOIN group_unread gu ON gu.group_id = ug.group_id`,
+          [userID, lastViewedJson]
+        );
+
+        const unreadByGroupId = {};
+        for (const r of unreadQuery.rows) {
+          unreadByGroupId[r.group_id] = r.has_unread_activity;
+        }
+
+        const feedWatermarkQuery = await pool.query(
+          `SELECT m.group_id,
+                  (
+                    EXISTS (
+                      SELECT 1 FROM posts p
+                       WHERE p.group_id = m.group_id
+                         AND p.sender_id::text IS DISTINCT FROM $1::text
+                         AND p.created_at
+                             > COALESCE(m.posts_feed_last_seen_at, '-infinity'::timestamptz)
+                    )
+                    OR EXISTS (
+                      SELECT 1 FROM post_comments pc
+                      INNER JOIN posts po ON po.id = pc.post_id
+                       WHERE po.group_id = m.group_id
+                         AND pc.sender_id::text IS DISTINCT FROM $1::text
+                         AND pc.created_at
+                             > COALESCE(m.posts_feed_last_seen_at, '-infinity'::timestamptz)
+                    )
+                  ) AS has_unread_since_feed_watermark
+             FROM participants m
+            WHERE m.user_id::text = $1::text`,
+          [userID]
+        );
+
+        const watermarkUnreadByGroupId = {};
+        for (const r of feedWatermarkQuery.rows) {
+          watermarkUnreadByGroupId[r.group_id] = r.has_unread_since_feed_watermark;
+        }
+
+        for (const row of plainGroups) {
+          const gid = row.group_id;
+          const granularUnread =
+            unreadByGroupId[gid] !== undefined ? unreadByGroupId[gid] : false;
+          const watermarkUnread =
+            watermarkUnreadByGroupId[gid] === true;
+          row.has_unread_activity = granularUnread || watermarkUnread;
+        }
+
+        res.json(plainGroups);
       } catch (error) {
         console.error("Error fetching user groups:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -689,6 +879,101 @@ module.exports.getMyGroups = async (req, res) => {
     .catch(async () => {
       res.json({ token: null });
     });
+};
+// Sets the posts feed last seen at for the current member
+module.exports.markPostsFeedSeen = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const groupId =
+      req.body?.currentGroup !== undefined ? req.body.currentGroup : req.body?.group_id;
+    if (groupId === undefined || groupId === null || groupId === "") {
+      return res.status(400).json({ error: "currentGroup is required" });
+    }
+
+    const result = await pool.query(
+      `UPDATE participants
+         SET posts_feed_last_seen_at = NOW(),
+             updated_at = NOW()
+       WHERE user_id::text = $1::text
+         AND group_id = $2
+       RETURNING posts_feed_last_seen_at`,
+      [String(userId), groupId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Not a member of this group" });
+    }
+
+    res.json({
+      success: true,
+      group_id: Number(groupId),
+      posts_feed_last_seen_at: result.rows[0]?.posts_feed_last_seen_at ?? null,
+    });
+  } catch (error) {
+    console.error("Error marking posts feed seen:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Persist per-thread "last read at" — merged into handleGetPosts / getMyGroups with lastViewedPosts.
+module.exports.markPostRead = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const postIdRaw = req.body?.post_id ?? req.body?.currentPost;
+    const postId = parseInt(postIdRaw, 10);
+    if (!Number.isFinite(postId)) {
+      return res.status(400).json({ error: "post_id is required" });
+    }
+
+    const postRow = await pool.query(`SELECT group_id FROM posts WHERE id = $1`, [postId]);
+    if (!postRow.rows?.length) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    const memCheck = await pool.query(
+      `SELECT 1 FROM participants
+       WHERE user_id::text = $1::text AND group_id = $2::int`,
+      [String(userId), postRow.rows[0].group_id]
+    );
+    if (!memCheck.rows?.length) {
+      return res.status(403).json({ error: "Not a member of this post's group" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO user_post_read_state (user_id, post_id, last_read_at, created_at, updated_at)
+       VALUES ($1::text, $2::int, NOW(), NOW(), NOW())
+       ON CONFLICT (user_id, post_id)
+       DO UPDATE SET
+         last_read_at = GREATEST(user_post_read_state.last_read_at, EXCLUDED.last_read_at),
+         updated_at = NOW()
+       RETURNING last_read_at, post_id`,
+      [String(userId), postId]
+    );
+
+    res.json({
+      success: true,
+      post_id: result.rows[0]?.post_id ?? postId,
+      last_read_at: result.rows[0]?.last_read_at ?? null,
+    });
+  } catch (error) {
+    if (error.code === "42P01" || error.code === "42703") {
+      return res.status(503).json({
+        error: "Database not migrated",
+        hint: "Run migrations for table user_post_read_state",
+      });
+    }
+    if (error.code === "23503") {
+      return res.status(400).json({ error: "Invalid post or user reference" });
+    }
+    console.error("Error marking post read:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
 
 module.exports.getGroupMembers = async (req, res) => {
@@ -1817,13 +2102,16 @@ module.exports.handleEditGroup = async (req, res) => {
 
 // Lists posts for a group with points, comment counts, and whether there is new activity since the client last saw each post.
 module.exports.handleGetPosts = async (req, res) => {
-  // Client sends { [postId]: lastSeenAt }. Missing entry => user has never opened that thread => treat as new.
+  // Client sends { [postId]: lastSeenAt }; rows in user_post_read_state are merged in (later wins vs client per post).
   const lastViewed = req.body.lastViewedPosts;
-  const lastViewedJson = lastViewed && typeof lastViewed === "object" && !Array.isArray(lastViewed) ? JSON.stringify(lastViewed) : "{}";
   const currentUserId = req.user?.id ?? null;
 
-  // Unread post authored by someone else (no lastViewed entry): NEW.
-  // Newest comment from someone other than the current user is after the user's last seen time: NEW.
+  const lastViewedJson = await buildMergedLastViewedJson(pool, currentUserId, lastViewed, {
+    groupId: req.body.currentGroup,
+  });
+
+  // Unread post authored by someone else (no merged lastViewed entry): NEW.
+  // Newest comment from someone other than the current user is after merged last seen: NEW.
   const getPostsQuery = await pool.query(
     `SELECT c.post_id post_id, c.sender_id sender_id, c.title title, c.body_text body_text, c.post_author post_author, c.created_at created_at, COALESCE(c.point_total, 0) point_total, COALESCE(d.number_comments, 0) number_comments,
       CASE
