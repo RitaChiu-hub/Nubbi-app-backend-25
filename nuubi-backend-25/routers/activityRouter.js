@@ -103,18 +103,19 @@ router.post("/session/end", async (req, res) => {
 router.post("/heartbeat", async (req, res) => {
   try {
     const userId = req.user.id;
-    const { session_id, active_seconds = 60, groupId } = req.body;
+    const { session_id, page_name, groupId, currentGroup } = req.body;
 
     let sessionId = session_id;
+    const gid = groupId || currentGroup;
 
     // If no session_id provided, get or create active session
     if (!sessionId) {
-      const session = await sessionController.getOrCreateSession(userId, req, groupId);
+      const session = await sessionController.getOrCreateSession(userId, req, gid);
       sessionId = session.session_id;
     }
 
     // Update heartbeat with optional groupId
-    await sessionController.updateHeartbeat(sessionId, active_seconds, groupId);
+    await sessionController.updateHeartbeat(sessionId, active_seconds, gid);
 
     res.json({
       success: true,
@@ -138,13 +139,14 @@ router.post("/heartbeat", async (req, res) => {
 router.post("/page-view", async (req, res) => {
   try {
     const userId = req.user.id;
-    const { session_id, page_name } = req.body;
+    const { session_id, page_name, currentGroup, groupId } = req.body;
 
     let sessionId = session_id;
+    const gid = groupId || currentGroup;
 
     // If no session_id provided, get or create active session
     if (!sessionId) {
-      const session = await sessionController.getOrCreateSession(userId, req, groupId);
+      const session = await sessionController.getOrCreateSession(userId, req, gid);
       sessionId = session.session_id;
     }
 

@@ -60,6 +60,7 @@ const sequelize = new Sequelize({
   password: process.env.DATABASE_PASSWORD,
     dialectOptions: {
       ssl: process.env.DATABASE_HOST === "localhost" ? false : {
+        require: true,
         rejectUnauthorized: false, // Disable SSL certificate verification
       },
     },

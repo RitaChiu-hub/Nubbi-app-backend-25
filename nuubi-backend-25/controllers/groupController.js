@@ -3,6 +3,8 @@ const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const cloudinary = require("cloudinary").v2;
 const { checkAwardsForUser } = require("./awardService");
 const { recordActivity } = require("../services/statsUpdateService");
+const { triggerPostTagging } = require("../services/aiQueueService");
+const { getTemporaryDownloadUrl } = require("./fileController");
 const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
 
@@ -1073,9 +1075,13 @@ module.exports.handleCreatePost = async (req, res) => {
           sender_id: userID,
           //  group_id: req.params.group_id,
           group_id: groupID, // ✅ fixed
+          tagging_status: 'pending', // 🤖 AI tagging status
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
+
+        // 🤖 Trigger AI Tagging via SQS
+        // triggerPostTagging(newPost.id).catch(err => console.error("AI Tagging trigger error:", err));
 
         // 📈 Record post in Redis for analytics
         recordActivity({
@@ -1181,28 +1187,62 @@ module.exports.handleCreatePost = async (req, res) => {
         }
 
         if (user.username !== "Cuubi") {
+          // 🖼️ 如果有图片，生成一个临时的签名 URL 给 OpenAI 访问
+          let aiImageUrl = req.body.imageUrl;
+          if (aiImageUrl && aiImageUrl.includes("amazonaws.com")) {
+            try {
+              const s3Key = aiImageUrl.split(".com/")[1];
+              aiImageUrl = await getTemporaryDownloadUrl(s3Key);
+              console.log("Generated temporary S3 URL for OpenAI:", aiImageUrl);
+            } catch (s3Err) {
+              console.error("Failed to generate AI view URL:", s3Err);
+            }
+          }
+
+          const userContent = [
+            {
+              type: "text",
+              text: `Title: ${req.body.title}\n\nQuestion: ${req.body.body_text}`
+            }
+          ];
+
+          if (aiImageUrl) {
+            userContent.push({
+              type: "image_url",
+              image_url: {
+                url: aiImageUrl,
+                detail: "high"
+              },
+            });
+          }
+
+          console.log("Sending payload to OpenAI:", JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "You are Cuubi..." },
+              { role: "user", content: userContent }
+            ]
+          }, null, 2));
+
           const messages = [
             {
               role: "system",
               content:
                 "You are **Cuubi**, a friendly, concise peer‑help assistant. " +
-                "Answer like a helpful classmate: short, clear, actionable." +
+                "Answer like a helpful classmate: short, clear, actionable. " +
+                "If the user has attached an image, please analyze it carefully to provide a better answer. " +
                 `Please keep your reply under 800 characters.`,
             },
             {
               role: "user",
-              // note the back‑ticks preserve line‑breaks exactly as the model sees them
-              content: `Title: ${req.body.title}
-
-            Question:
-              ${req.body.body_text}`,
+              content: userContent,
             },
           ];
 
           let answer;
           try {
             const resp = await openai.chat.completions.create({
-              model: "o4-mini",
+              model: "gpt-4o-mini", // 使用支持 Vision 的模型
               messages,
               max_completion_tokens: 1500,
             });
@@ -1406,13 +1446,75 @@ module.exports.handleEditGroup = async (req, res) => {
   }
 };
 
-module.exports.handleGetPosts = async (req, res) => {
-  const getPostsQuery = await pool.query(
-    "SELECT c.post_id post_id, sender_id, title, body_text, post_author, created_at, COALESCE(point_total, 0) point_total, COALESCE(number_comments, 0) number_comments FROM (SELECT a.post_id post_id, sender_id, title, body_text, post_author, created_at, point_total FROM (SELECT posts.id post_id, sender_id, title, body_text, username post_author, posts.created_at created_at FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE group_id = $1) a LEFT JOIN (SELECT posts_id post_id, SUM(point_value) point_total FROM points WHERE group_id = $1 GROUP BY posts_id) b ON a.post_id = b.post_id) c LEFT JOIN (SELECT post_id, COUNT(id) number_comments FROM post_comments GROUP BY post_id) d ON c.post_id = d.post_id ORDER BY created_at DESC;",
-    [req.body.currentGroup]
-  );
+// Helper to sign S3 URLs for frontend display
+const signS3Urls = async (row) => {
+  if (!row) return row;
+  if (row.image_url && row.image_url.includes("amazonaws.com")) {
+    try {
+      const urlObj = new URL(row.image_url);
+      const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+      row.image_url = await getTemporaryDownloadUrl(key);
+    } catch (e) {
+      console.error("Error signing image_url:", e);
+    }
+  }
+  if (row.file_url && row.file_url.includes("amazonaws.com")) {
+    try {
+      const urlObj = new URL(row.file_url);
+      const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+      row.file_url = await getTemporaryDownloadUrl(key);
+    } catch (e) {
+      console.error("Error signing file_url:", e);
+    }
+  }
+  return row;
+};
 
-  res.send(getPostsQuery.rows);
+module.exports.handleGetPosts = async (req, res) => {
+  try {
+    const getPostsQuery = await pool.query(
+      `SELECT c.post_id,
+              sender_id,
+              title,
+              body_text,
+              post_author,
+              created_at,
+              image_url,
+              file_url,
+              file_name,
+              COALESCE(point_total, 0) AS point_total,
+              COALESCE(number_comments, 0) AS number_comments
+       FROM (
+         SELECT a.post_id, sender_id, title, body_text, post_author, created_at, image_url, file_url, file_name, point_total 
+         FROM (
+           SELECT posts.id AS post_id, sender_id, title, body_text, username AS post_author, posts.created_at, image_url, file_url, file_name 
+           FROM posts 
+           INNER JOIN users ON posts.sender_id = users.id 
+           WHERE group_id = $1
+         ) a 
+         LEFT JOIN (
+           SELECT posts_id, SUM(point_value) AS point_total 
+           FROM points 
+           WHERE group_id = $1 
+           GROUP BY posts_id
+         ) b ON a.post_id = b.posts_id
+       ) c 
+       LEFT JOIN (
+         SELECT post_id, COUNT(id) AS number_comments 
+         FROM post_comments 
+         GROUP BY post_id
+       ) d ON c.post_id = d.post_id 
+       ORDER BY created_at DESC;`,
+      [req.body.currentGroup]
+    );
+
+    const rows = await Promise.all(getPostsQuery.rows.map(row => signS3Urls(row)));
+    console.log(`[handleGetPosts] Returning ${rows.length} posts for group ${req.body.currentGroup}`);
+    res.send(rows);
+  } catch (err) {
+    console.error("Error in handleGetPosts:", err);
+    res.status(500).send({ error: "Internal server error" });
+  }
 };
 
 // module.exports.handleGetPosts = async (req, res) => {
@@ -1424,55 +1526,55 @@ module.exports.handleGetPosts = async (req, res) => {
 // };
 
 module.exports.handleGetPostInfo = async (req, res) => {
-  // const getPostInfoQuery = await pool.query(
-  //   "SELECT title post_title, body_text, username post_author, image_url, file_url, file_name, posts.created_at iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id=$1;",
-  //   [req.body.currentPost]
-  // );
-  const getPostInfoQuery = await pool.query(
-    `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
-    [req.body.currentPost]
-  );
+  try {
+    const getPostInfoQuery = await pool.query(
+      `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
+      [req.body.currentPost]
+    );
 
-  if (getPostInfoQuery.rows[0].file_url != null) {
-    const parts = getPostInfoQuery.rows[0].file_url.split("upload/");
-    const jpgPart2 = parts[2].split(".pdf");
-    const publicId = "image/upload/" + jpgPart2[0];
-
-    // Configure Cloudinary with your credentials
-    cloudinary.config({
-      cloud_name: "dvvdc9evd",
-      api_key: "971765162862783",
-      api_secret: "QeLPD1CnHJU05WGP8j0GtIryHEw",
-    });
-
-    // Function to get metadata from public id
-    function getPdfMetadata(publicId) {
-      return new Promise((resolve, reject) => {
-        cloudinary.api.resource(publicId, { pages: true }, (error, result) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(result.pages);
-          }
-        });
-      });
+    if (getPostInfoQuery.rows.length === 0) {
+      return res.status(404).json({ error: "Post not found" });
     }
 
-    getPdfMetadata(publicId)
-      .then((pages) => {
-        let filePages = pages;
-        res.send({ ...getPostInfoQuery.rows[0], filePages: filePages });
-      })
-      .catch((error) => {
-        //   console.error("Error:", error);
-        res.send({
-          ...getPostInfoQuery.rows[0],
-          filePages: null,
-          error: error,
-        });
-      });
-  } else {
-    res.send({ ...getPostInfoQuery.rows[0], filePages: null });
+    let postData = getPostInfoQuery.rows[0];
+
+    // ☁️ 如果是 Cloudinary 的 PDF 文件，尝试获取页数 (保留旧逻辑兼容性)
+    if (postData.file_url && postData.file_url.includes("cloudinary.com") && postData.file_url.includes(".pdf")) {
+      try {
+        const parts = postData.file_url.split("upload/");
+        if (parts.length >= 3) {
+          const jpgPart2 = parts[2].split(".pdf");
+          const publicId = "image/upload/" + jpgPart2[0];
+
+          cloudinary.config({
+            cloud_name: "dvvdc9evd",
+            api_key: "971765162862783",
+            api_secret: "QeLPD1CnHJU05WGP8j0GtIryHEw",
+          });
+
+          const result = await new Promise((resolve, reject) => {
+            cloudinary.api.resource(publicId, { pages: true }, (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            });
+          });
+          
+          return res.send({ ...postData, filePages: result.pages });
+        }
+      } catch (cloudinaryErr) {
+        console.error("Cloudinary metadata error:", cloudinaryErr);
+      }
+    }
+
+    // 📦 如果是 S3 文件，签名 URL
+    postData = await signS3Urls(postData);
+    
+    console.log(`[handleGetPostInfo] Returning post ${req.body.currentPost} with image_url: ${postData.image_url ? postData.image_url.substring(0, 50) + "..." : "null"}`);
+
+    res.send({ ...postData, filePages: null });
+  } catch (err) {
+    console.error("Error in handleGetPostInfo:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 

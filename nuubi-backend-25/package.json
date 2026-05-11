@@ -11,6 +11,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1041.0",
+    "@aws-sdk/client-sqs": "^3.1041.0",
+    "@aws-sdk/s3-request-presigner": "^3.1041.0",
     "axios": "^1.6.8",
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.2",
@@ -33,6 +36,7 @@
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",
     "stripe": "^17.7.0",
+    "tslib": "^2.8.1",
     "uuidv4": "^6.2.13",
     "ws": "^8.18.3",
     "yup": "^1.0.2",
