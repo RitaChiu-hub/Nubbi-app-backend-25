@@ -9,8 +9,7 @@ const { recordActivity, syncStatsToPostgres } = require("./services/statsUpdateS
 const helmet = require("helmet");
 const { Sequelize } = require("sequelize");
 
-const { Server } = require("socket.io");
-const pool = require("./db");
+const { sequelize, pool } = require("./config/database");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
@@ -42,6 +41,7 @@ app.use(
 );
 
 const server = require("http").createServer(app);
+const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
     origin: true,
@@ -50,22 +50,7 @@ const io = new Server(server, {
   transports: ["websocket"],
 });
 
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  logging: false,
-  database: process.env.DATABASE_NAME,
-  host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
-  username: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-    dialectOptions: {
-      ssl: process.env.DATABASE_HOST === "localhost" ? false : {
-        require: true,
-        rejectUnauthorized: false, // Disable SSL certificate verification
-      },
-    },
-});
-
+// Database is now initialized in config/database.js
 var DataTypes = require("sequelize").DataTypes;
 
 var _groups = function (sequelize, DataTypes) {

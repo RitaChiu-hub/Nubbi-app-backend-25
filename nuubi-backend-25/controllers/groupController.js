@@ -1186,113 +1186,11 @@ module.exports.handleCreatePost = async (req, res) => {
           }
         }
 
+        // 🚀 触发 AI 处理流程 (通过 SQS 异步触发 Lambda)
         if (user.username !== "Cuubi") {
-          // 🖼️ 如果有图片，生成一个临时的签名 URL 给 OpenAI 访问
-          let aiImageUrl = req.body.imageUrl;
-          if (aiImageUrl && aiImageUrl.includes("amazonaws.com")) {
-            try {
-              const s3Key = aiImageUrl.split(".com/")[1];
-              aiImageUrl = await getTemporaryDownloadUrl(s3Key);
-              console.log("Generated temporary S3 URL for OpenAI:", aiImageUrl);
-            } catch (s3Err) {
-              console.error("Failed to generate AI view URL:", s3Err);
-            }
-          }
-
-          const userContent = [
-            {
-              type: "text",
-              text: `Title: ${req.body.title}\n\nQuestion: ${req.body.body_text}`
-            }
-          ];
-
-          if (aiImageUrl) {
-            userContent.push({
-              type: "image_url",
-              image_url: {
-                url: aiImageUrl,
-                detail: "high"
-              },
-            });
-          }
-
-          console.log("Sending payload to OpenAI:", JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: "You are Cuubi..." },
-              { role: "user", content: userContent }
-            ]
-          }, null, 2));
-
-          const messages = [
-            {
-              role: "system",
-              content:
-                "You are **Cuubi**, a friendly, concise peer‑help assistant. " +
-                "Answer like a helpful classmate: short, clear, actionable. " +
-                "If the user has attached an image, please analyze it carefully to provide a better answer. " +
-                `Please keep your reply under 800 characters.`,
-            },
-            {
-              role: "user",
-              content: userContent,
-            },
-          ];
-
-          let answer;
-          try {
-            const resp = await openai.chat.completions.create({
-              model: "gpt-4o-mini", // 使用支持 Vision 的模型
-              messages,
-              max_completion_tokens: 1500,
-            });
-
-            const choice = resp.choices[0] ?? {};
-            if (!choice.message?.content?.trim()) {
-              console.warn(
-                "Cuubi empty reply → finish_reason:",
-                choice.finish_reason,
-                "│ prompt_tokens:",
-                resp.usage?.prompt_tokens,
-                "│ completion_tokens:",
-                resp.usage?.completion_tokens
-              );
-            }
-
-            // const resp = await llama.chat.completions.create({
-            //   // model: "mistralai/Mistral-7B-Instruct-v0.2",
-            //   model: "gpt-3.5-turbo",
-            //   messages,
-            //   temperature: 0.7,
-            //   max_tokens: 256,
-            //   stop: ["</SYS>"],
-            // });
-            answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
-
-            // 5)  Persist as a comment
-            await post_comments.create({
-              post_id: newPost.id,
-              sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Cuubi’s user‑id
-              comment_text: answer,
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            });
-          } catch (err) {
-            // 6)  Always log the full HTTP response for traceability
-            console.error(" Cuubi OpenAI error:", err);
-
-            await post_comments.create({
-              post_id: newPost.id,
-              sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-              comment_text: "Cuubi tried to answer but hit a snag.",
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            });
-          }
-        } else {
-          //skip reply
+          await triggerPostTagging(newPost.id);
         }
-        // //
+
         res.json({
           ...req.body,
           status: "Post successfully created",
