@@ -1,5 +1,13 @@
-const { pool } = require("./config/database");
+const { Pool } = require("pg");
+require("dotenv").config();
 
-// 为了保持向后兼容，导出 pool 实例
-// 这样旧代码 require("./db") 依然能工作
+const pool = new Pool({
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  password: process.env.DATABASE_PASSWORD,
+  user: process.env.DATABASE_USER,
+  port: process.env.DATABASE_PORT,
+  ssl: process.env.DATABASE_HOST === "localhost" ? false : { require: true, rejectUnauthorized: false },
+});
+
 module.exports = pool;
