@@ -1186,11 +1186,113 @@ module.exports.handleCreatePost = async (req, res) => {
           }
         }
 
-        // 🚀 触发 AI 处理流程 (通过 SQS 异步触发 Lambda)
         if (user.username !== "Cuubi") {
-          await triggerPostTagging(newPost.id);
-        }
+          // 🖼️ 如果有图片，生成一个临时的签名 URL 给 OpenAI 访问
+          let aiImageUrl = req.body.imageUrl;
+          if (aiImageUrl && aiImageUrl.includes("amazonaws.com")) {
+            try {
+              const s3Key = aiImageUrl.split(".com/")[1];
+              aiImageUrl = await getTemporaryDownloadUrl(s3Key);
+              console.log("Generated temporary S3 URL for OpenAI:", aiImageUrl);
+            } catch (s3Err) {
+              console.error("Failed to generate AI view URL:", s3Err);
+            }
+          }
 
+          const userContent = [
+            {
+              type: "text",
+              text: `Title: ${req.body.title}\n\nQuestion: ${req.body.body_text}`
+            }
+          ];
+
+          if (aiImageUrl) {
+            userContent.push({
+              type: "image_url",
+              image_url: {
+                url: aiImageUrl,
+                detail: "high"
+              },
+            });
+          }
+
+          console.log("Sending payload to OpenAI:", JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "You are Cuubi..." },
+              { role: "user", content: userContent }
+            ]
+          }, null, 2));
+
+          const messages = [
+            {
+              role: "system",
+              content:
+                "You are **Cuubi**, a friendly, concise peer‑help assistant. " +
+                "Answer like a helpful classmate: short, clear, actionable. " +
+                "If the user has attached an image, please analyze it carefully to provide a better answer. " +
+                `Please keep your reply under 800 characters.`,
+            },
+            {
+              role: "user",
+              content: userContent,
+            },
+          ];
+
+          let answer;
+          try {
+            const resp = await openai.chat.completions.create({
+              model: "gpt-4o-mini", // 使用支持 Vision 的模型
+              messages,
+              max_completion_tokens: 1500,
+            });
+
+            const choice = resp.choices[0] ?? {};
+            if (!choice.message?.content?.trim()) {
+              console.warn(
+                "Cuubi empty reply → finish_reason:",
+                choice.finish_reason,
+                "│ prompt_tokens:",
+                resp.usage?.prompt_tokens,
+                "│ completion_tokens:",
+                resp.usage?.completion_tokens
+              );
+            }
+
+            // const resp = await llama.chat.completions.create({
+            //   // model: "mistralai/Mistral-7B-Instruct-v0.2",
+            //   model: "gpt-3.5-turbo",
+            //   messages,
+            //   temperature: 0.7,
+            //   max_tokens: 256,
+            //   stop: ["</SYS>"],
+            // });
+            answer = resp.choices[0]?.message?.content?.trim() || "(no reply)";
+
+            // 5)  Persist as a comment
+            await post_comments.create({
+              post_id: newPost.id,
+              sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Cuubi’s user‑id
+              comment_text: answer,
+              created_at: Date.now(),
+              updated_at: Date.now(),
+            });
+          } catch (err) {
+            // 6)  Always log the full HTTP response for traceability
+            console.error(" Cuubi OpenAI error:", err);
+
+            await post_comments.create({
+              post_id: newPost.id,
+              sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
+              comment_text: "Cuubi tried to answer but hit a snag.",
+              created_at: Date.now(),
+              updated_at: Date.now(),
+            });
+          }
+        } else {
+          //skip reply
+        }
+        // //
         res.json({
           ...req.body,
           status: "Post successfully created",
@@ -1502,8 +1604,13 @@ module.exports.handleCreateComment = async (req, res) => {
       const postId = req.body.currentPost;
       try {
         const newPostQuery = await pool.query(
-          "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
-          [req.body.mycomment, userID, postId]
+            "INSERT INTO post_comments (comment_text, sender_id, post_id, image_url) values($1,$2,$3,$4)",
+            [
+              req.body.mycomment,
+              userID,
+              postId,
+              req.body.imageUrl
+            ]
         );
 
         // look up the post's author & group - sender_id is the id of the post author
@@ -1548,12 +1655,51 @@ module.exports.handleCreateComment = async (req, res) => {
 
 module.exports.handleGetPostComments = async (req, res) => {
   const getPostCommentsQuery = await pool.query(
-    // "SELECT a.sender_username, a.post_comment_id, a.sender_id, a.comment_text, a.comment_iso_time_sent, coalesce(b.count,0) comment_points FROM (SELECT username sender_username, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC) a LEFT JOIN (SELECT COUNT(point_value), comment_id FROM points WHERE group_id = $2 GROUP BY comment_id) b ON a.post_comment_id = b.comment_id;",
-    `SELECT a.sender_username, a.sender_avatar_url, a.post_comment_id, a.sender_id, a.comment_text, a.comment_iso_time_sent, coalesce(b.count,0) comment_points FROM (SELECT username sender_username, users.avatar_url  AS sender_avatar_url, post_comments.id post_comment_id, sender_id, comment_text, post_comments.created_at comment_iso_time_sent FROM post_comments INNER JOIN users ON post_comments.sender_id = users.id WHERE post_id = $1 ORDER BY post_comments.created_at DESC) a LEFT JOIN (SELECT COUNT(point_value), comment_id FROM points WHERE group_id = $2 GROUP BY comment_id) b ON a.post_comment_id = b.comment_id;`,
-    [req.body.currentPost, req.body.currentGroup]
+      `
+        SELECT
+          a.sender_username,
+          a.sender_avatar_url,
+          a.post_comment_id,
+          a.sender_id,
+          a.comment_text,
+          a.image_url,
+          a.comment_iso_time_sent,
+          COALESCE(b.count,0) comment_points
+        FROM
+          (
+            SELECT
+              username sender_username,
+              users.avatar_url AS sender_avatar_url,
+              post_comments.id AS post_comment_id,
+              sender_id,
+              comment_text,
+              post_comments.image_url,
+              post_comments.created_at AS comment_iso_time_sent
+            FROM post_comments
+                   INNER JOIN users
+                              ON post_comments.sender_id = users.id
+            WHERE post_id = $1
+            ORDER BY post_comments.created_at DESC
+          ) a
+            LEFT JOIN
+          (
+            SELECT
+              COUNT(point_value),
+              comment_id
+            FROM points
+            WHERE group_id = $2
+            GROUP BY comment_id
+          ) b
+          ON a.post_comment_id = b.comment_id;
+      `,
+      [req.body.currentPost, req.body.currentGroup]
   );
 
-  res.send(getPostCommentsQuery.rows);
+  const signedComments = await Promise.all(
+      getPostCommentsQuery.rows.map((comment) => signS3Urls(comment))
+  );
+
+  res.send(signedComments);
 };
 
 module.exports.handleAddPostPoint = async (req, res) => {
@@ -2027,6 +2173,7 @@ module.exports.getPostLiked = async (req, res) => {
     .then(async (decoded) => {
       const userID = decoded.id;
       try {
+        console.log(req.body);
         const postId = req.body.currentPost;
         const userId = userID;
 

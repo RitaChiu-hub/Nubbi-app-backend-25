@@ -4,15 +4,17 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 1. Users table (ID is VARCHAR to support UUIDs/Auth0 IDs)
 CREATE TABLE users(
-    id VARCHAR PRIMARY KEY,
-    email citext NOT NULL UNIQUE,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    passhash VARCHAR,
-    avatar_url VARCHAR,
-    last_signin TIMESTAMP,
-    uuid UUID UNIQUE DEFAULT gen_random_uuid(),
-    push_notification_token VARCHAR(255),
-    created_via_canvas BOOLEAN DEFAULT FALSE
+                      id VARCHAR PRIMARY KEY,
+                      email citext NOT NULL UNIQUE,
+                      username VARCHAR(255) NOT NULL UNIQUE,
+                      passhash VARCHAR,
+                      avatar_url VARCHAR,
+                      last_signin TIMESTAMP,
+                      uuid UUID UNIQUE DEFAULT gen_random_uuid(),
+                      push_notification_token VARCHAR(255),
+                      created_via_canvas BOOLEAN DEFAULT FALSE,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- 2. Groups table

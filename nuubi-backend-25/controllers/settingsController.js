@@ -29,9 +29,13 @@ const sequelize = new Sequelize({
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
   dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
+    ssl:
+        process.env.DATABASE_HOST === "localhost"
+            ? false
+            : {
+              require: true,
+              rejectUnauthorized: false,
+            },
   },
   config: config,
 });

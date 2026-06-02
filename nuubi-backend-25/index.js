@@ -9,7 +9,8 @@ const { recordActivity, syncStatsToPostgres } = require("./services/statsUpdateS
 const helmet = require("helmet");
 const { Sequelize } = require("sequelize");
 
-const { sequelize, pool } = require("./config/database");
+const { Server } = require("socket.io");
+const pool = require("./db");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
@@ -41,16 +42,29 @@ app.use(
 );
 
 const server = require("http").createServer(app);
-const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
     origin: true,
     credentials: true,
   },
-  transports: ["websocket"],
 });
 
-// Database is now initialized in config/database.js
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  logging: false,
+  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+    dialectOptions: {
+      ssl: process.env.DATABASE_HOST === "localhost" ? false : {
+        require: true,
+        rejectUnauthorized: false, // Disable SSL certificate verification
+      },
+    },
+});
+
 var DataTypes = require("sequelize").DataTypes;
 
 var _groups = function (sequelize, DataTypes) {
@@ -587,14 +601,25 @@ io.on("connection", (socket) => {
           const {
             rows: [newComment],
           } = await pool.query(
-            `INSERT INTO post_comments(comment_text, sender_id, post_id)
-               VALUES($1, $2, $3)
-               RETURNING
-                 id           AS post_comment_id,
-                 comment_text,
-                 sender_id,
-                 created_at   AS comment_iso_time_sent`,
-            [req.mycomment, userID, req.currentPost]
+              `INSERT INTO post_comments(
+                comment_text,
+                image_url,
+                sender_id,
+                post_id
+              )
+              VALUES($1, $2, $3, $4)
+              RETURNING
+                id AS post_comment_id,
+                comment_text,
+                image_url,
+                sender_id,
+                created_at AS comment_iso_time_sent`,
+              [
+                req.mycomment,
+                req.imageUrl,
+                userID,
+                req.currentPost,
+              ]
           );
 
           // 2) Fetch the author’s username
