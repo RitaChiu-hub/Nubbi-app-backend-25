@@ -33,6 +33,10 @@ const getJwt = (req) => {
 const jwtVerifyMiddleware = async (req, res, next) => {
   try {
     const token = getJwt(req);
+    if (!token) {
+      console.warn("[jwtVerifyMiddleware] No token found in request");
+      return res.status(401).json({ error: "No token provided" });
+    }
     const decoded = await jwtVerify(token, process.env.JWT_SECRET);
 
     // add decoded user to request
@@ -41,6 +45,7 @@ const jwtVerifyMiddleware = async (req, res, next) => {
 
     next();
   } catch (err) {
+    console.error("[jwtVerifyMiddleware] Error:", err.message);
     if (err.name === "TokenExpiredError") { 
       return res.status(401).json({ status: "expired", message: "Session expired, please log in again" }); } 
       

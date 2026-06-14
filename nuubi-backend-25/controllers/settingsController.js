@@ -10,33 +10,7 @@ const path = require("path");
 const currentDate = new Date();
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 
-const Sequelize = require("sequelize");
-
-var config = {
-  define: {
-    underscored: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at",
-  },
-};
-
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  logging: false,
-  database: process.env.DATABASE_NAME,
-  host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
-  username: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false, // Disable SSL certificate verification
-    },
-  },
-  config: config,
-});
-
-const DataTypes = require("sequelize").DataTypes;
+const { sequelize, DataTypes } = require("../config/database");
 
 const {
   participants,

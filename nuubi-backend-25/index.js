@@ -10,7 +10,7 @@ const helmet = require("helmet");
 const { Sequelize } = require("sequelize");
 
 const { Server } = require("socket.io");
-const pool = require("./db");
+const { sequelize, pool } = require("./config/database");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
@@ -26,6 +26,12 @@ app.use(
 );
 
 app.use(express.json());
+
+// 📝 Simple Request Logger
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // Load the private key from .env
 const privateKey = process.env.NUUBI_PRIVATE_KEY.replace(/\\n/g, "\n");
@@ -50,21 +56,21 @@ const io = new Server(server, {
   transports: ["websocket"],
 });
 
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  logging: false,
-  database: process.env.DATABASE_NAME,
-  host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
-  username: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-    dialectOptions: {
-      ssl: process.env.DATABASE_HOST === "localhost" ? false : {
-        require: true,
-        rejectUnauthorized: false, // Disable SSL certificate verification
-      },
-    },
-});
+// const sequelize = new Sequelize({
+//   dialect: "postgres",
+//   logging: false,
+//   database: process.env.DATABASE_NAME,
+//   host: process.env.DATABASE_HOST,
+//   port: process.env.DATABASE_PORT,
+//   username: process.env.DATABASE_USER,
+//   password: process.env.DATABASE_PASSWORD,
+//     dialectOptions: {
+//       ssl: process.env.DATABASE_HOST === "localhost" ? false : {
+//         require: true,
+//         rejectUnauthorized: false, // Disable SSL certificate verification
+//       },
+//     },
+// });
 
 var DataTypes = require("sequelize").DataTypes;
 
@@ -380,7 +386,7 @@ app.use(
 // keep your existing mount
 app.use("/lti", ltiRoutes);
 
-const myRouter = require("./routers.js");
+// const myRouter = require("./routers.js");
 const authRouter = require("./routers/authRouter");
 const settingsRouter = require("./routers/settingsRouter");
 const groupRouter = require("./routers/groupRouter");
@@ -411,7 +417,7 @@ app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/activity", activityRouter);
 app.use("/analytics/admin", adminAnalyticsRouter);
-app.use("/backend", myRouter);
+// app.use("/backend", myRouter);
 app.use("/logs", logsRouter);
 
 io.on("connection", (socket) => {

@@ -1,25 +1,6 @@
 const pool = require("../db");
-const Sequelize = require("sequelize");
-const { Op } = require("sequelize");
-require("dotenv").config();
+const { sequelize, DataTypes } = require("../config/database");
 
-// Initialize Sequelize for deep analytics that use models
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  logging: false,
-  database: process.env.DATABASE_NAME,
-  host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
-  username: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  dialectOptions: {
-    ssl: process.env.DATABASE_HOST === "localhost" ? false : {
-      rejectUnauthorized: false,
-    },
-  },
-});
-
-const DataTypes = require("sequelize").DataTypes;
 const {
   participants,
   users,

@@ -9,13 +9,17 @@ const cloudinarySecret = process.env.CLOUDINARY_SECRET;
  */
 module.exports.getS3PresignedUrl = async (req, res) => {
   try {
+    console.log("[getS3PresignedUrl] Request body:", req.body);
     const { fileName, fileType } = req.body;
     
     if (!fileName || !fileType) {
+      console.warn("[getS3PresignedUrl] Missing fileName or fileType");
       return res.status(400).json({ error: "fileName and fileType are required" });
     }
 
     const key = `uploads/${Date.now()}-${fileName}`;
+    console.log("[getS3PresignedUrl] Generating URL for key:", key);
+    
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME,
       Key: key,
@@ -24,6 +28,7 @@ module.exports.getS3PresignedUrl = async (req, res) => {
 
     // URL valid for 5 minutes for upload
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+    console.log("[getS3PresignedUrl] Successfully generated URL");
 
     return res.json({
       uploadUrl: presignedUrl,

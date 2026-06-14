@@ -1,35 +1,41 @@
-const { SendMessageCommand } = require("@aws-sdk/client-sqs");
-const sqsClient = require("../utils/sqsClient");
+const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
 require("dotenv").config();
 
+// Initialize SQS client
+const sqsClient = new SQSClient({
+  region: process.env.AWS_REGION || "us-east-2",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
 /**
- * Trigger AI tagging for a post by sending its ID to SQS
- * @param {number} postId - The ID of the post to tag
+ * Send post ID to SQS queue to trigger asynchronous AI processing
+ * @param {number|string} postId 
  */
 async function triggerPostTagging(postId) {
-  try {
-    if (!process.env.AWS_SQS_QUEUE_URL) {
-      console.warn("⚠️ AWS_SQS_QUEUE_URL not configured. AI tagging skipped.");
-      return;
-    }
+  if (!process.env.AWS_SQS_QUEUE_URL) {
+    console.warn("⚠️ AWS_SQS_QUEUE_URL not configured, skipping AI trigger.");
+    return;
+  }
 
+  try {
     const command = new SendMessageCommand({
       QueueUrl: process.env.AWS_SQS_QUEUE_URL,
       MessageBody: JSON.stringify({
         postId: postId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }),
     });
 
     const response = await sqsClient.send(command);
-    console.log(`✅ AI Tagging triggered for post ${postId}. MessageId: ${response.MessageId}`);
+    console.log(`✅ AI task sent to SQS (Post: ${postId}), MessageId: ${response.MessageId}`);
     return response;
   } catch (err) {
-    console.error(`❌ Failed to trigger AI tagging for post ${postId}:`, err);
-    // Don't throw error to avoid breaking the main post creation flow
+    console.error(`❌ Failed to send SQS message (Post: ${postId}):`, err);
+    throw err;
   }
 }
 
-module.exports = {
-  triggerPostTagging
-};
+module.exports = { triggerPostTagging };
