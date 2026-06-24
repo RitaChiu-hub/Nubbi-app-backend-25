@@ -1412,7 +1412,7 @@ module.exports.handleGetPostInfo = async (req, res) => {
 
     let postData = getPostInfoQuery.rows[0];
 
-    // ☁️ 如果是 Cloudinary 的 PDF 文件，尝试获取页数 (保留旧逻辑兼容性)
+    // ☁️ If it's a Cloudinary PDF file, try to get the page count (keep legacy logic for compatibility)
     if (postData.file_url && postData.file_url.includes("cloudinary.com") && postData.file_url.includes(".pdf")) {
       try {
         const parts = postData.file_url.split("upload/");
@@ -1440,7 +1440,7 @@ module.exports.handleGetPostInfo = async (req, res) => {
       }
     }
 
-    // 📦 如果是 S3 文件，签名 URL
+    // 📦 If it's an S3 file, sign the URL
     postData = await signS3Urls(postData);
     
     console.log(`[handleGetPostInfo] Returning post ${req.body.currentPost} with image_url: ${postData.image_url ? postData.image_url.substring(0, 50) + "..." : "null"}`);

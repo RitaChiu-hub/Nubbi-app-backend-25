@@ -10,7 +10,7 @@ module.exports = function (sequelize, DataTypes) {
         primaryKey: true,
       },
       sender_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: true,
         references: {
           model: "users",

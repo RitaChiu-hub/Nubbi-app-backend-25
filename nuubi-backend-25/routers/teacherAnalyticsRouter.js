@@ -162,7 +162,7 @@ router.post(
  *   }
  *
  * Notes:
- * - We can start with a simple mapping/table when you们 topic 方案落地后再接入。
+ * - We can start with a simple mapping/table when the topic solution is finalized.
  */
 router.post(
   "/groups/:groupId/topics/distribution",

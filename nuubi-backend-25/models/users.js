@@ -4,7 +4,7 @@ module.exports = function (sequelize, DataTypes) {
     "users",
     {
       id: {
-        type: DataTypes.UUIDV4,
+        type: DataTypes.UUID,
         allowNull: false,
         primaryKey: true,
         unique: "users_pkey",

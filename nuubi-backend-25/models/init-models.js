@@ -16,6 +16,7 @@ var _awards = require("./awards");
 var _user_awards = require("./user_awards");
 var _user_sessions = require("./user_sessions");
 var _user_session_totals = require("./user_session_totals");
+var _user_group_daily_stats = require("./user_group_daily_stats");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -35,6 +36,7 @@ function initModels(sequelize) {
   var user_awards = _user_awards(sequelize, DataTypes);
   var user_sessions = _user_sessions(sequelize, DataTypes);
   var user_session_totals = _user_session_totals(sequelize, DataTypes);
+  var user_group_daily_stats = _user_group_daily_stats(sequelize, DataTypes);
 
   messages.belongsTo(groups, { foreignKey: "group_id" });
   groups.hasMany(messages, { foreignKey: "group_id" });
@@ -117,6 +119,12 @@ function initModels(sequelize) {
   user_session_totals.belongsTo(users, { foreignKey: "user_id" });
   users.hasOne(user_session_totals, { foreignKey: "user_id" });
 
+  // Daily stats relationships
+  user_group_daily_stats.belongsTo(users, { foreignKey: "user_id" });
+  users.hasMany(user_group_daily_stats, { foreignKey: "user_id" });
+  user_group_daily_stats.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(user_group_daily_stats, { foreignKey: "group_id" });
+
   return {
     groups,
     messages,
@@ -134,6 +142,7 @@ function initModels(sequelize) {
     user_awards,
     user_sessions,
     user_session_totals,
+    user_group_daily_stats,
   };
 }
 module.exports = initModels;

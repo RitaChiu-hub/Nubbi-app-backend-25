@@ -10,7 +10,7 @@ module.exports = function (sequelize, DataTypes) {
         primaryKey: true,
       },
       sender_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: true,
         references: {
           model: "users",
@@ -30,8 +30,8 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: false,
       },
       body_text: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
       image_url: {
         type: DataTypes.STRING,
@@ -49,6 +49,11 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
+      },
+      tagging_status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "pending",
       },
       created_at: {
         type: DataTypes.DATE,
