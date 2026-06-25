@@ -394,6 +394,7 @@ const groupchatRouter = require("./routers/groupchatRouter");
 const fileRouter = require("./routers/fileRouter");
 const activityRouter = require("./routers/activityRouter");
 const adminAnalyticsRouter = require("./routers/teacherAnalyticsRouter");
+const knowledgeRouter = require("./routers/knowledgeRouter");
 const logsRouter = require("./routers/logsRouter");
 
 ///// auth middleware
@@ -417,6 +418,7 @@ app.use("/groupchat", groupchatRouter);
 app.use("/file", fileRouter);
 app.use("/activity", activityRouter);
 app.use("/analytics/admin", adminAnalyticsRouter);
+app.use("/groups", knowledgeRouter); // Mount knowledge router under /groups
 // app.use("/backend", myRouter);
 app.use("/logs", logsRouter);
 
