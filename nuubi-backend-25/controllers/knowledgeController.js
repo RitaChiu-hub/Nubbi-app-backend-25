@@ -1,4 +1,5 @@
 const knowledgeService = require("../services/knowledgeService");
+const knowledgeQueueService = require("../services/knowledgeQueueService");
 
 /**
  * Knowledge Controller - Handles HTTP requests for Group Knowledge Base
@@ -43,7 +44,15 @@ class KnowledgeController {
         content
       });
 
-      // TODO: Trigger SQS for processing (PDF parsing + Embedding)
+      // Trigger SQS for processing (PDF parsing + Embedding)
+      if (s3Key) {
+        await knowledgeQueueService.sendToProcessingQueue({
+          knowledgeId: record.id,
+          groupId: groupId,
+          s3Key: s3Key,
+          fileName: fileName
+        });
+      }
       
       return res.status(201).json({
         message: "Knowledge base item added successfully",
