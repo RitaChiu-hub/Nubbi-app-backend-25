@@ -411,7 +411,7 @@ app.use("/file", fileRouter);
 app.use("/activity", activityRouter);
 app.use("/analytics/admin", adminAnalyticsRouter);
 app.use("/backend", myRouter);
-app.use("/logs", logsRouter);
+//app.use("/logs", logsRouter);
 
 io.on("connection", (socket) => {
   console.log("a user connected");
