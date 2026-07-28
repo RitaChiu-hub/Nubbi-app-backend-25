@@ -66,7 +66,7 @@ router.post("/mygroups", jwtVerifyMiddleware, getMyGroups);
 
 // router.post("/mygroups",getMyGroups);
 
-router.post("/:group_id/createpost", validateCreatePost, handleCreatePost);
+router.post("/:group_id/createpost",validateCreatePost, handleCreatePost);
 router.post("/:group_id/posts", jwtVerifyMiddleware, handleGetPosts);
 
 router.post("/posts/createcomment", handleCreateComment);
