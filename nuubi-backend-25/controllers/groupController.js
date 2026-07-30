@@ -7,6 +7,7 @@ const { triggerPostTagging } = require("../services/aiQueueService");
 const { getTemporaryDownloadUrl } = require("./fileController");
 const { openai } = require("../utils/llamaClient");
 const { isExpoPushToken, sendExpoPush } = require("../utils/expoPush");
+const agentService = require("../services/agentService");
 
 const { sequelize, Sequelize, DataTypes } = require("../config/database");
 const { Op } = require("sequelize");
@@ -1165,6 +1166,37 @@ module.exports.handleCreatePost = async (req, res) => {
           await triggerPostTagging(newPost.id).catch(err => 
             console.error("Failed to trigger AI tagging:", err)
           );
+
+          // 🤖 Cuubi RAG Reply for Posts
+          const combinedText = `${req.body.title} ${req.body.body_text}`;
+          // If it's a question or mentions Cuubi, generate a RAG reply
+          if (combinedText.includes("?") || agentService.isAgentMentioned(combinedText)) {
+            console.log(`[Post] Cuubi RAG triggered for post ${newPost.id}`);
+            
+            // For a brand new post, the "history" is the post content itself
+            const history = [
+              { role: "user", content: `POST TITLE: ${req.body.title}\nPOST CONTENT: ${req.body.body_text}` }
+            ];
+
+            agentService.generateResponse(combinedText, groupID, { history })
+              .then(async (aiResponse) => {
+                let replyText = aiResponse.text;
+                if (aiResponse.sources && aiResponse.sources.length > 0) {
+                  const uniqueSources = [...new Set(aiResponse.sources)];
+                  replyText += `\n\n(Sources: ${uniqueSources.join(", ")})`;
+                }
+
+                await post_comments.create({
+                  post_id: newPost.id,
+                  sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Cuubi
+                  comment_text: replyText,
+                  created_at: Date.now(),
+                  updated_at: Date.now(),
+                });
+                console.log(`[Post] Cuubi RAG replied to post ${newPost.id}`);
+              })
+              .catch(err => console.error("[Post] Cuubi RAG error:", err));
+          }
         }
 
         res.json({
@@ -1477,12 +1509,12 @@ module.exports.handleCreateComment = async (req, res) => {
       const userID = decoded.id;
       const postId = req.body.currentPost;
       try {
-        const newPostQuery = await pool.query(
+        const newCommentResult = await pool.query(
           "INSERT INTO post_comments(comment_text, sender_id, post_id) values($1,$2,$3) RETURNING id",
           [req.body.mycomment, userID, postId]
         );
 
-        // look up the post's author & group - sender_id is the id of the post author
+        // look up the post's author & group
         const {
           rows: [postRow],
         } = await pool.query(
@@ -1492,33 +1524,79 @@ module.exports.handleCreateComment = async (req, res) => {
           [postId]
         );
 
-        // 1. get the id of the post author
-
-        // 2. check and make sure the sender _Id and post_author id are not the same
-
-        // 3. if they're not the same, send a notification to the post author id that they
-        // got a comment to their post in the group with group id
-
-        // kick off award checks in parallel (don't await)
-        // 1) the commenter may have just unlocked Communication / Reliability
+        // kick off award checks in parallel
         checkAwardsForUser(userID, postRow.group_id).catch(console.error);
+        checkAwardsForUser(postRow.sender_id, postRow.group_id).catch(console.error);
 
-        // 2) the post’s author may have just unlocked Leadership
-        checkAwardsForUser(postRow.sender_id, postRow.group_id).catch(
-          console.error
-        );
+        // 🤖 Cuubi RAG Reply for Comments
+        const commentText = req.body.mycomment;
+        if (agentService.isAgentMentioned(commentText)) {
+          console.log(`[Comment] Cuubi RAG triggered for comment in post ${postId}`);
+          
+          const fetchThreadHistory = async () => {
+            const threadHistory = [];
+            const { rows: [post] } = await pool.query(
+              `SELECT title, body_text FROM posts WHERE id = $1`,
+              [postId]
+            );
+            if (post) {
+              threadHistory.push({ 
+                role: "user", 
+                content: `ORIGINAL POST TITLE: ${post.title}\nORIGINAL POST CONTENT: ${post.body_text}` 
+              });
+            }
 
-        res.json({
+            const { rows: comments } = await pool.query(
+              `SELECT sender_id, comment_text 
+               FROM post_comments 
+               WHERE post_id = $1 
+               AND id != $2
+               ORDER BY created_at ASC`,
+              [postId, newCommentResult.rows[0].id]
+            );
+
+            comments.forEach(c => {
+              threadHistory.push({
+                role: c.sender_id === "205851f3-f034-4316-b278-9c962443a5d5" ? "assistant" : "user",
+                content: c.comment_text
+              });
+            });
+            return threadHistory;
+          };
+
+          fetchThreadHistory()
+            .then(history => agentService.generateResponse(commentText, postRow.group_id, { history }))
+            .then(async (aiResponse) => {
+              let replyText = aiResponse.text;
+              if (aiResponse.sources && aiResponse.sources.length > 0) {
+                const uniqueSources = [...new Set(aiResponse.sources)];
+                replyText += `\n\n(Sources: ${uniqueSources.join(", ")})`;
+              }
+
+              await post_comments.create({
+                post_id: postId,
+                sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Cuubi
+                comment_text: replyText,
+                created_at: Date.now(),
+                updated_at: Date.now(),
+              });
+              console.log(`[Comment] Cuubi RAG replied in post ${postId}`);
+            })
+            .catch(err => console.error("[Comment] Cuubi RAG error:", err));
+        }
+
+        return res.json({
           ...req.body,
           status: "Comment successfully created",
         });
       } catch (error) {
         console.error("Error creating comment: ", error);
-        res.status(500).json({ error: "Internal server error" });
+        return res.status(500).json({ error: "Internal server error" });
       }
     })
-    .catch(async () => {
-      res.json({ token: null });
+    .catch(async (err) => {
+      console.error("JWT or other error in handleCreateComment:", err);
+      return res.json({ token: null });
     });
 };
 

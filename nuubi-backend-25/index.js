@@ -395,6 +395,7 @@ const fileRouter = require("./routers/fileRouter");
 const activityRouter = require("./routers/activityRouter");
 const adminAnalyticsRouter = require("./routers/teacherAnalyticsRouter");
 const knowledgeRouter = require("./routers/knowledgeRouter");
+const agentRouter = require("./routers/agentRouter");
 const logsRouter = require("./routers/logsRouter");
 
 ///// auth middleware
@@ -419,8 +420,13 @@ app.use("/file", fileRouter);
 app.use("/activity", activityRouter);
 app.use("/analytics/admin", adminAnalyticsRouter);
 app.use("/groups", knowledgeRouter); // Mount knowledge router under /groups
+app.use("/groups", agentRouter); // Mount agent router under /groups
 // app.use("/backend", myRouter);
 app.use("/logs", logsRouter);
+
+const agentService = require("./services/agentService");
+
+const CUUBI_USER_ID = "205851f3-f034-4316-b278-9c962443a5d5";
 
 io.on("connection", (socket) => {
   console.log("a user connected");
@@ -444,7 +450,12 @@ io.on("connection", (socket) => {
   const webToken = getJwt(socket.request);
 
   socket.on("join", (room) => {
+    console.log(`[Socket] User joining room: ${room}`);
     socket.join(room);
+  });
+
+  socket.onAny((event, ...args) => {
+    console.log(`[Socket] Received event: ${event}`, args);
   });
 
   socket.on("insert msg return updated list", async (req) => {
@@ -605,6 +616,7 @@ io.on("connection", (socket) => {
     jwtVerify(token, process.env.JWT_SECRET)
       .then(async (decoded) => {
         const userID = decoded.id;
+        console.log(`[Socket-Comment] User ${userID} attempting to comment on post ${req.currentPost}`);
         try {
           // 1) Insert and return the new comment row
           const {
@@ -620,6 +632,8 @@ io.on("connection", (socket) => {
             [req.mycomment, userID, req.currentPost]
           );
 
+          console.log(`[Socket-Comment] Inserted comment ${newComment.post_comment_id}`);
+
           // 2) Fetch the author’s username
           const {
             rows: [userRow],
@@ -630,12 +644,13 @@ io.on("connection", (socket) => {
             [userID]
           );
 
-          // 3) Emit only that new comment object
-          socket.emit("insert comment return updated list", {
+          // 3) Emit to the post room (so everyone sees the new comment)
+          const commentPayload = {
             ...newComment,
             sender_username: userRow.sender_username,
             sender_avatar_url: userRow.sender_avatar_url,
-          });
+          };
+          io.to(`post-${req.currentPost}`).emit("insert comment return updated list", commentPayload);
 
           // A) Get the post’s author and group
           const postRes = await pool.query(
@@ -644,6 +659,74 @@ io.on("connection", (socket) => {
           );
           const postAuthorId = postRes.rows[0].sender_id;
           const postGroupId = postRes.rows[0].group_id;
+
+          // 🤖 Cuubi RAG Reply for Socket Comments
+          if (agentService.isAgentMentioned(req.mycomment)) {
+            console.log(`[Socket-Comment] Cuubi RAG triggered for post ${req.currentPost}`);
+            
+            const fetchThreadHistory = async () => {
+              const threadHistory = [];
+              const { rows: [post] } = await pool.query(
+                `SELECT title, body_text FROM posts WHERE id = $1`,
+                [req.currentPost]
+              );
+              if (post) {
+                threadHistory.push({ 
+                  role: "user", 
+                  content: `ORIGINAL POST TITLE: ${post.title}\nORIGINAL POST CONTENT: ${post.body_text}` 
+                });
+              }
+
+              const { rows: comments } = await pool.query(
+                `SELECT sender_id, comment_text 
+                 FROM post_comments 
+                 WHERE post_id = $1 
+                 AND id != $2
+                 ORDER BY created_at ASC`,
+                [req.currentPost, newComment.post_comment_id]
+              );
+
+              comments.forEach(c => {
+                threadHistory.push({
+                  role: c.sender_id === CUUBI_USER_ID ? "assistant" : "user",
+                  content: c.comment_text
+                });
+              });
+              return threadHistory;
+            };
+
+            fetchThreadHistory()
+              .then(history => agentService.generateResponse(req.mycomment, postGroupId, { history }))
+              .then(async (aiResponse) => {
+                let replyText = aiResponse.text;
+                if (aiResponse.sources && aiResponse.sources.length > 0) {
+                  const uniqueSources = [...new Set(aiResponse.sources)];
+                  replyText += `\n\n(Sources: ${uniqueSources.join(", ")})`;
+                }
+
+                const { rows: [aiComment] } = await pool.query(
+                  `INSERT INTO post_comments(post_id, sender_id, comment_text)
+                   VALUES($1, $2, $3)
+                   RETURNING 
+                     id           AS post_comment_id,
+                     comment_text,
+                     sender_id,
+                     created_at   AS comment_iso_time_sent`,
+                  [req.currentPost, CUUBI_USER_ID, replyText]
+                );
+
+                const aiPayload = {
+                  ...aiComment,
+                  sender_username: "Cuubi",
+                  sender_avatar_url: "https://res.cloudinary.com/dvvdc9evd/image/upload/v1754507271/image/upload/f6bgz240ocnbvd3qsndm.png",
+                  comment_points: 0
+                };
+
+                io.to(`post-${req.currentPost}`).emit("insert comment return updated list", aiPayload);
+                console.log(`[Socket-Comment] Cuubi RAG replied in post ${req.currentPost}`);
+              })
+              .catch(err => console.error("[Socket-Comment] Cuubi RAG error:", err));
+          }
 
           const groupRes = await pool.query(
             `SELECT name FROM groups WHERE id = $1`,

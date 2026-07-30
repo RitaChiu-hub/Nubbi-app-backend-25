@@ -2,6 +2,7 @@ const pool = require("../db");
 const currentDate = new Date();
 const { jwtVerify, getJwt } = require("./jwt/jwtAuth");
 const { checkAwardsForUser } = require("./awardService");
+const agentService = require("../services/agentService");
 
 const { sequelize, DataTypes } = require("../config/database");
 
@@ -22,21 +23,71 @@ const {
   user_awards,
 } = require("../models/init-models")(sequelize, DataTypes);
 
+const CUUBI_USER_ID = "205851f3-f034-4316-b278-9c962443a5d5";
+
 module.exports.addMessage = async (req, res) => {
   jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
       const userID = decoded.id;
       const groupID = req.body.currentGroup;
+      const messageText = req.body.mymessage;
+
       try {
         const newMessage = await messages.create({
           sender_id: userID,
           group_id: groupID,
-          text: req.body.mymessage,
+          text: messageText,
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
 
         checkAwardsForUser(userID, groupID).catch(console.error);
+
+        // 🤖 Check if Cuubi is mentioned to trigger AI response
+        if (agentService.isAgentMentioned(messageText)) {
+          console.log(`[Chat] Cuubi mentioned in group ${groupID}, generating response...`);
+          
+          // 🧠 GROUP CHAT MEMORY: Fetch last 20 messages for context
+          const fetchChatHistory = async () => {
+            const { rows: historyRows } = await pool.query(
+              `SELECT sender_id, text 
+               FROM messages 
+               WHERE group_id = $1 
+               AND id != $2
+               ORDER BY created_at DESC 
+               LIMIT 20`,
+              [groupID, newMessage.id]
+            );
+            
+            // Reverse to get chronological order
+            return historyRows.reverse().map(row => ({
+              role: row.sender_id === CUUBI_USER_ID ? "assistant" : "user",
+              content: row.text
+            }));
+          };
+
+          fetchChatHistory()
+            .then(history => agentService.generateResponse(messageText, groupID, { history }))
+            .then(async (aiResponse) => {
+              let replyText = aiResponse.text;
+              
+              // 如果有参考来源，在末尾标注出来，方便验证相关性
+              if (aiResponse.sources && aiResponse.sources.length > 0) {
+                const uniqueSources = [...new Set(aiResponse.sources)];
+                replyText += `\n\n(Sources: ${uniqueSources.join(", ")})`;
+              }
+
+              await messages.create({
+                sender_id: CUUBI_USER_ID,
+                group_id: groupID,
+                text: replyText,
+                created_at: Date.now(),
+                updated_at: Date.now(),
+              });
+              console.log(`[Chat] Cuubi responded to message in group ${groupID}`);
+            })
+            .catch(err => console.error("[Chat] Error generating Cuubi response:", err));
+        }
 
         res.json({
           ...req.body,

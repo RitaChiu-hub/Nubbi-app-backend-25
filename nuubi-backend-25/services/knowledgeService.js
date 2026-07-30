@@ -2,6 +2,8 @@ const { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require("@aw
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const s3Client = require("../utils/s3Client");
 const { sequelize, DataTypes } = require("../config/database");
+const { QueryTypes } = require("sequelize");
+const { openai } = require("../utils/llamaClient");
 const { group_knowledge } = require("../models/init-models")(
   sequelize,
   DataTypes
@@ -112,6 +114,47 @@ class KnowledgeService {
     return await group_knowledge.destroy({
       where: { id, groupId: groupId },
     });
+  }
+
+  /**
+   * Search for relevant knowledge chunks using vector similarity
+   * @param {string} queryText - The user's question
+   * @param {number} groupId - The group ID to search within
+   * @param {number} limit - Max number of chunks to return
+   */
+  async searchRelevantKnowledge(queryText, groupId, limit = 3) {
+    try {
+      // 1. Generate embedding for the query
+      const embeddingResponse = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: queryText,
+      });
+      const queryEmbedding = embeddingResponse.data[0].embedding;
+
+      // 2. Perform vector search in DB
+      // We use 1 - (embedding <=> :vector) to get cosine similarity
+      const results = await sequelize.query(
+        `SELECT content, file_name, 1 - (embedding <=> :embedding::vector) AS similarity 
+         FROM group_knowledge 
+         WHERE group_id = :groupId 
+         AND embedding IS NOT NULL
+         ORDER BY similarity DESC 
+         LIMIT :limit`,
+        {
+          replacements: {
+            embedding: JSON.stringify(queryEmbedding),
+            groupId: groupId,
+            limit: limit,
+          },
+          type: QueryTypes.SELECT,
+        }
+      );
+
+      return results;
+    } catch (err) {
+      console.error("[KnowledgeService] Error in searchRelevantKnowledge:", err);
+      return [];
+    }
   }
 }
 
