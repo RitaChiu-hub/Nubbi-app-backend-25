@@ -3,6 +3,8 @@ const { PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const s3Client = require("../utils/s3Client");
 const cloudinarySecret = process.env.CLOUDINARY_SECRET;
+const GOOGLE_SAFE_BROWSING_API_KEY = process.env.GOOGLE_SAFE_BROWSING_API_KEY;
+
 
 /**
  * Generate S3 Presigned URL for direct frontend upload
@@ -70,3 +72,82 @@ module.exports.signFile = async (req, res) => {
 
   return res.json(fileHashes);
 };
+
+/**
+ * Uses the Google Safe Browsing API to check if a URL is associated with malware or phishing.
+ * The API key is stored only in a backend environment variable (GOOGLE_SAFE_BROWSING_API_KEY);
+ * the frontend calls this backend API and never accesses the key itself.
+ *
+ * A "fail-open" strategy is used: if any issue arises during the check
+ * (e.g., missing API key, failed request to Google, network error),
+ * the function returns { safe: true }. This ensures that users are not prevented
+ * from posting due to instability in the security check service itself—
+ * errors are simply logged (via console.error) for later troubleshooting.
+ * If a more conservative approach is desired (blocking the action upon check failure,
+ * or "fail-closed"), simply change the corresponding return value to { safe: false }.
+ */
+module.exports.checkUrlSafety = async (req, res) => {
+  try {
+    const { url } = req.body;
+ 
+    if (!url) {
+      return res.status(400).json({ error: "url is required" });
+    }
+ 
+    if (!GOOGLE_SAFE_BROWSING_API_KEY) {
+      console.error("[checkUrlSafety] Missing GOOGLE_SAFE_BROWSING_API_KEY env var");
+      return res.json({ safe: true }); // fail-open：設定沒弄好也不擋使用者，但錯誤要看得到
+    }
+ 
+    const safeBrowsingRes = await fetch(
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_SAFE_BROWSING_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client: {
+            clientId: "nuubi-app",
+            clientVersion: "1.0.0",
+          },
+          threatInfo: {
+            threatTypes: [
+              "MALWARE",
+              "SOCIAL_ENGINEERING",
+              "UNWANTED_SOFTWARE",
+              "POTENTIALLY_HARMFUL_APPLICATION",
+            ],
+            platformTypes: ["ANY_PLATFORM"],
+            threatEntryTypes: ["URL"],
+            threatEntries: [{ url }],
+          },
+        }),
+      }
+    );
+ 
+     if (!safeBrowsingRes.ok) {
+      // If the request to Google Safe Browsing fails (e.g., network error, invalid API key), log the error and return { safe: true } to avoid blocking users due to backend issues.
+      console.error(
+        "[checkUrlSafety] Google Safe Browsing request failed:",
+        safeBrowsingRes.status
+      );
+      return res.json({ safe: true }); // fail-open
+    }
+ 
+    const data = await safeBrowsingRes.json();
+ 
+    // Google only returns the 'matches' field if the URL is actually flagged;
+    // the absence of 'matches' indicates that the URL is clean.
+    if (data.matches && data.matches.length > 0) {
+      return res.json({
+        safe: false,
+        threatType: data.matches[0].threatType,
+      });
+    }
+ 
+    return res.json({ safe: true });
+  } catch (err) {
+    console.error("[checkUrlSafety] Error:", err);
+    return res.json({ safe: true }); // fail-open
+  }
+};
+
