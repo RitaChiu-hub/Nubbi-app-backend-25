@@ -41,6 +41,15 @@ const {
   handleGetMyTasks,
   handleInviteLink,
   getWonCertificates,
+  handleCreateWeeklyTakeawaySchedule,
+  handleGetWeeklyTakeawaySchedules,
+  handleDeactivateWeeklyTakeawaySchedule,
+  handleUpdateWeeklyTakeawaySchedule,
+  handleCreateScheduledPost,
+  handleGetScheduledPosts,
+  handleGetAllScheduledPosts,
+  handleUpdateScheduledPost,
+  handleCancelScheduledPost,
 } = require("../controllers/groupController");
 const validateCreateGroup = require("../controllers/validation/validateCreateGroup");
 const validateCreatePost = require("../controllers/validation/validateCreatePost");
@@ -50,6 +59,23 @@ const { verifyUserID } = require("../controllers/jwt/verifyUserId");
 const { jwtVerifyMiddleware } = require("../controllers/jwt/jwtAuth");
 const { loadGroupRole } = require("../middlewares/loadGroupRole");
 const adminAnalyticsController = require("../controllers/adminAnalyticsController");
+const validateCreateWeeklyTakeawaySchedule = require(
+  "../controllers/validation/validateCreateWeeklyTakeawaySchedule"
+);
+
+const validateCreateScheduledPost = require(
+  "../controllers/validation/validateCreateScheduledPost"
+);
+
+console.log(
+  "validateCreateScheduledPost:",
+  validateCreateScheduledPost
+);
+
+console.log(
+  "handleCreateScheduledPost:",
+  handleCreateScheduledPost
+);
 
 router.post("/creategroup", jwtVerifyMiddleware, validateCreateGroup, handleCreateGroup);
 router.get("/getgroups", jwtVerifyMiddleware, getAllGroups);
@@ -105,5 +131,50 @@ router.post("/getweeklygroupinfo", jwtVerifyMiddleware, loadGroupRole, adminAnal
 router.post("/invite/:token", handleInviteLink);
 router.post("/getwoncertificates", getWonCertificates);
 router.post("/studentparticipationanalytics", jwtVerifyMiddleware, adminAnalyticsController.getDeepParticipation);
+
+router.post(
+  "/:group_id/weekly-takeaway-schedules",
+  validateCreateWeeklyTakeawaySchedule,
+  handleCreateWeeklyTakeawaySchedule
+);
+router.get(
+  "/:group_id/weekly-takeaway-schedules",
+  handleGetWeeklyTakeawaySchedules
+);
+router.patch(
+  "/:group_id/weekly-takeaway-schedules/:schedule_id/deactivate",
+  handleDeactivateWeeklyTakeawaySchedule
+);
+
+router.patch(
+  "/:group_id/weekly-takeaway-schedules/:schedule_id",
+  validateCreateWeeklyTakeawaySchedule,
+  handleUpdateWeeklyTakeawaySchedule
+);
+router.post(
+  "/:group_id/scheduled-posts",
+  validateCreateScheduledPost,
+  handleCreateScheduledPost
+);
+router.get(
+  "/:group_id/scheduled-posts/all",
+  handleGetAllScheduledPosts
+);
+
+router.get(
+  "/:group_id/scheduled-posts",
+  handleGetScheduledPosts
+);
+
+router.patch(
+  "/:group_id/scheduled-posts/:scheduled_post_id/cancel",
+  handleCancelScheduledPost
+);
+
+router.patch(
+  "/:group_id/scheduled-posts/:scheduled_post_id",
+  validateCreateScheduledPost,
+  handleUpdateScheduledPost
+);
 
 module.exports = router;

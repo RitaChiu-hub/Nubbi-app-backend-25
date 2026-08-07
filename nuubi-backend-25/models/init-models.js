@@ -18,6 +18,9 @@ var _user_sessions = require("./user_sessions");
 var _user_session_totals = require("./user_session_totals");
 var _user_group_daily_stats = require("./user_group_daily_stats");
 var _group_knowledge = require("./group_knowledge");
+var _weekly_takeaway_schedules = require("./weekly_takeaway_schedules");
+var _weekly_takeaway_schedule_runs = require("./weekly_takeaway_schedule_runs");
+var _scheduled_posts = require("./scheduled_post");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -39,6 +42,9 @@ function initModels(sequelize) {
   var user_session_totals = _user_session_totals(sequelize, DataTypes);
   var user_group_daily_stats = _user_group_daily_stats(sequelize, DataTypes);
   var group_knowledge = _group_knowledge(sequelize, DataTypes);
+  var weekly_takeaway_schedules = _weekly_takeaway_schedules(sequelize, DataTypes);
+  var weekly_takeaway_schedule_runs = _weekly_takeaway_schedule_runs(sequelize, DataTypes);
+  var scheduled_posts =_scheduled_posts(sequelize, DataTypes);
 
   messages.belongsTo(groups, { foreignKey: "group_id" });
   groups.hasMany(messages, { foreignKey: "group_id" });
@@ -121,6 +127,7 @@ function initModels(sequelize) {
   user_session_totals.belongsTo(users, { foreignKey: "user_id" });
   users.hasOne(user_session_totals, { foreignKey: "user_id" });
 
+
   // Daily stats relationships
   user_group_daily_stats.belongsTo(users, { foreignKey: "user_id" });
   users.hasMany(user_group_daily_stats, { foreignKey: "user_id" });
@@ -129,6 +136,27 @@ function initModels(sequelize) {
 
   group_knowledge.belongsTo(groups, { foreignKey: "group_id" });
   groups.hasMany(group_knowledge, { foreignKey: "group_id" });
+
+  // Weekly takeaway schedule relationships
+  weekly_takeaway_schedules.belongsTo(users, { foreignKey: "creator_id" });
+  users.hasMany(weekly_takeaway_schedules, { foreignKey: "creator_id" });
+
+  weekly_takeaway_schedules.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(weekly_takeaway_schedules, { foreignKey: "group_id" });
+
+  weekly_takeaway_schedule_runs.belongsTo(weekly_takeaway_schedules, {
+    foreignKey: "schedule_id",
+  });
+  weekly_takeaway_schedules.hasMany(weekly_takeaway_schedule_runs, {
+    foreignKey: "schedule_id",
+  });
+
+  weekly_takeaway_schedule_runs.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(weekly_takeaway_schedule_runs, { foreignKey: "group_id" });
+
+  weekly_takeaway_schedule_runs.belongsTo(posts, { foreignKey: "post_id" });
+  posts.hasMany(weekly_takeaway_schedule_runs, { foreignKey: "post_id" });
+
 
   return {
     groups,
@@ -149,6 +177,10 @@ function initModels(sequelize) {
     user_session_totals,
     user_group_daily_stats,
     group_knowledge,
+    weekly_takeaway_schedules,
+    weekly_takeaway_schedule_runs,
+    scheduled_posts,
+
   };
 }
 module.exports = initModels;
