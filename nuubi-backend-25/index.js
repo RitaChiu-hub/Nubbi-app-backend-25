@@ -425,7 +425,7 @@ app.use("/groups", agentRouter); // Mount agent router under /groups
 app.use("/logs", logsRouter);
 
 const agentService = require("./services/agentService");
-
+const { maybeUpdateCommentSummary } = require("./services/commentSummaryService");
 const CUUBI_USER_ID = "205851f3-f034-4316-b278-9c962443a5d5";
 
 io.on("connection", (socket) => {
@@ -727,7 +727,16 @@ io.on("connection", (socket) => {
               })
               .catch(err => console.error("[Socket-Comment] Cuubi RAG error:", err));
           }
-
+          
+            // 📝 Auto-generate/update the AI summary of this post's comment
+          // thread. Fire-and-forget on purpose (no await) — a live OpenAI
+          // call shouldn't delay anything else in this socket handler.
+          // Internally this checks the comment count against the threshold
+          // and only actually calls OpenAI when it's time to (re)generate.
+          maybeUpdateCommentSummary(req.currentPost).catch(err =>
+            console.error("[CommentSummary] error:", err)
+          );
+          
           const groupRes = await pool.query(
             `SELECT name FROM groups WHERE id = $1`,
             [postGroupId]
