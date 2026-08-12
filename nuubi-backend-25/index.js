@@ -592,14 +592,65 @@ io.on("connection", (socket) => {
         increments: { messages: 1 }
       }).catch(err => console.error("Redis analytics error (message):", err));
 
-      io.emit(
-        "insert msg return updated list",
-        Object.assign(newMsg, {
-          sender_username: userRes.rows[0].username,
-          sender_avatar_url: userRes.rows[0].avatar_url,
-          message_points: 0,
-        })
-      );
+      const msgPayload = Object.assign(newMsg, {
+        sender_username: userRes.rows[0].username,
+        sender_avatar_url: userRes.rows[0].avatar_url,
+        message_points: 0,
+      });
+
+      io.emit("insert msg return updated list", msgPayload);
+
+      // 🤖 Cuubi Chat Trigger
+      if (agentService.isAgentMentioned(req.mymessage)) {
+        console.log(`[Socket-Chat] Cuubi mentioned in group ${req.currentGroup}, generating response...`);
+        
+        const fetchChatHistory = async () => {
+          const { rows: historyRows } = await pool.query(
+            `SELECT sender_id, text 
+             FROM messages 
+             WHERE group_id = $1 
+             AND id != $2
+             ORDER BY created_at DESC 
+             LIMIT 20`,
+            [req.currentGroup, newMsg.messages_id]
+          );
+          
+          return historyRows.reverse().map(row => ({
+            role: row.sender_id === CUUBI_USER_ID ? "assistant" : "user",
+            content: row.text
+          }));
+        };
+
+        fetchChatHistory()
+          .then(history => agentService.generateResponse(req.mymessage, req.currentGroup, { history }))
+          .then(async (aiResponse) => {
+            let replyText = aiResponse.text;
+            if (aiResponse.sources && aiResponse.sources.length > 0) {
+              const uniqueSources = [...new Set(aiResponse.sources)];
+              replyText += `\n\n(Sources: ${uniqueSources.join(", ")})`;
+            }
+
+            const { rows: [aiMsg] } = await pool.query(
+              `INSERT INTO messages(sender_id, group_id, text)
+               VALUES ($1, $2, $3)
+               RETURNING
+                 id       AS messages_id,
+                 text,
+                 created_at AS iso_time_sent`,
+              [CUUBI_USER_ID, req.currentGroup, replyText]
+            );
+
+            const aiPayload = Object.assign(aiMsg, {
+              sender_username: "Cuubi",
+              sender_avatar_url: "https://res.cloudinary.com/dvvdc9evd/image/upload/v1754507271/image/upload/f6bgz240ocnbvd3qsndm.png",
+              message_points: 0,
+            });
+
+            io.emit("insert msg return updated list", aiPayload);
+            console.log(`[Socket-Chat] Cuubi responded in group ${req.currentGroup}`);
+          })
+          .catch(err => console.error("[Socket-Chat] Cuubi error:", err));
+      }
     } catch (err) {
       console.error("Websocket message error:", err);
       socket.emit("error", { error: "Internal server error" });
