@@ -35,7 +35,7 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: false,
       },
       day_of_week: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(20),
         allowNull: false,
       },
       timezone: {
@@ -53,7 +53,7 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: false,
       },
       body_text: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: false,
       },
       is_active: {

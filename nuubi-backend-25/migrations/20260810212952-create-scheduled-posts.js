@@ -13,11 +13,23 @@ module.exports = {
       creator_id: {
         type: Sequelize.UUID,
         allowNull: false,
+        references: {
+          model: "users",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
 
       group_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
+        references: {
+          model: "groups",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
 
       title: {
@@ -68,6 +80,21 @@ module.exports = {
 
       error_message: {
         type: Sequelize.TEXT,
+        allowNull: true,
+      },
+
+      image_url: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+      },
+
+      file_url: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+      },
+
+      file_name: {
+        type: Sequelize.STRING(255),
         allowNull: true,
       },
 

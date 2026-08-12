@@ -153,26 +153,31 @@ router.patch(
 );
 router.post(
   "/:group_id/scheduled-posts",
+  jwtVerifyMiddleware,
   validateCreateScheduledPost,
   handleCreateScheduledPost
 );
 router.get(
   "/:group_id/scheduled-posts/all",
+  jwtVerifyMiddleware,
   handleGetAllScheduledPosts
 );
 
 router.get(
   "/:group_id/scheduled-posts",
+  jwtVerifyMiddleware,
   handleGetScheduledPosts
 );
 
 router.patch(
   "/:group_id/scheduled-posts/:scheduled_post_id/cancel",
+  jwtVerifyMiddleware,
   handleCancelScheduledPost
 );
 
 router.patch(
   "/:group_id/scheduled-posts/:scheduled_post_id",
+  jwtVerifyMiddleware,
   validateCreateScheduledPost,
   handleUpdateScheduledPost
 );

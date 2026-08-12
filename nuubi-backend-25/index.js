@@ -192,6 +192,7 @@ var _awards = require("./models/awards");
 var _user_awards = require("./models/user_awards");
 var _user_sessions = require("./models/user_sessions");
 var _user_session_totals = require("./models/user_session_totals");
+var _scheduled_post = require("./models/scheduled_post");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -210,6 +211,7 @@ function initModels(sequelize) {
   var user_awards = _user_awards(sequelize, DataTypes);
   var user_sessions = _user_sessions(sequelize, DataTypes);
   var user_session_totals = _user_session_totals(sequelize, DataTypes);
+  var scheduled_posts = _scheduled_post(sequelize, DataTypes);
 
   messages.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(messages, { as: "messages", foreignKey: "group_id" });
@@ -242,6 +244,7 @@ function initModels(sequelize) {
   });
   posts.belongsTo(users, { as: "sender", foreignKey: "sender_id" });
   users.hasMany(posts, { as: "posts", foreignKey: "sender_id" });
+  
 
   // Badge and User
   badges.belongsToMany(users, { through: user_badges, foreignKey: "badge_id" });
@@ -291,6 +294,11 @@ function initModels(sequelize) {
   user_session_totals.belongsTo(users, { foreignKey: "user_id" });
   users.hasOne(user_session_totals, { foreignKey: "user_id" });
 
+  scheduled_posts.belongsTo(users, { foreignKey: "creator_id" });
+users.hasMany(scheduled_posts, { foreignKey: "creator_id" });
+scheduled_posts.belongsTo(groups, { foreignKey: "group_id" });
+groups.hasMany(scheduled_posts, { foreignKey: "group_id" });
+
   return {
     groups,
     messages,
@@ -308,6 +316,7 @@ function initModels(sequelize) {
     user_awards,
     user_sessions,
     user_session_totals,
+    scheduled_posts,
   };
 }
 

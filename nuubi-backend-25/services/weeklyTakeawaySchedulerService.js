@@ -85,6 +85,34 @@ const runWeeklyTakeawayScheduler = async () => {
 
     const startDate = getDateOnlyValue(schedule.start_date);
     const endDate = getDateOnlyValue(schedule.end_date);
+    console.log("[expired schedule debug]", {
+        scheduleId: schedule.id,
+        localDate,
+        endDate,
+        localDateType: typeof localDate,
+        endDateType: typeof endDate,
+        isExpired: localDate > endDate,
+      });
+
+    // Deactivate expired schedules
+  if (localDate > endDate) {
+    await schedule.update({
+      is_active: false,
+    });
+
+    console.log(
+      "[weekly takeaway scheduler] Deactivated expired schedule",
+      {
+        scheduleId: schedule.id,
+        endDate,
+        localDate,
+      }
+    );
+
+    result.skippedSchedules += 1;
+    continue;
+  }
+
 
     const isWithinDateRange =
       localDate >= startDate && localDate <= endDate;

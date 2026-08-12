@@ -158,6 +158,29 @@ const changeUsernameSchema = Yup.object({
     ),
   password: Yup.string().required("Password required"),
 });
+const getTodayForTimezone = (timezone) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = parts.find(
+    (part) => part.type === "year"
+  )?.value;
+
+  const month = parts.find(
+    (part) => part.type === "month"
+  )?.value;
+
+  const day = parts.find(
+    (part) => part.type === "day"
+  )?.value;
+
+  return `${year}-${month}-${day}`;
+};
+
 
 const createScheduledPostSchema = Yup.object({
   title: Yup.string()
@@ -169,19 +192,50 @@ const createScheduledPostSchema = Yup.object({
     .trim()
     .required("Post content is required."),
 
-  scheduled_date: Yup.string()
+    scheduled_date: Yup.string()
     .matches(
       /^\d{4}-\d{2}-\d{2}$/,
       "Scheduled date must use YYYY-MM-DD format."
     )
-    .required("Scheduled date is required."),
+    .required("Scheduled date is required.")
+    .test(
+      "is-today-or-future",
+      "Scheduled date must be today or in the future.",
+      function (value) {
+        if (!value) return false;
+    
+        const timezone =
+          this.parent.timezone ||
+          "America/Los_Angeles";
+    
+        const today =
+          getTodayForTimezone(timezone);
+    
+        return value >= today;
+      }
+    ),
 
-  scheduled_time: Yup.string()
+    scheduled_time: Yup.string()
     .matches(
       /^([01]\d|2[0-3]):[0-5]\d$/,
       "Scheduled time must use HH:mm format."
     )
-    .required("Scheduled time is required."),
+    .required("Scheduled time is required.")
+    .test(
+      "is-future-time",
+      "Scheduled time must be in the future.",
+      function (value) {
+        const { scheduled_date, timezone } = this.parent;
+        if (!value || !scheduled_date || !timezone) return true;
+  
+        const now = new Date();
+        const scheduledDateTime = new Date(
+          `${scheduled_date}T${value}:00`
+        ).toLocaleString("en-US", { timeZone: timezone });
+  
+        return new Date(scheduledDateTime) > now;
+      }
+    ),
 
   timezone: Yup.string()
     .oneOf(

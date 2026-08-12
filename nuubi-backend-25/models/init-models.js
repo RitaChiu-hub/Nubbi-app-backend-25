@@ -157,6 +157,16 @@ function initModels(sequelize) {
   weekly_takeaway_schedule_runs.belongsTo(posts, { foreignKey: "post_id" });
   posts.hasMany(weekly_takeaway_schedule_runs, { foreignKey: "post_id" });
 
+  // Scheduled post relationships
+  scheduled_posts.belongsTo(users, { foreignKey: "creator_id" });
+  users.hasMany(scheduled_posts, { foreignKey: "creator_id" });
+
+  scheduled_posts.belongsTo(groups, { foreignKey: "group_id" });
+  groups.hasMany(scheduled_posts, { foreignKey: "group_id" });
+
+  scheduled_posts.belongsTo(posts, { foreignKey: "post_id" });
+  posts.hasMany(scheduled_posts, { foreignKey: "post_id" });
+
 
   return {
     groups,
