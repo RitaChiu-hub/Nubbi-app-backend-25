@@ -767,6 +767,120 @@ io.on("connection", (socket) => {
       });
   });
 
+  socket.on("edit comment", async (req, callback) => {
+    const token = req.token || webToken;
+
+    if (!token) {
+      callback({
+        ok: false,
+        error: "JWT token is required",
+      });
+      return;
+    }
+
+    try {
+      const decoded = await jwtVerify(
+          token,
+          process.env.JWT_SECRET
+      );
+
+      const userID = decoded.id;
+
+      // 1. Verify comment exists
+      const {
+        rows: [existingComment],
+      } = await pool.query(
+          `
+      SELECT sender_id
+      FROM post_comments
+      WHERE id = $1
+      `,
+          [req.commentId]
+      );
+
+      if (!existingComment) {
+        callback({
+          ok: false,
+          error: "Comment not found",
+        });
+        return;
+      }
+
+
+      // 2. Verify ownership
+      if (existingComment.sender_id !== userID) {
+        callback({
+          ok: false,
+          error: "You are not allowed to edit this comment",
+        });
+        return;
+      }
+
+
+      // 3. Update comment
+      const {
+        rows: [updatedComment],
+      } = await pool.query(
+          `
+      UPDATE post_comments
+      SET
+        comment_text = $1,
+        image_url = $2,
+        updated_at = NOW()
+      WHERE id = $3
+      RETURNING
+        id AS post_comment_id,
+        comment_text,
+        image_url,
+        sender_id,
+        created_at AS comment_iso_time_sent,
+        updated_at
+      `,
+          [
+            req.commentText,
+            req.imageUrl,
+            req.commentId,
+          ]
+      );
+
+
+      // 4. Get user info
+      const {
+        rows: [userRow],
+      } = await pool.query(
+          `
+      SELECT
+        username AS sender_username,
+        avatar_url AS sender_avatar_url
+      FROM users
+      WHERE id = $1
+      `,
+          [userID]
+      );
+
+
+      // 5. Return response
+      callback({
+        ok: true,
+        data: {
+          ...updatedComment,
+          sender_username: userRow.sender_username,
+          sender_avatar_url: userRow.sender_avatar_url,
+        },
+      });
+
+
+    } catch (err) {
+      console.error("Error editing comment:", err);
+
+      callback({
+        ok: false,
+        error: "Internal server error",
+      });
+    }
+  });
+
+
   socket.on("add post point return updated sum", async (req) => {
     const token = req.token || webToken;
     // Check if token is available
