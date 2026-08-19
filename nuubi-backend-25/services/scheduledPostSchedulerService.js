@@ -22,14 +22,6 @@ const runScheduledPostScheduler = async () => {
     errors: [],
   };
 
-  /*
-   * 先找出：
-   * 1. 尚未發布
-   * 2. 排程時間已到
-   *
-   * 使用 <=，所以 backend 重啟後，
-   * 之前漏掉的排程也仍然可以補發。
-   */
   const dueSchedules = await scheduled_posts.findAll({
     attributes: ["id"],
     where: {
@@ -50,10 +42,6 @@ const runScheduledPostScheduler = async () => {
 
   for (const dueSchedule of dueSchedules) {
     try {
-      /*
-       * 每筆使用 transaction 和 row lock。
-       * 避免兩個 scheduler 同時建立重複貼文。
-       */
       const publishedResult =
         await sequelize.transaction(
           async (transaction) => {
@@ -70,19 +58,12 @@ const runScheduledPostScheduler = async () => {
                 lock: transaction.LOCK.UPDATE,
               });
 
-            /*
-             * 可能已經被另一個 scheduler 處理。
-             */
             if (!schedule) {
               return null;
             }
 
             const currentTime = new Date();
 
-            /*
-             * 完全沿用 Weekly Takeaway scheduler
-             * 建立 posts 時使用的欄位。
-             */
             const createdPost = await posts.create(
               {
                 sender_id: schedule.creator_id,
@@ -152,10 +133,6 @@ const runScheduledPostScheduler = async () => {
         message: error.message,
       });
 
-      /*
-       * Transaction 失敗時，post insert 會 rollback。
-       * 再把排程標成 failed，方便從資料庫查看原因。
-       */
       try {
         await scheduled_posts.update(
           {

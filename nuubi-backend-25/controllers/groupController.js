@@ -71,14 +71,14 @@ module.exports.handleCreateGroup = async (req, res) => {
 
         const seederMessage = await messages.create({
           group_id: newGroup.id,
-          sender_id: "05df1721-e456-4f8c-b474-d7b49bc93044", // Local admin
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
           text: "Welcome to your group’s Chat! This is your space for informal, ongoing conversations. Get to know your group members, ask quick questions, and keep the energy alive. Want to kick things off with a subject-related joke?",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
         });
 
         const seededPost = await posts.create({
-          sender_id: "05df1721-e456-4f8c-b474-d7b49bc93044", // Local admin
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
           group_id: newGroup.id,
           title: "Welcome to Threads! Click here for more info",
           body_text:
@@ -88,7 +88,7 @@ module.exports.handleCreateGroup = async (req, res) => {
         });
 
         const seededComment = await post_comments.create({
-          sender_id: "05df1721-e456-4f8c-b474-d7b49bc93044", // Local admin
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
           post_id: seededPost.id,
           comment_text:
             "This is a Post Comment. It can be an answer to the question in the Post or any other helpful response. See the plus signs next to Posts and Comments? You can click the + to reward helpful contributions with a point!",
@@ -2229,7 +2229,7 @@ module.exports.handleGetScheduledPosts = async (req, res) => {
         error: "Group not found",
       });
     }
-
+    // Only retrieve posts that are "pending" and "scheduled for the future", sorted by power of time.
     const scheduledPosts = await scheduled_posts.findAll({
       where: {
         group_id: groupID,
@@ -2393,10 +2393,7 @@ module.exports.handleUpdateScheduledPost = async (
       });
     }
 
-    /*
-     * 必須先宣告 request body 裡的值，
-     * 後面才能使用 title、scheduled_time 等變數。
-     */
+    
     const {
       title,
       body_text,
@@ -2468,10 +2465,7 @@ module.exports.handleUpdateScheduledPost = async (
       });
     }
 
-    /*
-     * 現在 title、body_text、scheduledAtUtc
-     * 都已經完成宣告，可以安全建立 updateData。
-     */
+    
     const updateData = {
       title: title.trim(),
       body_text: body_text.trim(),
@@ -2482,13 +2476,7 @@ module.exports.handleUpdateScheduledPost = async (
         scheduledAtUtc.toJSDate(),
     };
 
-    /*
-     * 只有 frontend 確實傳入附件欄位時，
-     * 才更新該欄位。
-     *
-     * 若 frontend 沒有傳，會保留資料庫原本的附件。
-     * 若 frontend 傳 null 或空字串，會清除附件。
-     */
+    
     if (
       Object.prototype.hasOwnProperty.call(
         req.body,
@@ -2701,39 +2689,40 @@ module.exports.handleGetWeeklyTakeawaySchedules = async (req, res) => {
     return res.status(401).json({ error: "JWT token is required" });
   }
 
-  jwtVerify(token, process.env.JWT_SECRET)
-    .then(async () => {
-      const groupID = req.params.group_id;
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return res.status(401).json({ token: null });
+  }
 
-      try {
-        const schedules = await weekly_takeaway_schedules.findAll({
-          where: {
-            group_id: groupID,
-            is_active: true,
-          },
-          order: [["created_at", "DESC"]],
-        });
-
-        const schedulesWithNextRun = schedules.map((schedule) => {
-          const plainSchedule = schedule.toJSON();
-
-          return {
-            ...plainSchedule,
-            next_scheduled_at: getNextScheduledAt(plainSchedule),
-          };
-        });
-
-        res.json({
-          schedules: schedulesWithNextRun,
-        });
-      } catch (error) {
-        console.error("Error getting weekly takeaway schedules:", error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    })
-    .catch(() => {
-      res.status(401).json({ token: null });
+  const groupID = req.params.group_id;
+  
+  try {
+    const schedules = await weekly_takeaway_schedules.findAll({
+      where: {
+        group_id: groupID,
+        is_active: true,
+      },
+      order: [["created_at", "DESC"]],
     });
+
+    const schedulesWithNextRun = schedules.map((schedule) => {
+      const plainSchedule = schedule.toJSON();
+
+      return {
+        ...plainSchedule,
+        next_scheduled_at: getNextScheduledAt(plainSchedule),
+      };
+    });
+
+    res.json({
+      schedules: schedulesWithNextRun,
+    });
+  } catch (error) {
+    console.error("Error getting weekly takeaway schedules:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
 
 module.exports.handleDeactivateWeeklyTakeawaySchedule = async (req, res) => {
@@ -2743,110 +2732,109 @@ module.exports.handleDeactivateWeeklyTakeawaySchedule = async (req, res) => {
     return res.status(401).json({ error: "JWT token is required" });
   }
 
-  jwtVerify(token, process.env.JWT_SECRET)
-    .then(async () => {
-      const groupID = req.params.group_id;
-      const scheduleID = req.params.schedule_id;
 
-      try {
-        const schedule = await weekly_takeaway_schedules.findOne({
-          where: {
-            id: scheduleID,
-            group_id: groupID,
-          },
-        });
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return res.status(401).json({ token: null });
+  }
 
-        if (!schedule) {
-          return res.status(404).json({ error: "Schedule not found" });
-        }
+  const groupID = req.params.group_id;
+  const scheduleID = req.params.schedule_id;
 
-        await schedule.update({
-          is_active: false,
-          updated_at: Date.now(),
-        });
-
-        res.json({
-          status: "Weekly takeaway schedule deactivated",
-        });
-      } catch (error) {
-        console.error("Error deactivating weekly takeaway schedule:", error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    })
-    .catch(() => {
-      res.status(401).json({ token: null });
+  try {
+    const schedule = await weekly_takeaway_schedules.findOne({
+      where: {
+        id: scheduleID,
+        group_id: groupID,
+      },
     });
+
+    if (!schedule) {
+      return res.status(404).json({ error: "Schedule not found" });
+    }
+
+    await schedule.update({
+      is_active: false,
+      updated_at: new Date(),
+    });
+
+    res.json({
+      status: "Weekly takeaway schedule deactivated",
+    });
+  } catch (error) {
+    console.error("Error deactivating weekly takeaway schedule:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
 
 module.exports.handleUpdateWeeklyTakeawaySchedule = async (req, res) => {
-    const token = getJwt(req);
+  const token = getJwt(req);
 
-    if (!token) {
-      return res.status(401).json({
-        error: "JWT token is required",
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return res.status(401).json({ token: null });
+  }
+
+  const groupID = req.params.group_id;
+  const scheduleID = req.params.schedule_id;
+
+  try {
+    const schedule = await weekly_takeaway_schedules.findOne({
+      where: {
+        id: scheduleID,
+        group_id: groupID,
+        is_active: true,
+      },
+    });
+
+    if (!schedule) {
+      return res.status(404).json({
+        error: "Weekly takeaway schedule not found",
       });
     }
 
-    jwtVerify(token, process.env.JWT_SECRET)
-      .then(async () => {
-        const groupID = req.params.group_id;
-        const scheduleID =
-          req.params.schedule_id;
+    const {
+      title,
+      body_text,
+      start_date,
+      end_date,
+      day_of_week,
+      scheduled_time,
+      timezone,
+    } = req.body;
 
-        try {
-          const schedule =
-            await weekly_takeaway_schedules.findOne({
-              where: {
-                id: scheduleID,
-                group_id: groupID,
-                is_active: true,
-              },
-            });
+    await schedule.update({
+      title,
+      body_text,
+      start_date,
+      end_date,
+      day_of_week,
+      scheduled_time,
+      timezone,
+    });
 
-          if (!schedule) {
-            return res.status(404).json({
-              error:
-                "Weekly takeaway schedule not found",
-            });
-          }
+    return res.status(200).json({
+      status: "Weekly takeaway schedule updated",
+      schedule,
+    });
+  } catch (error) {
+    console.error(
+      "Error updating weekly takeaway schedule:",
+      error
+    );
 
-          const {
-            title,
-            body_text,
-            start_date,
-            end_date,
-            day_of_week,
-            scheduled_time,
-            timezone,
-          } = req.body;
-
-          await schedule.update({
-            title,
-            body_text,
-            start_date,
-            end_date,
-            day_of_week,
-            scheduled_time,
-            timezone,
-          });
-
-          return res.status(200).json({
-            status:
-              "Weekly takeaway schedule updated",
-            schedule,
-          });
-        } catch (error) {
-          console.error(
-            "Error updating weekly takeaway schedule:",
-            error
-          );
-
-          return res.status(500).json({
-            error: "Internal server error",
-          });
-        }
-      })
-      .catch(() => {
-        res.status(401).json({ token: null });
-      });
-  };
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};

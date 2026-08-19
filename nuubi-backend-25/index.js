@@ -215,8 +215,8 @@ function initModels(sequelize) {
 
   messages.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(messages, { as: "messages", foreignKey: "group_id" });
-  participants.belongsTo(groups, { as: "groups", foreignKey: "groups_id" });
-  groups.hasMany(participants, { as: "participants", foreignKey: "groups_id" });
+  participants.belongsTo(groups, { as: "groups", foreignKey: "group_id" });
+  groups.hasMany(participants, { as: "participants", foreignKey: "group_id" });
   points.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(points, { as: "points", foreignKey: "group_id" });
   posts.belongsTo(groups, { as: "group", foreignKey: "group_id" });
