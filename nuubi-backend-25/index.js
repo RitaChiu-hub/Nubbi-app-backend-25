@@ -13,7 +13,15 @@ const { Server } = require("socket.io");
 const { sequelize, pool } = require("./config/database");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-
+const {
+  runWeeklyTakeawayScheduler,
+} = require("./services/weeklyTakeawaySchedulerService");
+const cron = require("node-cron");
+const {
+  runScheduledPostScheduler,
+} = require(
+  "./services/scheduledPostSchedulerService"
+);
 app.use(cookieParser());
 
 app.use(
@@ -184,6 +192,7 @@ var _awards = require("./models/awards");
 var _user_awards = require("./models/user_awards");
 var _user_sessions = require("./models/user_sessions");
 var _user_session_totals = require("./models/user_session_totals");
+var _scheduled_post = require("./models/scheduled_post");
 
 function initModels(sequelize) {
   var groups = _groups(sequelize, DataTypes);
@@ -202,11 +211,12 @@ function initModels(sequelize) {
   var user_awards = _user_awards(sequelize, DataTypes);
   var user_sessions = _user_sessions(sequelize, DataTypes);
   var user_session_totals = _user_session_totals(sequelize, DataTypes);
+  var scheduled_posts = _scheduled_post(sequelize, DataTypes);
 
   messages.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(messages, { as: "messages", foreignKey: "group_id" });
-  participants.belongsTo(groups, { as: "groups", foreignKey: "groups_id" });
-  groups.hasMany(participants, { as: "participants", foreignKey: "groups_id" });
+  participants.belongsTo(groups, { as: "groups", foreignKey: "group_id" });
+  groups.hasMany(participants, { as: "participants", foreignKey: "group_id" });
   points.belongsTo(groups, { as: "group", foreignKey: "group_id" });
   groups.hasMany(points, { as: "points", foreignKey: "group_id" });
   posts.belongsTo(groups, { as: "group", foreignKey: "group_id" });
@@ -234,6 +244,7 @@ function initModels(sequelize) {
   });
   posts.belongsTo(users, { as: "sender", foreignKey: "sender_id" });
   users.hasMany(posts, { as: "posts", foreignKey: "sender_id" });
+  
 
   // Badge and User
   badges.belongsToMany(users, { through: user_badges, foreignKey: "badge_id" });
@@ -283,6 +294,11 @@ function initModels(sequelize) {
   user_session_totals.belongsTo(users, { foreignKey: "user_id" });
   users.hasOne(user_session_totals, { foreignKey: "user_id" });
 
+  scheduled_posts.belongsTo(users, { foreignKey: "creator_id" });
+users.hasMany(scheduled_posts, { foreignKey: "creator_id" });
+scheduled_posts.belongsTo(groups, { foreignKey: "group_id" });
+groups.hasMany(scheduled_posts, { foreignKey: "group_id" });
+
   return {
     groups,
     messages,
@@ -300,6 +316,7 @@ function initModels(sequelize) {
     user_awards,
     user_sessions,
     user_session_totals,
+    scheduled_posts,
   };
 }
 
@@ -992,10 +1009,70 @@ io.on("connection", (socket) => {
 //   });
 // });
 
+// temporary dev-only route
+if (process.env.NODE_ENV !== "production") {
+  app.post("/dev/run-weekly-takeaway-scheduler", async (req, res) => {
+    try {
+      const result = await runWeeklyTakeawayScheduler();
+
+      res.json({
+        status: "Scheduler ran",
+        result,
+      });
+    } catch (error) {
+      console.error("[weekly takeaway scheduler] Manual run failed:", error);
+
+      res.status(500).json({
+        error: "Scheduler failed",
+        message: error.message,
+      });
+    }
+  });
+}
+
 if (require.main === module) {
   server.listen(8080, () => {
     console.log("server listening on port 8080");
   });
+
+  const SCHEDULER_TIME_ZONE =
+  process.env.SCHEDULER_TIME_ZONE ||
+  "America/Los_Angeles";
+
+cron.schedule(
+  "*/15 * * * *",
+  async () => {
+    try {
+      console.log(
+        "[weekly takeaway scheduler] Cron job started"
+      );
+
+      await runWeeklyTakeawayScheduler();
+    } catch (error) {
+      console.error(
+        "[weekly takeaway scheduler] Cron job failed:",
+        error
+      );
+    }
+
+    try {
+      console.log(
+        "[scheduled post scheduler] Cron job started"
+      );
+
+      await runScheduledPostScheduler();
+    } catch (error) {
+      console.error(
+        "[scheduled post scheduler] Cron job failed:",
+        error
+      );
+    }
+  },
+  {
+    timezone: SCHEDULER_TIME_ZONE,
+  }
+);
+
 
   // 🔄 Start Background Worker: Sync Redis stats to Postgres every 5 minutes
   const SYNC_INTERVAL = 5 * 60 * 1000;

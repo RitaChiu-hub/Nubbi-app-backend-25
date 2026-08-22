@@ -29,84 +29,91 @@ const {
   user_awards,
   user_sessions,
   user_session_totals,
+  weekly_takeaway_schedules,
+  weekly_takeaway_schedule_runs,
+  scheduled_posts,
 } = require("../models/init-models")(sequelize, DataTypes);
 
 const bcrypt = require("bcrypt");
 const currentDate = new Date();
+const { DateTime } = require("luxon");
+
 require("dotenv").config();
 
 module.exports.handleCreateGroup = async (req, res) => {
-    // Use getJwt to get the token from either cookies or the Authorization header
-    const token = getJwt(req);
+  // Use getJwt to get the token from either cookies or the Authorization header
+  const token = getJwt(req);
 
   // Check if token is available
-    if (!token) {
-      return res.status(401).json({ error: "JWT token is required" });
-    }
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
 
   // Now verify the token
   jwtVerify(token, process.env.JWT_SECRET)
     // jwtVerify(req.body.token, process.env.JWT_SECRET)
     .then(async (decoded) => {
-    const userID = decoded.id;
+      const userID = decoded.id;
       try {
         var isPublic =
           req.body.privacySelection === "Public" ? "true" : "false";
         var invitePasscode = Math.random().toString(10).substring(2, 8);
 
-    const newGroup = await groups.create({
-      name: req.body.groupname,
-      description: req.body.description,
-      is_public: isPublic,
-      invite_passcode: invitePasscode,
+        const newGroup = await groups.create({
+          name: req.body.groupname,
+          description: req.body.description,
+          is_public: isPublic,
+          invite_passcode: invitePasscode,
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
+        console.log("Creating group with user:", userID);
+        console.log("Created group id:", newGroup.id);  
 
         const seederMessage = await messages.create({
-      group_id: newGroup.id,
-      sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
-      text: "Welcome to your group’s Chat! This is your space for informal, ongoing conversations. Get to know your group members, ask quick questions, and keep the energy alive. Want to kick things off with a subject-related joke?",
+          group_id: newGroup.id,
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
+          text: "Welcome to your group’s Chat! This is your space for informal, ongoing conversations. Get to know your group members, ask quick questions, and keep the energy alive. Want to kick things off with a subject-related joke?",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
-    const seededPost = await posts.create({
-      sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-      group_id: newGroup.id,
-      title: "Welcome to Threads! Click here for more info",
-      body_text:
-        "This is a Post. Use this space to ask questions, share resources, or offer helpful tips. Posts are perfect for starting deeper conversations that everyone in the group can see and respond to. Try asking about a tricky concept from class or sharing a study strategy that’s working well for you!",
+        const seededPost = await posts.create({
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
+          group_id: newGroup.id,
+          title: "Welcome to Threads! Click here for more info",
+          body_text:
+            "This is a Post. Use this space to ask questions, share resources, or offer helpful tips. Posts are perfect for starting deeper conversations that everyone in the group can see and respond to. Try asking about a tricky concept from class or sharing a study strategy that’s working well for you!",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
         const seededComment = await post_comments.create({
-      sender_id: "205851f3-f034-4316-b278-9c962443a5d5",
-      post_id: seededPost.id,
-      comment_text:
-        "This is a Post Comment. It can be an answer to the question in the Post or any other helpful response. See the plus signs next to Posts and Comments? You can click the + to reward helpful contributions with a point!",
+          sender_id: "205851f3-f034-4316-b278-9c962443a5d5", // Nuubi Helper
+          post_id: seededPost.id,
+          comment_text:
+            "This is a Post Comment. It can be an answer to the question in the Post or any other helpful response. See the plus signs next to Posts and Comments? You can click the + to reward helpful contributions with a point!",
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
         const newParticipant = await participants.create({
-      user_id: userID,
-      group_id: newGroup.id,
-      is_admin: true,
+          user_id: userID,
+          group_id: newGroup.id,
+          is_admin: true,
           created_at: currentDate.getTime(),
           updated_at: currentDate.getTime(),
-    });
+        });
 
-    res.json({
-      ...req.body,
+        res.json({
+          ...req.body,
           status:
             "Group successfully created & you are the admin of this group",
-    });
-  } catch (error) {
+        });
+      } catch (error) {
         console.error("Error creating group: ", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+        res.status(500).json({ error: "Internal server error" });
+      }
     })
     .catch(async () => {
       res.json({ token: null });
@@ -442,9 +449,11 @@ module.exports.handleTaskApproved = async (req, res) => {
     recordActivity({
       userId: task.user_id,
       groupId: task.group_id,
-      statDate: new Date().toISOString().split('T')[0],
-      increments: { points: parseInt(taskPoints.point_value) }
-    }).catch(err => console.error("Redis analytics error (task points):", err));
+      statDate: new Date().toISOString().split("T")[0],
+      increments: { points: parseInt(taskPoints.point_value) },
+    }).catch((err) =>
+      console.error("Redis analytics error (task points):", err)
+    );
 
     // Fetch the group details to get the group name
     const group = await groups.findOne({
@@ -1358,7 +1367,9 @@ const signS3Urls = async (row) => {
   if (row.image_url && row.image_url.includes("amazonaws.com")) {
     try {
       const urlObj = new URL(row.image_url);
-      const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+      const key = urlObj.pathname.startsWith("/")
+        ? urlObj.pathname.substring(1)
+        : urlObj.pathname;
       row.image_url = await getTemporaryDownloadUrl(key);
     } catch (e) {
       console.error("Error signing image_url:", e);
@@ -1367,7 +1378,9 @@ const signS3Urls = async (row) => {
   if (row.file_url && row.file_url.includes("amazonaws.com")) {
     try {
       const urlObj = new URL(row.file_url);
-      const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+      const key = urlObj.pathname.startsWith("/")
+        ? urlObj.pathname.substring(1)
+        : urlObj.pathname;
       row.file_url = await getTemporaryDownloadUrl(key);
     } catch (e) {
       console.error("Error signing file_url:", e);
@@ -1414,8 +1427,12 @@ module.exports.handleGetPosts = async (req, res) => {
       [req.body.currentGroup]
     );
 
-    const rows = await Promise.all(getPostsQuery.rows.map(row => signS3Urls(row)));
-    console.log(`[handleGetPosts] Returning ${rows.length} posts for group ${req.body.currentGroup}`);
+    const rows = await Promise.all(
+      getPostsQuery.rows.map((row) => signS3Urls(row))
+    );
+    console.log(
+      `[handleGetPosts] Returning ${rows.length} posts for group ${req.body.currentGroup}`
+    );
     res.send(rows);
   } catch (err) {
     console.error("Error in handleGetPosts:", err);
@@ -1445,7 +1462,11 @@ module.exports.handleGetPostInfo = async (req, res) => {
     let postData = getPostInfoQuery.rows[0];
 
     // ☁️ If it's a Cloudinary PDF file, try to get the page count (keep legacy logic for compatibility)
-    if (postData.file_url && postData.file_url.includes("cloudinary.com") && postData.file_url.includes(".pdf")) {
+    if (
+      postData.file_url &&
+      postData.file_url.includes("cloudinary.com") &&
+      postData.file_url.includes(".pdf")
+    ) {
       try {
         const parts = postData.file_url.split("upload/");
         if (parts.length >= 3) {
@@ -1459,12 +1480,16 @@ module.exports.handleGetPostInfo = async (req, res) => {
           });
 
           const result = await new Promise((resolve, reject) => {
-            cloudinary.api.resource(publicId, { pages: true }, (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            });
+            cloudinary.api.resource(
+              publicId,
+              { pages: true },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            );
           });
-          
+
           return res.send({ ...postData, filePages: result.pages });
         }
       } catch (cloudinaryErr) {
@@ -1474,8 +1499,16 @@ module.exports.handleGetPostInfo = async (req, res) => {
 
     // 📦 If it's an S3 file, sign the URL
     postData = await signS3Urls(postData);
-    
-    console.log(`[handleGetPostInfo] Returning post ${req.body.currentPost} with image_url: ${postData.image_url ? postData.image_url.substring(0, 50) + "..." : "null"}`);
+
+    console.log(
+      `[handleGetPostInfo] Returning post ${
+        req.body.currentPost
+      } with image_url: ${
+        postData.image_url
+          ? postData.image_url.substring(0, 50) + "..."
+          : "null"
+      }`
+    );
 
     res.send({ ...postData, filePages: null });
   } catch (err) {
@@ -1493,7 +1526,7 @@ module.exports.handleGetGroupInfo = async (req, res) => {
     `SELECT name AS groupname, 
             description, 
             is_public, 
-            COALESCE(participants.user_id, 'deleted') AS admin_id 
+            COALESCE(participants.user_id::text, 'deleted') AS admin_id 
      FROM groups 
      LEFT JOIN participants ON groups.id = participants.group_id 
      AND participants.is_admin = true 
@@ -1649,9 +1682,11 @@ module.exports.handleAddPostPoint = async (req, res) => {
           recordActivity({
             userId: recipient_id,
             groupId: req.body.currentGroup,
-            statDate: new Date().toISOString().split('T')[0],
-            increments: { points: 1 }
-          }).catch(err => console.error("Redis analytics error (post point):", err));
+            statDate: new Date().toISOString().split("T")[0],
+            increments: { points: 1 },
+          }).catch((err) =>
+            console.error("Redis analytics error (post point):", err)
+          );
 
           if (
             recipient_id !== userID &&
@@ -1787,9 +1822,11 @@ module.exports.handleAddMessagePoint = async (req, res) => {
           recordActivity({
             userId: recipient_id,
             groupId: req.body.currentGroup,
-            statDate: new Date().toISOString().split('T')[0],
-            increments: { points: 1 }
-          }).catch(err => console.error("Redis analytics error (message point):", err));
+            statDate: new Date().toISOString().split("T")[0],
+            increments: { points: 1 },
+          }).catch((err) =>
+            console.error("Redis analytics error (message point):", err)
+          );
         }
         if (
           recipient_id !== userID &&
@@ -2083,7 +2120,10 @@ module.exports.getPostLiked = async (req, res) => {
       try {
         const postId = parseInt(req.body.currentPost);
         if (isNaN(postId)) {
-          console.error("[getPostLiked] Invalid postId received:", req.body.currentPost);
+          console.error(
+            "[getPostLiked] Invalid postId received:",
+            req.body.currentPost
+          );
           return res.status(400).json({ error: "Invalid post ID" });
         }
         const userId = userID;
@@ -2104,4 +2144,775 @@ module.exports.getPostLiked = async (req, res) => {
     .catch(async () => {
       res.json({ token: null });
     });
+};
+module.exports.handleCreateScheduledPost = async (
+  req,
+  res
+) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    const decoded = await jwtVerify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    const creatorID = decoded.id;
+    const groupID = Number(req.params.group_id);
+
+    if (!Number.isInteger(groupID)) {
+      return res.status(400).json({
+        error: "Invalid group_id",
+      });
+    }
+
+    const group = await groups.findByPk(groupID);
+
+    if (!group) {
+      return res.status(404).json({
+        error: "Group not found",
+      });
+    }
+
+    const {
+      title,
+      body_text,
+      scheduled_date,
+      scheduled_time,
+      timezone,
+      image_url,
+      file_url,
+      file_name,
+    } = req.body;
+
+    console.log(
+      "Create scheduled post request:",
+      req.body
+    );
+
+    /*
+     * Interpret the selected date and time in the
+     * timezone selected by the admin.
+     */
+    const localScheduledDateTime =
+      DateTime.fromISO(
+        `${scheduled_date}T${scheduled_time}`,
+        {
+          zone: timezone,
+        }
+      );
+
+    if (!localScheduledDateTime.isValid) {
+      return res.status(400).json({
+        error:
+          "Invalid scheduled date, time, or timezone",
+      });
+    }
+
+    const scheduledAtUtc =
+      localScheduledDateTime.toUTC();
+
+    if (scheduledAtUtc <= DateTime.utc()) {
+      return res.status(400).json({
+        error:
+          "Scheduled time must be in the future",
+      });
+    }
+
+    const scheduledPost =
+      await scheduled_posts.create({
+        creator_id: creatorID,
+        group_id: groupID,
+        title: title.trim(),
+        body_text: body_text.trim(),
+        image_url: req.body.image_url || null,
+  file_url: req.body.file_url || null,
+  file_name: req.body.file_name || null,
+        scheduled_date,
+        scheduled_time,
+        timezone,
+        scheduled_at:
+          scheduledAtUtc.toJSDate(),
+        status: "pending",
+      });
+      console.log("Create scheduled post request:", {
+        title,
+        body_text,
+        scheduled_date,
+        scheduled_time,
+        timezone,
+        image_url,
+        file_url,
+        file_name,
+      });
+
+    console.log(
+      "Scheduled post created:",
+      {
+        id: scheduledPost.id,
+        groupID,
+        creatorID,
+        localTime:
+          localScheduledDateTime.toISO(),
+        utcTime: scheduledAtUtc.toISO(),
+      }
+    );
+
+    return res.status(201).json({
+      message:
+        "Post scheduled successfully",
+      scheduledPost,
+    });
+  } catch (error) {
+    console.error(
+      "Create scheduled post error:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Unable to schedule post",
+    });
+  }
+};
+module.exports.handleGetScheduledPosts = async (req, res) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+
+    const groupID = Number(req.params.group_id);
+
+    if (!Number.isInteger(groupID)) {
+      return res.status(400).json({
+        error: "Invalid group_id",
+      });
+    }
+
+    const group = await groups.findByPk(groupID);
+
+    if (!group) {
+      return res.status(404).json({
+        error: "Group not found",
+      });
+    }
+    // Only retrieve posts that are "pending" and "scheduled for the future", sorted by power of time.
+    const scheduledPosts = await scheduled_posts.findAll({
+      where: {
+        group_id: groupID,
+        status: "pending",
+        scheduled_at: {
+          [Op.gt]: new Date(),
+        },
+      },
+      order: [["scheduled_at", "ASC"]],
+    });
+
+    return res.status(200).json({
+      scheduledPosts,
+    });
+  } catch (error) {
+    console.error("Get scheduled posts error:", error);
+
+    return res.status(500).json({
+      error: "Unable to load scheduled posts",
+    });
+  }
+};
+module.exports.handleGetAllScheduledPosts = async (req, res) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+
+    const groupID = Number(req.params.group_id);
+
+    if (!Number.isInteger(groupID)) {
+      return res.status(400).json({
+        error: "Invalid group_id",
+      });
+    }
+
+    const scheduledPosts = await scheduled_posts.findAll({
+      where: {
+        group_id: groupID,
+      },
+      order: [["created_at", "DESC"]],
+    });
+
+    return res.status(200).json({
+      scheduledPosts,
+    });
+  } catch (error) {
+    console.error("Get all scheduled posts error:", error);
+
+    return res.status(500).json({
+      error: "Unable to load scheduled posts",
+    });
+  }
+};
+module.exports.handleCreateWeeklyTakeawaySchedule = async (req, res) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+
+    const creatorID = decoded.id;
+    const groupID = Number(req.params.group_id);
+
+    if (!Number.isInteger(groupID)) {
+      return res.status(400).json({
+        error: "Invalid group_id",
+      });
+    }
+
+    const group = await groups.findByPk(groupID);
+
+    if (!group) {
+      return res.status(404).json({
+        error: "Group not found",
+      });
+    }
+    console.log("Controller req.body:", req.body);
+    console.log("Controller scheduled_time:", req.body.scheduled_time);
+
+    const schedule = await weekly_takeaway_schedules.create({
+      creator_id: creatorID,
+      group_id: groupID,
+      start_date: req.body.start_date,
+      end_date: req.body.end_date,
+      day_of_week: req.body.day_of_week,
+      timezone: req.body.timezone || "America/Los_Angeles",
+      scheduled_time: req.body.scheduled_time,
+      title: req.body.title,
+      body_text: req.body.body_text,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    return res.status(201).json({
+      status: "Weekly takeaway schedule created",
+      schedule,
+    });
+  } catch (error) {
+    console.error("Error creating weekly takeaway schedule:", error);
+
+    if (
+      error.name === "JsonWebTokenError" ||
+      error.name === "TokenExpiredError"
+    ) {
+      return res.status(401).json({
+        error: "Invalid or expired JWT token",
+      });
+    }
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+module.exports.handleUpdateScheduledPost = async (
+  req,
+  res
+) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    await jwtVerify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    const groupID = Number(
+      req.params.group_id
+    );
+
+    const scheduledPostID = Number(
+      req.params.scheduled_post_id
+    );
+
+    if (
+      !Number.isInteger(groupID) ||
+      !Number.isInteger(scheduledPostID)
+    ) {
+      return res.status(400).json({
+        error:
+          "Invalid group or scheduled post id",
+      });
+    }
+
+    
+    const {
+      title,
+      body_text,
+      scheduled_date,
+      scheduled_time,
+      timezone,
+      image_url,
+      file_url,
+      file_name,
+    } = req.body;
+
+    console.log(
+      "Update scheduled post request:",
+      {
+        title,
+        body_text,
+        scheduled_date,
+        scheduled_time,
+        timezone,
+        image_url,
+        file_url,
+        file_name,
+      }
+    );
+
+    const scheduledPost =
+      await scheduled_posts.findOne({
+        where: {
+          id: scheduledPostID,
+          group_id: groupID,
+        },
+      });
+
+    if (!scheduledPost) {
+      return res.status(404).json({
+        error: "Scheduled post not found",
+      });
+    }
+
+    if (scheduledPost.status !== "pending") {
+      return res.status(409).json({
+        error:
+          "Only pending scheduled posts can be edited",
+      });
+    }
+
+    const localScheduledDateTime =
+      DateTime.fromISO(
+        `${scheduled_date}T${scheduled_time}`,
+        {
+          zone: timezone,
+        }
+      );
+
+    if (!localScheduledDateTime.isValid) {
+      return res.status(400).json({
+        error:
+          "Invalid scheduled date, time, or timezone",
+      });
+    }
+
+    const scheduledAtUtc =
+      localScheduledDateTime.toUTC();
+
+    if (scheduledAtUtc <= DateTime.utc()) {
+      return res.status(400).json({
+        error:
+          "Scheduled time must be in the future",
+      });
+    }
+
+    
+    const updateData = {
+      title: title.trim(),
+      body_text: body_text.trim(),
+      scheduled_date,
+      scheduled_time,
+      timezone,
+      scheduled_at:
+        scheduledAtUtc.toJSDate(),
+    };
+
+    
+    if (
+      Object.prototype.hasOwnProperty.call(
+        req.body,
+        "image_url"
+      )
+    ) {
+      updateData.image_url =
+        image_url || null;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        req.body,
+        "file_url"
+      )
+    ) {
+      updateData.file_url =
+        file_url || null;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        req.body,
+        "file_name"
+      )
+    ) {
+      updateData.file_name =
+        file_name || null;
+    }
+
+    console.log(
+      "Scheduled post update data:",
+      updateData
+    );
+
+    await scheduledPost.update(
+      updateData
+    );
+
+    console.log(
+      "Scheduled post updated:",
+      {
+        id: scheduledPost.id,
+        groupID,
+        localTime:
+          localScheduledDateTime.toISO(),
+        utcTime:
+          scheduledAtUtc.toISO(),
+        imageUrl:
+          scheduledPost.image_url,
+        fileUrl:
+          scheduledPost.file_url,
+        fileName:
+          scheduledPost.file_name,
+      }
+    );
+
+    return res.status(200).json({
+      message:
+        "Scheduled post updated successfully",
+      scheduledPost,
+    });
+  } catch (error) {
+    console.error(
+      "Update scheduled post error:",
+      error
+    );
+
+    console.error(
+      "Update scheduled post error message:",
+      error.message
+    );
+
+    return res.status(500).json({
+      error:
+        "Unable to update scheduled post",
+      details:
+        process.env.NODE_ENV ===
+        "development"
+          ? error.message
+          : undefined,
+    });
+  }
+};
+module.exports.handleCancelScheduledPost = async (
+  req,
+  res
+) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    await jwtVerify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    const groupID = Number(req.params.group_id);
+    const scheduledPostID = Number(
+      req.params.scheduled_post_id
+    );
+
+    if (
+      !Number.isInteger(groupID) ||
+      !Number.isInteger(scheduledPostID)
+    ) {
+      return res.status(400).json({
+        error: "Invalid group or scheduled post id",
+      });
+    }
+
+    const scheduledPost =
+      await scheduled_posts.findOne({
+        where: {
+          id: scheduledPostID,
+          group_id: groupID,
+        },
+      });
+
+    if (!scheduledPost) {
+      return res.status(404).json({
+        error: "Scheduled post not found",
+      });
+    }
+
+    if (scheduledPost.status !== "pending") {
+      return res.status(409).json({
+        error:
+          "Only pending scheduled posts can be cancelled",
+      });
+    }
+
+    await scheduledPost.update({
+      status: "cancelled",
+    });
+
+    console.log(
+      "Scheduled post cancelled:",
+      {
+        id: scheduledPost.id,
+        groupID,
+      }
+    );
+
+    return res.status(200).json({
+      message:
+        "Scheduled post cancelled successfully",
+      scheduledPost,
+    });
+  } catch (error) {
+    console.error(
+      "Cancel scheduled post error:",
+      error
+    );
+
+    return res.status(500).json({
+      error:
+        "Unable to cancel scheduled post",
+    });
+  }
+};
+function getNextScheduledAt(schedule) {
+  const timezone = schedule.timezone || "America/Los_Angeles";
+
+  const now = DateTime.now().setZone(timezone).setLocale("en");
+
+  const startDate = DateTime.fromISO(schedule.start_date, {
+    zone: timezone,
+  }).startOf("day");
+
+  const endDate = DateTime.fromISO(schedule.end_date, {
+    zone: timezone,
+  }).endOf("day");
+
+  const [hour, minute] = schedule.scheduled_time.split(":").map(Number);
+
+  let currentDate = now < startDate ? startDate : now.startOf("day");
+
+  while (currentDate <= endDate) {
+    const candidate = currentDate.set({
+      hour,
+      minute,
+      second: 0,
+      millisecond: 0,
+    });
+
+    const isCorrectDay = candidate.toFormat("cccc") === schedule.day_of_week;
+
+    const isFuture = candidate > now;
+
+    if (isCorrectDay && isFuture) {
+      return candidate.toUTC().toISO();
+    }
+
+    currentDate = currentDate.plus({ days: 1 });
+  }
+
+  return null;
+}
+
+module.exports.handleGetWeeklyTakeawaySchedules = async (req, res) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return res.status(401).json({ token: null });
+  }
+
+  const groupID = req.params.group_id;
+  
+  try {
+    const schedules = await weekly_takeaway_schedules.findAll({
+      where: {
+        group_id: groupID,
+        is_active: true,
+      },
+      order: [["created_at", "DESC"]],
+    });
+
+    const schedulesWithNextRun = schedules.map((schedule) => {
+      const plainSchedule = schedule.toJSON();
+
+      return {
+        ...plainSchedule,
+        next_scheduled_at: getNextScheduledAt(plainSchedule),
+      };
+    });
+
+    res.json({
+      schedules: schedulesWithNextRun,
+    });
+  } catch (error) {
+    console.error("Error getting weekly takeaway schedules:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+module.exports.handleDeactivateWeeklyTakeawaySchedule = async (req, res) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({ error: "JWT token is required" });
+  }
+
+
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return res.status(401).json({ token: null });
+  }
+
+  const groupID = req.params.group_id;
+  const scheduleID = req.params.schedule_id;
+
+  try {
+    const schedule = await weekly_takeaway_schedules.findOne({
+      where: {
+        id: scheduleID,
+        group_id: groupID,
+      },
+    });
+
+    if (!schedule) {
+      return res.status(404).json({ error: "Schedule not found" });
+    }
+
+    await schedule.update({
+      is_active: false,
+      updated_at: new Date(),
+    });
+
+    res.json({
+      status: "Weekly takeaway schedule deactivated",
+    });
+  } catch (error) {
+    console.error("Error deactivating weekly takeaway schedule:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+module.exports.handleUpdateWeeklyTakeawaySchedule = async (req, res) => {
+  const token = getJwt(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: "JWT token is required",
+    });
+  }
+
+  try {
+    await jwtVerify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return res.status(401).json({ token: null });
+  }
+
+  const groupID = req.params.group_id;
+  const scheduleID = req.params.schedule_id;
+
+  try {
+    const schedule = await weekly_takeaway_schedules.findOne({
+      where: {
+        id: scheduleID,
+        group_id: groupID,
+        is_active: true,
+      },
+    });
+
+    if (!schedule) {
+      return res.status(404).json({
+        error: "Weekly takeaway schedule not found",
+      });
+    }
+
+    const {
+      title,
+      body_text,
+      start_date,
+      end_date,
+      day_of_week,
+      scheduled_time,
+      timezone,
+    } = req.body;
+
+    await schedule.update({
+      title,
+      body_text,
+      start_date,
+      end_date,
+      day_of_week,
+      scheduled_time,
+      timezone,
+    });
+
+    return res.status(200).json({
+      status: "Weekly takeaway schedule updated",
+      schedule,
+    });
+  } catch (error) {
+    console.error(
+      "Error updating weekly takeaway schedule:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
 };

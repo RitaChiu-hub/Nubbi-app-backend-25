@@ -18,8 +18,24 @@ module.exports.getS3PresignedUrl = async (req, res) => {
       console.warn("[getS3PresignedUrl] Missing fileName or fileType");
       return res.status(400).json({ error: "fileName and fileType are required" });
     }
+    // Only retrieve the filename itself, remove any path information
+    const originalFileName = String(fileName || "")
+  .split(/[\\/]/)
+  .pop();
+// Further clean up the file names to create "safe file names".
+const safeFileName = originalFileName
+  .trim()
+  .replace(/\s+/g, "-")
+  .replace(/[^a-zA-Z0-9._-]/g, "_");
+// Use the cleaned filenames to form the final S3 key, and add a timestamp to avoid filename conflicts.
+const key = `uploads/${Date.now()}-${safeFileName}`;
 
-    const key = `uploads/${Date.now()}-${fileName}`;
+console.log("[getS3PresignedUrl]", {
+  originalFileName,
+  safeFileName,
+  key,
+  fileType,
+});
     console.log("[getS3PresignedUrl] Generating URL for key:", key);
     
     const command = new PutObjectCommand({

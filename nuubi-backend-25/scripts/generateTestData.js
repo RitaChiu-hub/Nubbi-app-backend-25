@@ -35,7 +35,7 @@ async function seed() {
     const passhash = await bcrypt.hash("password123", 10);
     
     // Create Admin
-    const adminId = "admin-1";
+    const adminId = uuidv4();
     await client.query(
       "INSERT INTO users (id, email, username, passhash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
       [adminId, "admin@nuubi.com", "Professor_Zou", passhash]
@@ -44,7 +44,7 @@ async function seed() {
     // Create 100 Students
     const studentIds = [];
     for (let i = 1; i <= 100; i++) {
-      const sid = `student-${i}`;
+      const sid = uuidv4();
       await client.query(
         "INSERT INTO users (id, email, username, passhash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
         [sid, `student${i}@nuubi.com`, `Student_${i}`, passhash]

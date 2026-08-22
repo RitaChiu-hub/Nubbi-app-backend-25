@@ -93,6 +93,60 @@ const createPostSchema = Yup.object({
     .max(6000, "body text cannot exceed 6000 characters"),
 });
 
+const createWeeklyTakeawayScheduleSchema = Yup.object({
+  start_date: Yup.date().required("Start date is required"),
+
+  end_date: Yup.date()
+    .required("End date is required")
+    .min(
+      Yup.ref("start_date"),
+      "End date must be on or after start date"
+    ),
+
+  day_of_week: Yup.string()
+    .required("Day of week is required")
+    .oneOf(
+      [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ],
+      "Invalid day of week"
+    ),
+
+    timezone: Yup.string()
+    .oneOf(
+      [
+        "America/Los_Angeles",
+        "America/Chicago",
+        "America/New_York",
+      ],
+      "Invalid timezone"
+    )
+    .default("America/Los_Angeles"),
+  
+  scheduled_time: Yup.string()
+    .required("Scheduled time is required")
+    .matches(
+      /^([01]\d|2[0-3]):([0-5]\d)$/,
+      "Scheduled time must be in HH:mm format"
+    ),  
+
+  title: Yup.string()
+    .required("Title is required")
+    .min(1, "Title must be at least one character")
+    .max(80, "Title cannot exceed 80 characters"),
+
+  body_text: Yup.string()
+    .required("Body text is required")
+    .min(1, "Body text must be at least one character")
+    .max(6000, "Body text cannot exceed 6000 characters"),
+});
+
 const changeUsernameSchema = Yup.object({
   username: Yup.string()
     .required("Username required")
@@ -104,7 +158,96 @@ const changeUsernameSchema = Yup.object({
     ),
   password: Yup.string().required("Password required"),
 });
+const getTodayForTimezone = (timezone) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
 
+  const year = parts.find(
+    (part) => part.type === "year"
+  )?.value;
+
+  const month = parts.find(
+    (part) => part.type === "month"
+  )?.value;
+
+  const day = parts.find(
+    (part) => part.type === "day"
+  )?.value;
+
+  return `${year}-${month}-${day}`;
+};
+
+
+const createScheduledPostSchema = Yup.object({
+  title: Yup.string()
+    .trim()
+    .max(80, "Title must be 80 characters or fewer.")
+    .required("Title is required."),
+
+  body_text: Yup.string()
+    .trim()
+    .required("Post content is required."),
+
+    scheduled_date: Yup.string()
+    .matches(
+      /^\d{4}-\d{2}-\d{2}$/,
+      "Scheduled date must use YYYY-MM-DD format."
+    )
+    .required("Scheduled date is required.")
+    .test(
+      "is-today-or-future",
+      "Scheduled date must be today or in the future.",
+      function (value) {
+        if (!value) return false;
+    
+        const timezone =
+          this.parent.timezone ||
+          "America/Los_Angeles";
+    
+        const today =
+          getTodayForTimezone(timezone);
+    
+        return value >= today;
+      }
+    ),
+
+    scheduled_time: Yup.string()
+    .matches(
+      /^([01]\d|2[0-3]):[0-5]\d$/,
+      "Scheduled time must use HH:mm format."
+    )
+    .required("Scheduled time is required.")
+    .test(
+      "is-future-time",
+      "Scheduled time must be in the future.",
+      function (value) {
+        const { scheduled_date, timezone } = this.parent;
+        if (!value || !scheduled_date || !timezone) return true;
+  
+        const now = new Date();
+        const scheduledDateTime = new Date(
+          `${scheduled_date}T${value}:00`
+        ).toLocaleString("en-US", { timeZone: timezone });
+  
+        return new Date(scheduledDateTime) > now;
+      }
+    ),
+
+  timezone: Yup.string()
+    .oneOf(
+      [
+        "America/Los_Angeles",
+        "America/Chicago",
+        "America/New_York",
+      ],
+      "Invalid timezone."
+    )
+    .required("Timezone is required."),
+});
 module.exports = {
   formSchema,
   newPasswordSchema,
@@ -115,4 +258,6 @@ module.exports = {
   createPostSchema,
   addCommentSchema,
   changeUsernameSchema,
+  createWeeklyTakeawayScheduleSchema,
+  createScheduledPostSchema,
 };
