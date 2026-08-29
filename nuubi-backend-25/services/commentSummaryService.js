@@ -12,9 +12,24 @@ const SUMMARY_THRESHOLD = parseInt(process.env.COMMENT_SUMMARY_THRESHOLD || "5",
 // a concern and near-real-time freshness isn't critical.
 const SUMMARY_REGEN_INTERVAL = parseInt(process.env.COMMENT_SUMMARY_REGEN_INTERVAL || "1", 10);
 const AI_MODEL = process.env.OPENAI_COMMENT_MODEL || "gpt-4o-mini";
+// Must match the model used for group_knowledge / group_knowledge_keywords
+// embeddings, so vectors are directly comparable.
+const EMBEDDING_MODEL = "text-embedding-3-small";
+// Cosine distance cutoff (0 = identical, 2 = opposite) for treating a
+// dictionary keyword as "relevant enough" to use as a tag. Keywords farther
+// than this are ignored even if they're the closest match available.
+const KEYWORD_MATCH_DISTANCE_CUTOFF = parseFloat(process.env.KEYWORD_MATCH_DISTANCE_CUTOFF || "0.35");
 // Same fixed Cuubi user id used everywhere else in the codebase
 // (groupChatController.js, groupController.js post-tagging, etc.)
 const CUUBI_USER_ID = "205851f3-f034-4316-b278-9c962443a5d5";
+// Embed text with the SAME model used for group_knowledge / keyword
+// dictionary embeddings, so vectors are directly comparable via pgvector.
+async function embedText(text) {
+  const res = await openai.embeddings.create({ model: EMBEDDING_MODEL, input: text });
+  return res.data[0].embedding;
+}
+
+
 
 // Check whether it's time to (re)generate the AI summary of a post's comment
 // thread, and do so if needed.
@@ -42,7 +57,7 @@ module.exports.maybeUpdateCommentSummary = async (postId) => {
   const {
     rows: [postRow],
   } = await pool.query(
-    `SELECT comment_summary_count FROM posts WHERE id = $1`,
+    `SELECT comment_summary_count, group_id FROM posts WHERE id = $1`,
     [postId]
   );
   if (!postRow) {
@@ -50,6 +65,7 @@ module.exports.maybeUpdateCommentSummary = async (postId) => {
     return;
   }
   const lastSummaryCount = postRow.comment_summary_count || 0;
+  const groupId = postRow.group_id;
   console.log(`[CommentSummary] post ${postId}: lastSummaryCount=${lastSummaryCount}, regenInterval=${SUMMARY_REGEN_INTERVAL}`);
 
   // Already summarized at/above the threshold once (lastSummaryCount > 0),
@@ -119,12 +135,12 @@ module.exports.maybeUpdateCommentSummary = async (postId) => {
   }
 
   let summaryText;
-  let keywords = [];
+  let llmKeywords = [];
   try {
     const parsed = JSON.parse(rawContent);
     summaryText = typeof parsed.summary === "string" ? parsed.summary.trim() : null;
     if (Array.isArray(parsed.keywords)) {
-      keywords = parsed.keywords
+      llmKeywords = parsed.keywords
         .filter((k) => typeof k === "string" && k.trim())
         .map((k) => k.trim());
     }
@@ -139,7 +155,38 @@ module.exports.maybeUpdateCommentSummary = async (postId) => {
     console.log(`[CommentSummary] post ${postId}: parsed summaryText was empty, skipping update.`);
     return;
   }
-
+  
+  // 📚 Prefer real vocabulary from this group's knowledge base over
+  // LLM-invented keywords: embed the summary, then find the closest
+  // matching terms in group_knowledge_keywords (built from the group's
+  // actual course material) via pgvector cosine distance. Falls back to
+  // the LLM's own keyword guesses if the dictionary is empty for this
+  // group, or nothing matches closely enough.
+  let keywords = llmKeywords;
+  try {
+    const summaryEmbedding = await embedText(summaryText);
+    const { rows: matches } = await pool.query(
+      `SELECT keyword, embedding <=> $1::vector AS distance
+       FROM group_knowledge_keywords
+       WHERE group_id = $2
+       ORDER BY embedding <=> $1::vector
+       LIMIT 6`,
+      [JSON.stringify(summaryEmbedding), groupId]
+    );
+    const dictMatches = matches
+      .filter((m) => m.distance <= KEYWORD_MATCH_DISTANCE_CUTOFF)
+      .map((m) => m.keyword);
+ 
+    if (dictMatches.length > 0) {
+      keywords = dictMatches;
+      console.log(`[CommentSummary] post ${postId}: using ${dictMatches.length} keyword(s) matched from knowledge dictionary.`);
+    } else {
+      console.log(`[CommentSummary] post ${postId}: no close dictionary matches (group ${groupId}), falling back to LLM keywords.`);
+    }
+  } catch (err) {
+    console.error(`[CommentSummary] post ${postId}: dictionary keyword matching failed, falling back to LLM keywords:`, err.message);
+  }
+ 
   await pool.query(
     `UPDATE posts SET comment_summary = $1, comment_summary_keywords = $2, comment_summary_count = $3 WHERE id = $4`,
     [summaryText, keywords.join(", "), commentCount, postId]

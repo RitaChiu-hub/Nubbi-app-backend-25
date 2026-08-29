@@ -7,6 +7,74 @@ const { Client } = require("pg");
 const s3 = new S3Client({ region: process.env.AWS_REGION });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+
+const KEYWORD_EXTRACTION_MODEL = process.env.KEYWORD_EXTRACTION_MODEL || "gpt-4o-mini";
+ 
+// Same keyword-extraction approach as services/keywordDictionaryService.js in
+// the main backend repo. Duplicated here (rather than imported) because this
+// Lambda is a separately deployed package with its own dependencies — keep
+// the two in sync if the extraction prompt ever changes.
+async function extractKeywords(chunkText) {
+  const completion = await openai.chat.completions.create({
+    model: KEYWORD_EXTRACTION_MODEL,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "Extract the key terms/concepts from a piece of course material. " +
+          'Respond with ONLY a JSON object: {"keywords": ["...", "..."]}. ' +
+          "List 3-8 short, specific terms or phrases (e.g. \"event horizon\", " +
+          "\"supply and demand\") that a student would recognize as topics " +
+          "from this material. No full sentences, no duplicates, no generic " +
+          "words like \"example\" or \"chapter\".",
+      },
+      { role: "user", content: chunkText },
+    ],
+    max_tokens: 200,
+  });
+ 
+  const raw = completion.choices?.[0]?.message?.content?.trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.keywords)) return [];
+    return parsed.keywords.filter((k) => typeof k === "string" && k.trim()).map((k) => k.trim());
+  } catch (err) {
+    console.warn("Failed to parse keyword extraction JSON:", err.message);
+    return [];
+  }
+}
+ 
+// Extract + embed + store keywords for one chunk. Errors here are logged and
+// swallowed rather than thrown, so a keyword-extraction hiccup never fails
+// the whole knowledge-processing job (the chunk/embedding itself already
+// succeeded by the time this runs).
+async function storeKeywordsForChunk(dbClient, groupId, knowledgeId, chunkText) {
+  try {
+    const keywords = await extractKeywords(chunkText);
+    for (const keyword of keywords) {
+      try {
+        const embeddingResponse = await openai.embeddings.create({
+          model: "text-embedding-3-small",
+          input: keyword,
+        });
+        const embedding = embeddingResponse.data[0].embedding;
+        await dbClient.query(
+          `INSERT INTO group_knowledge_keywords (group_id, keyword, embedding, source_knowledge_id, created_at, updated_at)
+           VALUES ($1, $2, $3::vector, $4, NOW(), NOW())
+           ON CONFLICT (group_id, keyword) DO NOTHING`,
+          [groupId, keyword, JSON.stringify(embedding), knowledgeId]
+        );
+      } catch (err) {
+        console.error(`Failed to store keyword "${keyword}":`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error(`Keyword extraction failed for knowledgeId ${knowledgeId}:`, err.message);
+  }
+}
+
 exports.handler = async (event) => {
   const dbClient = new Client({
     connectionString: process.env.DATABASE_URL,
@@ -70,16 +138,26 @@ exports.handler = async (event) => {
             'UPDATE group_knowledge SET content = $1, embedding = $2::vector WHERE id = $3',
             [chunk, JSON.stringify(embedding), knowledgeId]
           );
+ 
+          // 📚 Extract key terms from this chunk into the keyword
+          // dictionary (group_knowledge_keywords), used later for tagging
+          // comment-thread summaries against real course vocabulary instead
+          // of having the LLM invent keywords on the spot.
+          const res = await dbClient.query('SELECT group_id FROM group_knowledge WHERE id = $1', [knowledgeId]);
+          await storeKeywordsForChunk(dbClient, res.rows[0].group_id, knowledgeId, chunk);
         } else {
           // Create new records for additional chunks
           // Note: You might want to fetch groupId from the original record first
           const res = await dbClient.query('SELECT group_id FROM group_knowledge WHERE id = $1', [knowledgeId]);
           const groupId = res.rows[0].group_id;
-
-          await dbClient.query(
-            'INSERT INTO group_knowledge (group_id, content, embedding, file_name, s3_key, created_at, updated_at) VALUES ($1, $2, $3::vector, $4, $5, NOW(), NOW())',
+ 
+          const insertRes = await dbClient.query(
+            'INSERT INTO group_knowledge (group_id, content, embedding, file_name, s3_key, created_at, updated_at) VALUES ($1, $2, $3::vector, $4, $5, NOW(), NOW()) RETURNING id',
             [groupId, chunk, JSON.stringify(embedding), fileName, s3Key]
           );
+ 
+          // 📚 Same keyword extraction for every additional chunk.
+          await storeKeywordsForChunk(dbClient, groupId, insertRes.rows[0].id, chunk);
         }
       }
 

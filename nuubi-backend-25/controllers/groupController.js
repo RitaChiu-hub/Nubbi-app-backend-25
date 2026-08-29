@@ -1450,8 +1450,8 @@ module.exports.handleGetPosts = async (req, res) => {
 
 module.exports.handleGetPostInfo = async (req, res) => {
   try {
-    const getPostInfoQuery = await pool.query(
-      `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
+        const getPostInfoQuery = await pool.query(
+      `SELECT title AS post_title, body_text, username AS post_author, avatar_url, image_url, file_url, file_name, comment_summary, comment_summary_keywords, posts.created_at AS iso_time_sent FROM posts INNER JOIN users ON posts.sender_id = users.id WHERE posts.id = $1;`,
       [req.body.currentPost]
     );
 
@@ -1617,7 +1617,7 @@ module.exports.handleCreateComment = async (req, res) => {
             })
             .catch(err => console.error("[Comment] Cuubi RAG error:", err));
         }
-
+        
         return res.json({
           ...req.body,
           status: "Comment successfully created",
