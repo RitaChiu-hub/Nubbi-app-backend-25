@@ -22,6 +22,14 @@ router.use("/:groupId/knowledge", jwtVerifyMiddleware, loadGroupRole);
 router.get("/:groupId/knowledge", knowledgeController.list);
 
 /**
+ * GET /groups/:groupId/knowledge/:id
+ * Get a single knowledge base item's content — used when a user clicks a
+ * keyword tag on a comment-thread summary to view its source material.
+ * No admin requirement: any group member can view knowledge, same as list.
+ */
+router.get("/:groupId/knowledge/:id", knowledgeController.getOne);
+
+/**
  * POST /groups/:groupId/knowledge/presigned-url
  * Get S3 URL for uploading a file (Admin only)
  */

@@ -77,7 +77,25 @@ class KnowledgeController {
       return res.status(500).json({ error: "Internal server error" });
     }
   }
-
+  
+  /**
+   * Get a single knowledge base item (used when a user clicks a keyword
+   * tag on a comment-thread summary to see the source material it came from)
+   */
+  async getOne(req, res) {
+    try {
+      const { groupId, id } = req.params;
+      const item = await knowledgeService.getKnowledgeItem(id, groupId);
+      if (!item) {
+        return res.status(404).json({ error: "Knowledge item not found" });
+      }
+      return res.json(item);
+    } catch (err) {
+      console.error("[KnowledgeController] Error in getOne:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+ 
   /**
    * Delete a knowledge base item
    */

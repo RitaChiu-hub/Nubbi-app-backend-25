@@ -18,7 +18,10 @@ const EMBEDDING_MODEL = "text-embedding-3-small";
 // Cosine distance cutoff (0 = identical, 2 = opposite) for treating a
 // dictionary keyword as "relevant enough" to use as a tag. Keywords farther
 // than this are ignored even if they're the closest match available.
-const KEYWORD_MATCH_DISTANCE_CUTOFF = parseFloat(process.env.KEYWORD_MATCH_DISTANCE_CUTOFF || "0.35");
+const KEYWORD_MATCH_DISTANCE_CUTOFF = parseFloat(process.env.KEYWORD_MATCH_DISTANCE_CUTOFF || "0.45");
+// Total number of keyword tags to show per summary (dictionary matches +
+// LLM-generated supplements combined).
+const MAX_KEYWORDS = parseInt(process.env.MAX_SUMMARY_KEYWORDS || "6", 10);
 // Same fixed Cuubi user id used everywhere else in the codebase
 // (groupChatController.js, groupController.js post-tagging, etc.)
 const CUUBI_USER_ID = "205851f3-f034-4316-b278-9c962443a5d5";
@@ -156,17 +159,23 @@ module.exports.maybeUpdateCommentSummary = async (postId) => {
     return;
   }
   
-  // 📚 Prefer real vocabulary from this group's knowledge base over
+ // 📚 Prefer real vocabulary from this group's knowledge base over
   // LLM-invented keywords: embed the summary, then find the closest
   // matching terms in group_knowledge_keywords (built from the group's
   // actual course material) via pgvector cosine distance. Falls back to
   // the LLM's own keyword guesses if the dictionary is empty for this
   // group, or nothing matches closely enough.
-  let keywords = llmKeywords;
+  //
+  // Each keyword is stored as { keyword, knowledgeId } — knowledgeId points
+  // back to the group_knowledge chunk it came from (source_knowledge_id),
+  // so the frontend can let someone click a tag and see the actual course
+  // material it's grounded in. LLM-fallback keywords have knowledgeId: null
+  // since they aren't tied to any real source.
+  let keywords = llmKeywords.map((k) => ({ keyword: k, knowledgeId: null }));
   try {
     const summaryEmbedding = await embedText(summaryText);
     const { rows: matches } = await pool.query(
-      `SELECT keyword, embedding <=> $1::vector AS distance
+      `SELECT keyword, source_knowledge_id, embedding <=> $1::vector AS distance
        FROM group_knowledge_keywords
        WHERE group_id = $2
        ORDER BY embedding <=> $1::vector
@@ -175,13 +184,34 @@ module.exports.maybeUpdateCommentSummary = async (postId) => {
     );
     const dictMatches = matches
       .filter((m) => m.distance <= KEYWORD_MATCH_DISTANCE_CUTOFF)
-      .map((m) => m.keyword);
+      .map((m) => ({ keyword: m.keyword, knowledgeId: m.source_knowledge_id }));
+ 
+    // Always log the actual top candidates + their distances, even when
+    // none pass the cutoff — this is the only way to tell whether the
+    // cutoff itself is miscalibrated vs. the content genuinely being
+    // unrelated to anything in the dictionary.
+    console.log(
+      `[CommentSummary] post ${postId}: top dictionary candidates — ` +
+        matches.map((m) => `"${m.keyword}" (distance=${Number(m.distance).toFixed(3)})`).join(", ")
+    );
  
     if (dictMatches.length > 0) {
-      keywords = dictMatches;
-      console.log(`[CommentSummary] post ${postId}: using ${dictMatches.length} keyword(s) matched from knowledge dictionary.`);
+      // Mixed mode: dictionary matches lead (clickable, grounded in real
+      // course material), then fill any remaining slots with LLM-generated
+      // keywords not already covered — so the tag list still gives full
+      // topic coverage instead of shrinking down to just the 1-2 terms
+      // that happened to match the dictionary.
+      const usedKeywordsLower = new Set(dictMatches.map((m) => m.keyword.toLowerCase()));
+      const supplementary = llmKeywords
+        .filter((k) => !usedKeywordsLower.has(k.toLowerCase()))
+        .map((k) => ({ keyword: k, knowledgeId: null }));
+      keywords = [...dictMatches, ...supplementary].slice(0, MAX_KEYWORDS);
+      console.log(
+        `[CommentSummary] post ${postId}: using ${dictMatches.length} dictionary keyword(s) + ` +
+          `${keywords.length - dictMatches.length} LLM keyword(s) as supplement.`
+      );
     } else {
-      console.log(`[CommentSummary] post ${postId}: no close dictionary matches (group ${groupId}), falling back to LLM keywords.`);
+      console.log(`[CommentSummary] post ${postId}: no close dictionary matches (group ${groupId}), using LLM keywords only.`);
     }
   } catch (err) {
     console.error(`[CommentSummary] post ${postId}: dictionary keyword matching failed, falling back to LLM keywords:`, err.message);
@@ -189,7 +219,8 @@ module.exports.maybeUpdateCommentSummary = async (postId) => {
  
   await pool.query(
     `UPDATE posts SET comment_summary = $1, comment_summary_keywords = $2, comment_summary_count = $3 WHERE id = $4`,
-    [summaryText, keywords.join(", "), commentCount, postId]
+    [summaryText, JSON.stringify(keywords), commentCount, postId]
   );
   console.log(`[CommentSummary] post ${postId}: summary updated successfully (comment_summary_count now ${commentCount}).`);
 };
+ 

@@ -117,6 +117,31 @@ class KnowledgeService {
   }
 
   /**
+   * Get a single knowledge base item by id, with content and a fresh
+   * presigned fileUrl. Used to show the source material behind a keyword
+   * tag on a comment-thread summary.
+   */
+  async getKnowledgeItem(id, groupId) {
+    const item = await group_knowledge.findOne({
+      where: { id, groupId: groupId },
+      attributes: ["id", "fileName", "content", "createdAt", "s3Key"],
+    });
+    if (!item) return null;
+ 
+    const plainItem = item.get({ plain: true });
+    if (plainItem.s3Key) {
+      const command = new GetObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Key: plainItem.s3Key,
+      });
+      plainItem.fileUrl = await getSignedUrl(s3Client, command, {
+        expiresIn: 3600,
+      });
+    }
+    return plainItem;
+  }
+  
+  /**
    * Search for relevant knowledge chunks using vector similarity
    * @param {string} queryText - The user's question
    * @param {number} groupId - The group ID to search within
